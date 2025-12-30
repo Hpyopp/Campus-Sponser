@@ -1,32 +1,37 @@
 const mongoose = require('mongoose');
 
-const userSchema = new mongoose.Schema({
+const userSchema = mongoose.Schema({
     name: {
         type: String,
-        required: [true, 'Please add a name']
+        required: [true, 'Please add a name'],
     },
     email: {
         type: String,
         required: [true, 'Please add an email'],
-        unique: true
+        unique: true,
     },
     password: {
         type: String,
-        required: [true, 'Please add a password']
+        required: [true, 'Please add a password'],
     },
     role: {
         type: String,
-        enum: ['student', 'sponsor'], // Sirf ye do values allowed hain
-        default: 'student'
+        enum: ['student', 'sponsor', 'admin'], 
+        default: 'student',
     },
-    collegeName: {
-        type: String, // Sirf students ke liye
+    // 👇 KYC Fields
+    isVerified: {
+        type: Boolean,
+        default: false, 
     },
-    companyName: {
-        type: String, // Sirf sponsors ke liye
-    }
+    verificationDoc: {
+        type: String, 
+        default: ''
+    },
+    companyWebsite: { type: String, default: '' },
+    industry: { type: String, default: '' }
 }, {
-    timestamps: true // CreatedAt aur UpdatedAt khud ban jayega
+    timestamps: true,
 });
 
 module.exports = mongoose.model('User', userSchema);

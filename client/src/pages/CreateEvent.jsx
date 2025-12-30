@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
@@ -8,16 +8,26 @@ const CreateEvent = () => {
     instagram: '', linkedin: ''
   });
   const [imageFile, setImageFile] = useState(null);
-  const [loading, setLoading] = useState(false); // Upload loading state
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
 
-  if (!user) { navigate('/login'); return null; }
+  // 👇 SECURITY CHECK (The Bouncer) 🚧
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+    } else if (!user.isVerified) {
+      // Agar verified nahi hai, toh bhaga do Verify page pe
+      alert("⚠️ Access Denied! You must verify your Identity first.");
+      navigate('/verify');
+    }
+  }, [user, navigate]);
+
+  // Agar user nahi hai toh null return karo (Crash se bachne ke liye)
+  if (!user) return null;
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-  
-  // File Change Handler
   const handleFileChange = (e) => setImageFile(e.target.files[0]);
 
   const handleSubmit = async (e) => {
@@ -25,7 +35,6 @@ const CreateEvent = () => {
     setLoading(true);
 
     const data = new FormData();
-    // Saara data FormData mein append karo
     Object.keys(formData).forEach(key => data.append(key, formData[key]));
     if (imageFile) data.append('image', imageFile);
 
@@ -33,11 +42,11 @@ const CreateEvent = () => {
       const config = {
         headers: {
           Authorization: `Bearer ${user.token}`,
-          'Content-Type': 'multipart/form-data', // Zaroori hai
+          'Content-Type': 'multipart/form-data',
         },
       };
       await axios.post('/api/events', data, config);
-      alert('Event Created Successfully!');
+      alert('Event Created Successfully! Wait for Approval.');
       navigate('/');
     } catch (error) {
       console.error(error);
@@ -70,16 +79,16 @@ const CreateEvent = () => {
             </select>
           </div>
 
-          {/* 👇 FILE UPLOAD */}
+          {/* File Upload */}
           <div>
-            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Event Poster (Upload)</label>
+            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Event Poster</label>
             <input type="file" accept="image/*" onChange={handleFileChange} style={{ ...inputStyle, background: '#f9f9f9' }} />
           </div>
 
-          {/* 👇 SOCIAL LINKS */}
+          {/* Social Links */}
           <div style={{ display: 'flex', gap: '10px' }}>
-            <input type="url" name="instagram" placeholder="Instagram URL (Optional)" onChange={handleChange} style={{ ...inputStyle, flex: 1 }} />
-            <input type="url" name="linkedin" placeholder="LinkedIn URL (Optional)" onChange={handleChange} style={{ ...inputStyle, flex: 1 }} />
+            <input type="url" name="instagram" placeholder="Instagram URL" onChange={handleChange} style={{ ...inputStyle, flex: 1 }} />
+            <input type="url" name="linkedin" placeholder="LinkedIn URL" onChange={handleChange} style={{ ...inputStyle, flex: 1 }} />
           </div>
 
           <textarea name="description" rows="4" placeholder="Description..." required onChange={handleChange} style={inputStyle}></textarea>
@@ -87,7 +96,7 @@ const CreateEvent = () => {
           <button type="submit" disabled={loading} style={{ 
             background: loading ? '#ccc' : '#2563eb', color: 'white', padding: '12px', border: 'none', borderRadius: '5px', cursor: 'pointer' 
           }}>
-            {loading ? 'Uploading Image... ⏳' : 'Submit Event 📩'}
+            {loading ? 'Uploading... ⏳' : 'Submit Event 📩'}
           </button>
         </form>
       </div>

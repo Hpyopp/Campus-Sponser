@@ -4,7 +4,8 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import CreateEvent from './pages/CreateEvent';
-import AdminDashboard from './pages/AdminDashboard'; // 👈 YE IMPORT MISSING THA SHAYAD
+import AdminDashboard from './pages/AdminDashboard';
+import Verify from './pages/Verify'; // 👈 Step 1: Import kiya
 
 function App() {
   return (
@@ -16,7 +17,9 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/create-event" element={<CreateEvent />} />
         
-        {/* 👇 Admin Route */}
+        {/* 👇 Step 2: Naya Route Add kiya */}
+        <Route path="/verify" element={<Verify />} />
+        
         <Route path="/admin" element={<AdminDashboard />} />
       </Routes>
     </Router>
