@@ -1,89 +1,80 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 
 const Home = () => {
   const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
   const user = JSON.parse(localStorage.getItem('user'));
 
-  const fetchEvents = async () => {
-    try {
-      const res = await axios.get('/api/events');
-      setEvents(res.data);
-      setLoading(false);
-    } catch (err) {
-      console.error(err);
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        // Backend se sirf Approved events aayenge
+        const { data } = await axios.get('/api/events');
+        setEvents(data);
+      } catch (error) {
+        console.error(error);
+      }
+    };
     fetchEvents();
   }, []);
 
-  const handleSponsor = async (eventId) => {
-    if(!confirm("Are you sure you want to sponsor this event?")) return;
-    try {
-      const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      await axios.put(`/api/events/${eventId}/sponsor`, {}, config);
-      alert("Thanks for Sponsoring! 🎉");
-      fetchEvents();
-    } catch (error) {
-      alert(error.response?.data?.message || "Error sponsoring");
-    }
-  };
-
-  if (loading) return <div className="container"><h2>Loading amazing events... ⏳</h2></div>;
-
   return (
-    <div className="container">
+    <div className="container" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
       
-      <div className="header-flex">
-        <h1>🔥 Trending Events</h1>
-        {user && (
-          <Link to="/create-event" className="btn btn-primary">+ Create Event</Link>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>🔥 Trending Events</h1>
+        
+        {/* 👇 FIX 1: Ye Button sirf 'student' ko dikhega */}
+        {user && user.role === 'student' && (
+          <Link to="/create-event" style={{ 
+            background: '#2563eb', color: 'white', padding: '10px 20px', 
+            borderRadius: '5px', textDecoration: 'none', fontWeight: 'bold' 
+          }}>
+            + Create Event
+          </Link>
         )}
       </div>
 
-      <div className="grid">
-        {events.map((event) => {
-          const isSponsored = event.sponsors.some(s => s._id === user?._id || s === user?._id);
-          const date = new Date(event.date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+        {events.map((event) => (
+          <div key={event._id} style={{ 
+            background: 'white', padding: '20px', borderRadius: '10px', 
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #eee' 
+          }}>
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '10px' }}>{event.title}</h2>
+            <p>📅 {event.date}</p>
+            <p>📍 {event.location}</p>
+            <p>💰 ₹{event.budget}</p>
+            <p style={{ color: '#666', margin: '10px 0' }}>{event.description}</p>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px' }}>
+              <span style={{ 
+                background: '#e0f2fe', color: '#0369a1', padding: '5px 10px', 
+                borderRadius: '15px', fontSize: '0.8rem', fontWeight: 'bold' 
+              }}>
+                {event.category}
+              </span>
 
-          return (
-            <div key={event._id} className="card">
-              <h2 className="card-title">{event.title}</h2>
-              
-              <div className="card-info">📅 {date}</div>
-              <div className="card-info">📍 {event.location}</div>
-              <div className="card-info">💰 ₹{event.budget.toLocaleString()}</div>
-              
-              <p style={{ margin: '15px 0', color: '#555', fontSize: '0.9rem' }}>
-                {event.description.length > 100 ? event.description.substring(0, 100) + "..." : event.description}
-              </p>
-              
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                  <span className="badge">{event.category}</span>
-                  {event.sponsors.length > 0 && (
-                      <span style={{color: '#16a34a', fontWeight: 'bold', fontSize: '0.85rem'}}>
-                          ✅ {event.sponsors.length} Sponsors
-                      </span>
-                  )}
-              </div>
-
-              {user && user.role === 'sponsor' && (
-                <button 
-                    onClick={() => handleSponsor(event._id)} 
-                    disabled={isSponsored}
-                    className="btn btn-sponsor"
+              {/* 👇 FIX 2: WhatsApp Sponsor Button (No Error, Direct Business) */}
+              {user && user.role === 'sponsor' ? (
+                <a 
+                  href={`https://wa.me/919022489860?text=Hi, I want to sponsor ${event.title}`} 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    background: '#f59e0b', color: 'white', padding: '8px 15px', 
+                    borderRadius: '5px', textDecoration: 'none', fontWeight: 'bold', cursor: 'pointer'
+                  }}
                 >
-                    {isSponsored ? '✨ Already Sponsored' : '🤝 Sponsor Now'}
-                </button>
+                  🤝 Sponsor Now
+                </a>
+              ) : (
+                <span style={{ color: 'green', fontSize: '0.9rem' }}>✅ {event.sponsors?.length || 0} Sponsors</span>
               )}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );
