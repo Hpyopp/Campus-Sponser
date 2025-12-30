@@ -112,7 +112,7 @@ const Home = () => {
               {/* Sponsor Button Logic */}
               {user && user.role === 'sponsor' ? (
                 <a 
-                  href={`https://wa.me/91XXXXXXXXXX?text=Hi, I want to sponsor ${event.title}`} 
+                  href={`https://wa.me/91902248960?text=Hi, I want to sponsor ${event.title}`} 
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
