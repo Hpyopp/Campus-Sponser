@@ -27,3 +27,16 @@ const protect = async (req, res, next) => {
 };
 
 module.exports = { protect };
+// ... Upar wala code waise hi rehne de ...
+
+// Admin Check Middleware
+const adminOnly = (req, res, next) => {
+    if (req.user && req.user.role === 'admin') {
+        next();
+    } else {
+        res.status(401).json({ message: 'Not authorized as admin' });
+    }
+};
+
+// Export update kar (adminOnly add kar)
+module.exports = { protect, adminOnly };

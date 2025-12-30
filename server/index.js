@@ -21,6 +21,7 @@ app.use(express.json());
 // 👇 ROUTES USKE BAAD AATE HAIN
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/events', require('./routes/eventRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
 
 // Test Route
 app.get('/', (req, res) => {
