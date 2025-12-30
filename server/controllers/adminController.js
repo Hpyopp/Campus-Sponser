@@ -11,11 +11,27 @@ const getAllUsers = async (req, res) => {
     }
 };
 
-// @desc    Get all events
+// @desc    Get ALL events (Pending + Approved) for Admin
 const getAllEvents = async (req, res) => {
     try {
         const events = await Event.find({}).populate('organizer', 'name email');
         res.json(events);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Approve an Event
+const approveEvent = async (req, res) => {
+    try {
+        const event = await Event.findById(req.params.id);
+        if (event) {
+            event.status = 'approved';
+            await event.save();
+            res.json({ message: 'Event Approved & Live! 🚀' });
+        } else {
+            res.status(404).json({ message: 'Event not found' });
+        }
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -51,4 +67,4 @@ const deleteUser = async (req, res) => {
     }
 };
 
-module.exports = { getAllUsers, getAllEvents, deleteEvent, deleteUser };
+module.exports = { getAllUsers, getAllEvents, deleteEvent, deleteUser, approveEvent };

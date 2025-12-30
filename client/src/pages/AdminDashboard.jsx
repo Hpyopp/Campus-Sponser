@@ -31,17 +31,28 @@ const AdminDashboard = () => {
     }
   };
 
+  // Delete Function
   const deleteHandler = async (id, type) => {
     if (window.confirm(`Are you sure you want to delete this ${type}?`)) {
       try {
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
-        // Delete request bhejo
         await axios.delete(`/api/admin/${type}s/${id}`, config);
-        fetchData(); // List refresh karo
-        alert(`${type} Deleted!`);
+        fetchData(); // List refresh
       } catch (error) {
         alert('Delete failed');
       }
+    }
+  };
+
+  // Approve Function
+  const approveHandler = async (id) => {
+    try {
+        const config = { headers: { Authorization: `Bearer ${user.token}` } };
+        await axios.put(`/api/admin/events/${id}/approve`, {}, config);
+        fetchData(); // List refresh
+        alert("Event Approved! 🚀");
+    } catch (error) {
+        alert("Error approving event");
     }
   };
 
@@ -82,19 +93,42 @@ const AdminDashboard = () => {
             <div key={e._id} style={{ 
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               background: 'white', padding: '10px', margin: '10px 0', borderRadius: '5px',
-              borderLeft: '5px solid #2ecc71'
+              borderLeft: e.status === 'approved' ? '5px solid #2ecc71' : '5px solid #f1c40f'
             }}>
               <div>
                 <strong>{e.title}</strong>
+                {/* Status Badge */}
+                <span style={{ 
+                    fontSize: '0.7rem', marginLeft: '10px', padding: '2px 6px', borderRadius: '4px',
+                    background: e.status === 'approved' ? '#d1fae5' : '#fef3c7',
+                    color: e.status === 'approved' ? '#065f46' : '#92400e',
+                    fontWeight: 'bold'
+                }}>
+                    {e.status ? e.status.toUpperCase() : 'PENDING'}
+                </span>
                 <p style={{ margin: 0, fontSize: '0.8rem', color: '#666' }}>
                   By: {e.organizer ? e.organizer.name : 'Unknown'}
                 </p>
               </div>
-              <button 
-                onClick={() => deleteHandler(e._id, 'event')}
-                style={{ background: '#ff4d4d', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer' }}>
-                Delete
-              </button>
+              
+              <div style={{ display: 'flex', gap: '5px' }}>
+                {/* Approve Button (Sirf Pending ke liye) */}
+                {(!e.status || e.status === 'pending') && (
+                    <button 
+                    onClick={() => approveHandler(e._id)}
+                    title="Approve Event"
+                    style={{ background: '#2ecc71', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '1.2rem' }}>
+                    ✓
+                    </button>
+                )}
+                
+                <button 
+                  onClick={() => deleteHandler(e._id, 'event')}
+                  title="Delete Event"
+                  style={{ background: '#ff4d4d', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '5px', cursor: 'pointer' }}>
+                  🗑️
+                </button>
+              </div>
             </div>
           ))}
         </div>

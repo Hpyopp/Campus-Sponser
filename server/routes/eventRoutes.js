@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { createEvent, getEvents, sponsorEvent } = require('../controllers/eventController');
+const { getEvents, createEvent } = require('../controllers/eventController');
 const { protect } = require('../middleware/authMiddleware');
 
-router.post('/', protect, createEvent);
+// 1. Sab events lao
 router.get('/', getEvents);
 
-// 👇 Ye naya route hai: PUT request (Update karne ke liye)
-router.put('/:id/sponsor', protect, sponsorEvent);
+// 2. Naya event banao
+router.post('/', protect, createEvent);
 
 module.exports = router;
