@@ -1,79 +1,100 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 const CreateEvent = () => {
-  const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    date: '',
-    location: '',
-    budget: '',
-    category: 'Other'
+    title: '', date: '', location: '', budget: '', description: '', category: 'Technical',
+    instagram: '', linkedin: ''
   });
+  const [imageFile, setImageFile] = useState(null);
+  const [loading, setLoading] = useState(false); // Upload loading state
 
-  const { title, description, date, location, budget, category } = formData;
+  const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user'));
 
-  const onChange = (e) => {
-    setFormData((prevState) => ({
-      ...prevState,
-      [e.target.name]: e.target.value,
-    }));
-  };
+  if (!user) { navigate('/login'); return null; }
 
-  const onSubmit = async (e) => {
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  
+  // File Change Handler
+  const handleFileChange = (e) => setImageFile(e.target.files[0]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const user = JSON.parse(localStorage.getItem('user')); // Token nikalo
+    setLoading(true);
+
+    const data = new FormData();
+    // Saara data FormData mein append karo
+    Object.keys(formData).forEach(key => data.append(key, formData[key]));
+    if (imageFile) data.append('image', imageFile);
 
     try {
       const config = {
         headers: {
-          Authorization: `Bearer ${user.token}`, // Token header mein bhejo
+          Authorization: `Bearer ${user.token}`,
+          'Content-Type': 'multipart/form-data', // Zaroori hai
         },
       };
-
-      await axios.post('/api/events', formData, config);
-      navigate('/'); // Event banne ke baad Home page pe jao
-      window.location.reload();
+      await axios.post('/api/events', data, config);
+      alert('Event Created Successfully!');
+      navigate('/');
     } catch (error) {
-      alert("Error: " + (error.response?.data?.message || error.message));
+      console.error(error);
+      alert('Error creating event.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: '500px', margin: '50px auto', padding: '20px', boxShadow: '0 0 10px rgba(0,0,0,0.1)', borderRadius: '10px' }}>
-      <h1 style={{ textAlign: 'center' }}>📢 Create New Event</h1>
-      <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
+      <div style={{ background: 'white', padding: '30px', borderRadius: '10px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
+        <h1 style={{ textAlign: 'center', color: '#333' }}>🚀 Create Event</h1>
         
-        <input type="text" name="title" value={title} onChange={onChange} placeholder="Event Title" required style={styles.input} />
-        
-        <textarea name="description" value={description} onChange={onChange} placeholder="Description" required style={{...styles.input, height: '80px'}} />
-        
-        <label>Event Date:</label>
-        <input type="date" name="date" value={date} onChange={onChange} required style={styles.input} />
-        
-        <input type="text" name="location" value={location} onChange={onChange} placeholder="Location (e.g. Audi, Zoom)" required style={styles.input} />
-        
-        <input type="number" name="budget" value={budget} onChange={onChange} placeholder="Budget Needed (₹)" required style={styles.input} />
-        
-        <select name="category" value={category} onChange={onChange} style={styles.input}>
-            <option value="Technical">Technical 💻</option>
-            <option value="Cultural">Cultural 🎨</option>
-            <option value="Sports">Sports 🏏</option>
-            <option value="Workshop">Workshop 🛠️</option>
-            <option value="Other">Other ❓</option>
-        </select>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
+          
+          <input type="text" name="title" placeholder="Event Title" required onChange={handleChange} style={inputStyle} />
+          
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <input type="date" name="date" required onChange={handleChange} style={{ ...inputStyle, flex: 1 }} />
+            <input type="text" name="location" placeholder="Location" required onChange={handleChange} style={{ ...inputStyle, flex: 1 }} />
+          </div>
 
-        <button type="submit" style={styles.btn}>🚀 Post Event</button>
-      </form>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <input type="number" name="budget" placeholder="Budget (₹)" required onChange={handleChange} style={{ ...inputStyle, flex: 1 }} />
+            <select name="category" onChange={handleChange} style={{ ...inputStyle, flex: 1 }}>
+              <option value="Technical">Technical</option>
+              <option value="Cultural">Cultural</option>
+              <option value="Sports">Sports</option>
+            </select>
+          </div>
+
+          {/* 👇 FILE UPLOAD */}
+          <div>
+            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Event Poster (Upload)</label>
+            <input type="file" accept="image/*" onChange={handleFileChange} style={{ ...inputStyle, background: '#f9f9f9' }} />
+          </div>
+
+          {/* 👇 SOCIAL LINKS */}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <input type="url" name="instagram" placeholder="Instagram URL (Optional)" onChange={handleChange} style={{ ...inputStyle, flex: 1 }} />
+            <input type="url" name="linkedin" placeholder="LinkedIn URL (Optional)" onChange={handleChange} style={{ ...inputStyle, flex: 1 }} />
+          </div>
+
+          <textarea name="description" rows="4" placeholder="Description..." required onChange={handleChange} style={inputStyle}></textarea>
+
+          <button type="submit" disabled={loading} style={{ 
+            background: loading ? '#ccc' : '#2563eb', color: 'white', padding: '12px', border: 'none', borderRadius: '5px', cursor: 'pointer' 
+          }}>
+            {loading ? 'Uploading Image... ⏳' : 'Submit Event 📩'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
 
-const styles = {
-  input: { padding: '10px', fontSize: '16px', borderRadius: '5px', border: '1px solid #ccc' },
-  btn: { padding: '12px', background: '#007bff', color: '#fff', border: 'none', borderRadius: '5px', fontSize: '16px', cursor: 'pointer' }
-};
+const inputStyle = { width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #ccc' };
 
 export default CreateEvent;

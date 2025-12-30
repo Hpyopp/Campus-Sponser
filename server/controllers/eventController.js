@@ -1,10 +1,8 @@
 const Event = require('../models/Event');
 
 // @desc    Get all events (Approved only)
-// @route   GET /api/events
 const getEvents = async (req, res) => {
     try {
-        // Sirf approved events bhejo public ko
         const events = await Event.find({ status: 'approved' }).populate('organizer', 'name email');
         res.json(events);
     } catch (error) {
@@ -12,25 +10,31 @@ const getEvents = async (req, res) => {
     }
 };
 
-// @desc    Create a new event
-// @route   POST /api/events
+// @desc    Create a new event (Supports File Upload & Social Links)
 const createEvent = async (req, res) => {
-    const { title, date, location, budget, description, category } = req.body;
+    // Note: FormData se data aata hai toh req.body string ban jata hai kabhi kabhi
+    const { title, date, location, budget, description, category, instagram, linkedin } = req.body;
 
     if (!title || !date || !location || !budget || !description || !category) {
         return res.status(400).json({ message: 'Please fill all fields' });
     }
 
     try {
+        // 👇 File Check
+        let imageUrl = undefined;
+        if (req.file) {
+            imageUrl = req.file.path; // Cloudinary URL
+        }
+
         const event = new Event({
-            title,
-            date,
-            location,
-            budget,
-            description,
-            category,
+            title, date, location, budget, description, category,
+            image: imageUrl, 
+            socialLinks: {
+                instagram: instagram || '',
+                linkedin: linkedin || ''
+            },
             organizer: req.user._id,
-            status: 'pending' // Naya event hamesha pending rahega
+            status: 'pending'
         });
 
         const createdEvent = await event.save();
