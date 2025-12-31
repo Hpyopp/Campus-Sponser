@@ -5,7 +5,7 @@ import App from './App.jsx'
 import axios from 'axios'; // 👈 1. Import Axios
 
 // 👇 2. YE LINE ADD KAR (Tera Render URL yahan daal)
-axios.defaults.baseURL = 'http://localhost:5000';
+axios.defaults.baseURL = 'https://campus-sponser-api.onrender.com';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
