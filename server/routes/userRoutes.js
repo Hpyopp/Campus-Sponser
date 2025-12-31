@@ -7,24 +7,15 @@ const multer = require('multer');
 const { storage } = require('../config/cloudinary');
 const upload = multer({ storage });
 
-// --- AUTH ROUTES ---
-
-// Register User
+// ✅ Auth Routes
 router.post('/', registerUser);
-
-// Login User
 router.post('/login', loginUser);
-
-// Get Current User Info
 router.get('/me', protect, getMe);
 
-
-// --- ADMIN & VERIFICATION ROUTES ---
-
-// 1. Get All Users (For Admin Dashboard)
+// ✅ Admin Route: Get Users (Force Refresh)
 router.get('/', protect, async (req, res) => {
     try {
-        // Users ko naye se purane order mein sort karke bhejo
+        // Explicitly verificationDoc mangwa rahe hain
         const users = await User.find({}).select('-password').sort({ createdAt: -1 });
         res.status(200).json(users);
     } catch (error) {
@@ -32,45 +23,42 @@ router.get('/', protect, async (req, res) => {
     }
 });
 
-// 2. Upload Verification Document (For User)
+// ✅ Upload Route (The Main Fix)
 router.post('/verify', protect, upload.single('document'), async (req, res) => {
     try {
+        console.log("Upload Request Received from:", req.user.name);
+
         if (!req.file) {
+            console.log("❌ No file received by server");
             return res.status(400).json({ message: 'No file uploaded' });
         }
 
-        console.log("File Uploaded to Cloudinary:", req.file.path); // Debugging log
+        console.log("✅ File at Cloudinary:", req.file.path);
 
-        // Database update karo
         const updatedUser = await User.findByIdAndUpdate(
             req.user.id,
             { 
-                verificationDoc: req.file.path, // 👈 Ye URL database mein save hoga
-                isVerified: false,              // Reset status to pending
-                verificationStatus: 'pending'   // Optional: clear status
+                verificationDoc: req.file.path, // Save URL
+                verificationStatus: 'pending'   // Optional flag
             },
-            { new: true } // Return updated document
-        ).select('-password');
+            { new: true }
+        );
 
+        console.log("💾 Database Updated:", updatedUser.verificationDoc);
         res.status(200).json(updatedUser);
+
     } catch (error) {
-        console.error("Upload Error:", error);
-        res.status(500).json({ message: 'Document upload failed' });
+        console.error("🔥 Upload Error:", error);
+        res.status(500).json({ message: error.message });
     }
 });
 
-// 3. Approve User (For Admin)
+// ✅ Approve Route
 router.put('/approve/:id', protect, async (req, res) => {
     try {
-        const user = await User.findByIdAndUpdate(
-            req.params.id, 
-            { isVerified: true }, 
-            { new: true }
-        );
-        res.status(200).json({ message: 'User Approved Successfully', user });
-    } catch (error) {
-        res.status(500).json({ message: 'Approval failed' });
-    }
+        await User.findByIdAndUpdate(req.params.id, { isVerified: true });
+        res.status(200).json({ message: 'Approved' });
+    } catch (error) { res.status(500).json({ message: 'Failed' }); }
 });
 
 module.exports = router;

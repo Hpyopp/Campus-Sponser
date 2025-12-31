@@ -6,24 +6,16 @@ const Verify = () => {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  
-  // User ka data nikalo
   const user = JSON.parse(localStorage.getItem('user'));
-  
-  // Logic: Agar Sponsor hai toh "Company Proof", nahi toh "College ID"
-  const isSponsor = user?.role === 'sponsor';
-  const docLabel = isSponsor ? "Company ID / Visiting Card 🏢" : "College ID Card 🎓";
-  const docMessage = isSponsor 
-    ? "Upload proof of your organization to sponsor events." 
-    : "Upload your Student ID to create events.";
 
   const handleUpload = async (e) => {
     e.preventDefault();
-    if (!file) return alert("Please select a document");
+    if (!file) return alert("Please select a file first!");
 
     setLoading(true);
     const formData = new FormData();
-    formData.append('document', file);
+    // 👇 Backend mein 'upload.single("document")' hai, toh yahan bhi "document" hona chahiye
+    formData.append('document', file); 
 
     try {
       const config = {
@@ -33,63 +25,36 @@ const Verify = () => {
         },
       };
 
-      await axios.post('/api/users/verify', formData, config);
+      const res = await axios.post('/api/users/verify', formData, config);
+      console.log("Upload Response:", res.data); // Console mein check kar sakte ho
       
-      alert("Document Uploaded! 📤\nAdmin will verify your account shortly.");
-      navigate('/'); 
-
+      alert("Success! Document Uploaded. Admin will check it now.");
+      navigate('/');
+      
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "Upload Failed");
+      alert("Upload Failed! Check console for details.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: '500px', margin: '80px auto', padding: '30px', background: 'white', borderRadius: '15px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', textAlign: 'center', fontFamily: 'sans-serif' }}>
-      <h2 style={{ color: '#1e293b', marginBottom: '10px' }}>
-        {isSponsor ? '🏢 Sponsor Verification' : '🎓 Student Verification'}
-      </h2>
-      <p style={{ color: '#64748b', marginBottom: '25px' }}>{docMessage}</p>
-      
+    <div style={{ maxWidth: '400px', margin: '50px auto', textAlign: 'center', padding: '20px', border: '1px solid #ddd', borderRadius: '10px' }}>
+      <h2>📂 Upload Verification Document</h2>
       <form onSubmit={handleUpload}>
-        <div style={{ marginBottom: '20px', border: '2px dashed #cbd5e1', padding: '40px', borderRadius: '12px', background: '#f8fafc' }}>
-          <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: '#475569' }}>
-            {docLabel}
-          </label>
-          <input 
-            type="file" 
-            accept="image/*,application/pdf" 
-            onChange={(e) => setFile(e.target.files[0])} 
-            required 
-            style={{ fontSize: '0.9rem' }}
-          />
-        </div>
-
-        <button 
-          type="submit" 
-          disabled={loading} 
-          style={{ 
-            background: isSponsor ? '#0f172a' : '#2563eb', // Sponsors ke liye Black, Students ke liye Blue
-            color: 'white', 
-            width: '100%',
-            padding: '12px', 
-            border: 'none', 
-            borderRadius: '8px', 
-            fontSize: '1rem', 
-            fontWeight: '600',
-            cursor: loading ? 'not-allowed' : 'pointer', 
-            transition: 'opacity 0.3s'
-          }}
-        >
-          {loading ? 'Uploading... ⏳' : 'Submit for Verification 🚀'}
+        <input 
+          type="file" 
+          onChange={(e) => setFile(e.target.files[0])} 
+          accept="image/*,.pdf"
+          required 
+          style={{ margin: '20px 0' }}
+        />
+        <br />
+        <button type="submit" disabled={loading} style={{ background: 'blue', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
+          {loading ? 'Uploading...' : 'Submit Document 🚀'}
         </button>
       </form>
-      
-      <p style={{ marginTop: '20px', fontSize: '0.8rem', color: '#94a3b8' }}>
-        Note: You cannot {isSponsor ? 'contact students' : 'create events'} until verified.
-      </p>
     </div>
   );
 };
