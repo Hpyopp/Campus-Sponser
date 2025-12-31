@@ -7,16 +7,18 @@ const AdminDashboard = () => {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
-  // 👇 TERA BACKEND URL (Isko Note Karle)
-  // Agar kabhi URL change ho toh yahan badal dena
+  // 👇 TERA BACKEND URL
   const API_URL = "https://campus-sponser-api.onrender.com";
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
-    if (!storedUser || storedUser.email !== 'admin@gmail.com') {
-      navigate('/');
+    
+    if (!storedUser) {
+      navigate('/login'); // Sirf agar login nahi hai tabhi login pe bhejo
     } else {
       setUser(storedUser);
+      // 🛑 Maine 'admin@gmail.com' wala check HATA DIYA hai
+      // Ab koi bhi user is page ko khol sakta hai
       fetchUsers(storedUser.token);
     }
   }, [navigate]);
@@ -27,7 +29,11 @@ const AdminDashboard = () => {
       const res = await axios.get('/api/users', config);
       setUsers(res.data);
     } catch (error) {
-      console.log(error);
+      console.log("Error fetching users:", error);
+      // Agar backend bole "Not Authorized", tab alert do
+      if(error.response && error.response.status === 401) {
+          alert("Backend Error: You are not authorized as Admin.");
+      }
     }
   };
 
@@ -39,18 +45,20 @@ const AdminDashboard = () => {
       } else {
         await axios.put(`/api/users/unapprove/${id}`, {}, config);
       }
-      fetchUsers(user.token);
+      fetchUsers(user.token); // Refresh list
+      alert(status ? "User Approved ✅" : "User Revoked ❌");
     } catch (error) {
       alert('Action Failed');
     }
   };
 
   const deleteUser = async (id) => {
-    if(!window.confirm("Are you sure?")) return;
+    if(!window.confirm("Are you sure you want to DELETE this user?")) return;
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
       await axios.delete(`/api/users/${id}`, config);
       fetchUsers(user.token);
+      alert("User Deleted 🗑️");
     } catch (error) {
       alert('Delete Failed');
     }
@@ -61,15 +69,23 @@ const AdminDashboard = () => {
   const td = { padding: '12px', borderBottom: '1px solid #eee' };
   const btn = { padding: '5px 10px', margin: '0 5px', border: 'none', borderRadius: '4px', cursor: 'pointer', color: 'white', fontWeight: 'bold' };
 
+  if (!user) return <div style={{padding:'20px'}}>Loading...</div>;
+
   return (
     <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto', fontFamily: 'Poppins' }}>
+      
+      {/* HEADER */}
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
-        <h2 style={{color: '#1e293b'}}>🛡️ Admin Dashboard</h2>
-        <button onClick={() => { localStorage.removeItem('user'); navigate('/login'); }} style={{...btn, background: '#ef4444'}}>Logout</button>
+        <div>
+            <h2 style={{color: '#1e293b', margin:0}}>🛡️ Admin Dashboard</h2>
+            <p style={{fontSize:'0.9rem', color:'#64748b'}}>Welcome, {user.name} ({user.email})</p>
+        </div>
+        <button onClick={() => { localStorage.removeItem('user'); navigate('/login'); }} style={{...btn, background: '#ef4444', padding:'10px 20px'}}>Logout</button>
       </div>
 
-      <div style={{overflowX: 'auto'}}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+      {/* USERS TABLE */}
+      <div style={{overflowX: 'auto', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', borderRadius: '10px'}}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white' }}>
           <thead>
             <tr style={{textAlign:'left'}}>
               <th style={th}>User Info</th>
@@ -80,7 +96,7 @@ const AdminDashboard = () => {
             </tr>
           </thead>
           <tbody>
-            {users.map(u => (
+            {users.length > 0 ? users.map(u => (
               <tr key={u._id}>
                 <td style={td}>
                   <div style={{fontWeight:'bold'}}>{u.name}</div>
@@ -100,7 +116,6 @@ const AdminDashboard = () => {
                 <td style={td}>
                   {u.verificationDoc ? (
                     <a 
-                      // 👇 FIX: Backend URL + File Path
                       href={`${API_URL}${u.verificationDoc}`} 
                       target="_blank" 
                       rel="noreferrer"
@@ -129,7 +144,11 @@ const AdminDashboard = () => {
                   <button onClick={() => deleteUser(u._id)} style={{...btn, background: '#ef4444'}}>Delete</button>
                 </td>
               </tr>
-            ))}
+            )) : (
+              <tr>
+                <td colSpan="5" style={{padding:'20px', textAlign:'center', color:'#64748b'}}>No users found or Access Denied by Backend</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
