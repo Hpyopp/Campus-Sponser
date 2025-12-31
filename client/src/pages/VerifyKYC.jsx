@@ -9,9 +9,10 @@ const VerifyKYC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Check karo user login hai ya nahi
     const storedUser = JSON.parse(localStorage.getItem('user'));
     if (!storedUser) {
-        navigate('/login');
+        navigate('/login'); // Agar login nahi hai toh login page par bhejo
     } else {
         setUser(storedUser);
     }
@@ -21,15 +22,11 @@ const VerifyKYC = () => {
     setFile(e.target.files[0]);
   };
 
-  // 👇 UPLOAD FUNCTION
   const handleUpload = async (e) => {
-    // 🛑 1. STOP REFRESH PERMANENTLY
-    if(e) e.preventDefault();
-    
-    alert("Step 1: Button Clicked! (Processing...)"); // Debug Alert
+    if(e) e.preventDefault(); // Refresh Roko
 
-    if (!file) return alert("❌ Please select a file first.");
-    if (!user) return alert("❌ Login Expired. Please Login again.");
+    if (!file) return alert("❌ Please select a document first!");
+    if (!user) return alert("❌ Session Expired. Login Again.");
 
     const formData = new FormData();
     formData.append('document', file);
@@ -43,51 +40,51 @@ const VerifyKYC = () => {
         },
       };
 
-      // Request Bhejo
+      // Backend ko file bhejo
       await axios.post('/api/users/verify', formData, config);
       
-      alert("✅ Success! Document Uploaded.");
-      navigate('/'); 
+      alert("✅ Document Uploaded Successfully! Admin will verify soon.");
+      navigate('/'); // Home page par wapas jao
 
     } catch (error) {
       console.error("Upload Error:", error);
-      alert(`❌ Error: ${error.response?.data?.message || "Server Connection Failed"}`);
+      alert(`❌ Error: ${error.response?.data?.message || "Server Error"}`);
     } finally {
       setLoading(false);
     }
   };
 
-  if (!user) return <div style={{textAlign:'center', marginTop:'50px'}}>Loading...</div>;
+  if (!user) return <div style={{textAlign:'center', padding:'50px'}}>Loading...</div>;
 
   return (
     <div style={{ maxWidth: '500px', margin: '50px auto', textAlign: 'center', padding: '30px', border: '1px solid #ddd', borderRadius: '15px', fontFamily: 'Poppins' }}>
-      <h2 style={{color: '#1e293b'}}>📂 Upload KYC Document</h2>
+      <h2 style={{color: '#1e293b'}}>📂 Upload ID Proof</h2>
       
       <p style={{color: '#64748b', marginBottom: '20px'}}>
-        Verify your <strong>{user.role?.toUpperCase()}</strong> account.
+        Hello <strong>{user.name}</strong>, please upload your ID to activate account.
       </p>
 
-      {/* 🛑 NO FORM TAG HERE - FORM HATA DIYA */}
-      <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '10px', border: '1px dashed #94a3b8', marginBottom: '20px' }}>
+      {/* Upload Box */}
+      <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '10px', border: '2px dashed #94a3b8', marginBottom: '20px' }}>
         <input 
           type="file" 
           onChange={handleFileChange} 
           accept="image/*,.pdf"
-          style={{ marginTop: '15px' }} 
+          style={{ marginTop: '10px' }} 
         />
       </div>
 
       <button 
-        type="button" // 👈 IMPORTANT
+        type="button" 
         onClick={handleUpload} 
         disabled={loading}
         style={{ padding: '12px 25px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}
       >
-        {loading ? 'Uploading... ⏳' : 'Submit Proof 🚀'}
+        {loading ? 'Uploading... ⏳' : 'Submit Document 🚀'}
       </button>
       
       <button onClick={() => navigate('/')} style={{marginTop: '15px', background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', textDecoration: 'underline'}}>
-        Skip for now
+        Cancel
       </button>
     </div>
   );

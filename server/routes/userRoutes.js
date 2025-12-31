@@ -32,9 +32,9 @@ router.post('/login', loginUser);
 router.post('/login/verify', verifyLoginOTP);
 router.get('/me', protect, getMe);
 
-// 👇 DEBUG UPLOAD ROUTE
+// 👇 UPLOAD ROUTE
 router.post('/verify', protect, upload.single('document'), async (req, res) => {
-    console.log("🔥 HIT: Upload Request Received on Server"); 
+    console.log("🔥 HIT: Upload Request Received"); 
 
     try {
         if (!req.file) return res.status(400).json({ message: 'No file received' });
