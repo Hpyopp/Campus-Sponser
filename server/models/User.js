@@ -3,35 +3,33 @@ const mongoose = require('mongoose');
 const userSchema = mongoose.Schema({
     name: {
         type: String,
-        required: [true, 'Please add a name'],
+        required: [true, 'Please add a name']
     },
     email: {
         type: String,
         required: [true, 'Please add an email'],
-        unique: true,
+        unique: true
     },
     password: {
         type: String,
-        required: [true, 'Please add a password'],
+        required: [true, 'Please add a password']
     },
     role: {
         type: String,
-        enum: ['student', 'sponsor', 'admin'], 
-        default: 'student',
+        enum: ['student', 'sponsor', 'admin'],
+        default: 'student'
     },
-    // 👇 KYC Fields
     isVerified: {
         type: Boolean,
-        default: false, 
+        default: false
     },
+    // 👇 YE MISSING THA! Iske bina URL save nahi hoga
     verificationDoc: {
         type: String, 
-        default: ''
-    },
-    companyWebsite: { type: String, default: '' },
-    industry: { type: String, default: '' }
+        default: ""
+    }
 }, {
-    timestamps: true,
+    timestamps: true
 });
 
 module.exports = mongoose.model('User', userSchema);
