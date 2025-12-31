@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import CreateEvent from './pages/CreateEvent';
 import AdminDashboard from './pages/AdminDashboard';
 import Verify from './pages/Verify'; // 👈 Step 1: Import kiya
+import SponsorDashboard from './pages/SponsorDashboard';
 
 function App() {
   return (
