@@ -1,75 +1,60 @@
 const express = require('express');
 const router = express.Router();
-const { 
+const {
   registerUser, loginUser, verifyRegisterOTP, verifyLoginOTP, getMe,
-  getAllUsers, approveUser, unverifyUser, deleteUser 
+  getAllUsers, approveUser, unverifyUser, deleteUser
 } = require('../controllers/authController');
 
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 const User = require('../models/User');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 
-// --- SIMPLE UPLOAD SETUP ---
+// --- SIMPLEST MULTER SETUP (Render /tmp) ---
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Seedha 'uploads' folder mein daalo (jo root mein hai)
-    cb(null, 'uploads/');
+    // Render ke liye /tmp best hai
+    const dir = '/tmp';
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
   },
   filename: (req, file, cb) => {
     cb(null, 'doc-' + Date.now() + path.extname(file.originalname));
   }
 });
 
-const upload = multer({ 
-  storage: storage,
-  fileFilter: function (req, file, cb) {
-    const filetypes = /jpeg|jpg|png|pdf/;
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = filetypes.test(file.mimetype);
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      // Error handling without crashing
-      cb(new Error('Only Images & PDFs Allowed!'));
-    }
-  }
-});
+const upload = multer({ storage });
 
 // --- ROUTES ---
+
 router.post('/', registerUser);
 router.post('/register/verify', verifyRegisterOTP);
 router.post('/login', loginUser);
 router.post('/login/verify', verifyLoginOTP);
 router.get('/me', protect, getMe);
 
-// 👇 SECURE UPLOAD ROUTE
-router.post('/verify', protect, (req, res, next) => {
-    // Multer Error Handling Wrapper
-    upload.single('document')(req, res, function (err) {
-        if (err) {
-            // Multer error pakad liya, ab server crash nahi hoga
-            return res.status(400).json({ message: err.message });
-        }
-        next(); // Sab sahi hai, aage badho
-    });
-}, async (req, res) => {
+// 👇 DEBUG UPLOAD ROUTE
+router.post('/verify', protect, upload.single('document'), async (req, res) => {
+    console.log("🔥 HIT: Upload Route Reached!"); // Server Console mein dikhega
+
     try {
-        if (!req.file) return res.status(400).json({ message: 'No file selected!' });
-        
-        // Path fix karo taaki browser mein khul sake
-        // Windows path backslash (\) ko forward slash (/) mein badlo
-        const filePath = req.file.path.replace(/\\/g, "/");
-        
-        await User.findByIdAndUpdate(req.user.id, { 
-            verificationDoc: filePath, 
-            isVerified: false 
+        if (!req.file) {
+            console.log("❌ No File Received");
+            return res.status(400).json({ message: 'No file selected!' });
+        }
+
+        console.log("✅ File Uploaded to:", req.file.path);
+
+        await User.findByIdAndUpdate(req.user.id, {
+            verificationDoc: req.file.path,
+            isVerified: false
         });
-        
-        res.status(200).json({ message: 'Document Uploaded Successfully ✅' });
-    } catch (error) { 
-        console.error("DB Error:", error);
-        res.status(500).json({ message: 'Database Error' }); 
+
+        res.status(200).json({ message: 'Upload Successful!' });
+    } catch (error) {
+        console.error("💥 Upload Error:", error);
+        res.status(500).json({ message: 'Server Error' });
     }
 });
 
