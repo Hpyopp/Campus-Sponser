@@ -1,33 +1,30 @@
 const express = require('express');
+const colors = require('colors');
 const dotenv = require('dotenv').config();
-const cors = require('cors');
-const connectDB = require('./config/db');
 const { errorHandler } = require('./middleware/errorMiddleware');
+const connectDB = require('./config/db');
+const path = require('path'); // 👈 Import Path Module
+const cors = require('cors');
 
 const port = process.env.PORT || 5000;
 
-// Database Connection
 connectDB();
 
 const app = express();
 
-// Middleware
-app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cors());
 
-// 👇 TEST ROUTE (Ye confirm karega ki naya code live hai)
-app.get('/', (req, res) => {
-    res.status(200).send("✅ API is Live & Updated! (New Code)");
-});
-
-// 👇 MAIN ROUTES (Yahan se rasta ban raha hai)
+// Routes
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/events', require('./routes/eventRoutes'));
+
+// 👇 IMPORTANT: Uploads folder ko Public banao
+// Isse Admin uploaded documents dekh payega
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Error Handler
 app.use(errorHandler);
 
-app.listen(port, () => {
-    console.log(`🚀 SERVER RESTARTED ON PORT ${port}`); // Logs mein ye dhundna hai
-});
+app.listen(port, () => console.log(`Server started on port ${port}`));

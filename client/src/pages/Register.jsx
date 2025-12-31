@@ -8,7 +8,7 @@ const Register = () => {
   });
   
   const [otp, setOtp] = useState('');
-  const [serverOtp, setServerOtp] = useState(null); // 👈 OTP Display State
+  const [serverOtp, setServerOtp] = useState(null);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -16,25 +16,23 @@ const Register = () => {
   const { name, email, password, phone, role } = formData;
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  // 1. REGISTER (Trigger OTP)
+  // 1. REGISTER (Get OTP)
   const handleRegister = async (e) => {
-    if(e) e.preventDefault(); // Resend button se click hone par error na de
-    
+    if(e) e.preventDefault();
     if (!email.endsWith('@gmail.com')) return alert("Use @gmail.com only!");
     if (phone.length !== 10) return alert("Phone must be 10 digits!");
 
     setLoading(true);
-    setServerOtp(null); // Purana OTP hatao
+    setServerOtp(null);
 
     try {
       const res = await axios.post('/api/users', formData);
       setStep(2); 
 
-      // 👇 OTP SHOW LOGIC
       if (res.data.debugOtp) {
         setServerOtp(res.data.debugOtp);
       } else {
-        alert("OTP sent via Email (Check Inbox/Spam)");
+        alert("OTP sent via Email");
       }
 
     } catch (err) {
@@ -44,14 +42,19 @@ const Register = () => {
     }
   };
 
-  // 2. VERIFY OTP
+  // 2. VERIFY OTP (Redirect Fix Here)
   const handleVerifyOtp = async (enteredOtp) => {
     setLoading(true);
     try {
       const res = await axios.post('/api/users/register/verify', { email, otp: enteredOtp });
+      
+      // User data save karo
       localStorage.setItem('user', JSON.stringify(res.data));
-      alert(`Welcome! You are registered as a ${res.data.role.toUpperCase()} 🎉`);
-      navigate('/');
+      
+      // 👇 CHANGE: Ab seedha KYC Upload page par bhejo
+      alert(`Account Created! Please Upload Verification Document.`);
+      navigate('/verify-kyc'); 
+      
     } catch (err) {
       alert(err.response?.data?.message || 'Invalid OTP');
       setOtp('');
@@ -75,7 +78,6 @@ const Register = () => {
       </h2>
       
       {step === 1 ? (
-        // --- STEP 1: FORM ---
         <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <input type="text" name="name" placeholder="Full Name" value={name} onChange={handleChange} required style={inputStyle} />
           <input type="email" name="email" placeholder="Email (@gmail.com)" value={email} onChange={handleChange} required style={inputStyle} />
@@ -96,13 +98,11 @@ const Register = () => {
           </button>
         </form>
       ) : (
-        // --- STEP 2: OTP INPUT + DISPLAY ---
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           
-          {/* 👇 OTP BOX (Ab ye yahan hai, input ke upar) */}
           {serverOtp && (
             <div style={{ background: '#dcfce7', color: '#166534', padding: '15px', borderRadius: '8px', border: '2px dashed #22c55e' }}>
-              <p style={{margin:0, fontSize: '0.9rem'}}>Developer Mode OTP:</p>
+              <p style={{margin:0, fontSize: '0.9rem'}}>Developer OTP:</p>
               <h1 style={{ margin: '5px 0', fontSize: '2.5rem', letterSpacing: '5px', fontWeight: 'bold' }}>{serverOtp}</h1>
             </div>
           )}
@@ -119,7 +119,6 @@ const Register = () => {
             style={{ ...inputStyle, textAlign: 'center', fontSize: '1.5rem', letterSpacing: '5px', fontWeight: 'bold', color: '#2563eb' }} 
           />
 
-          {/* 👇 RESEND BUTTON */}
           <button 
             type="button" 
             onClick={() => handleRegister(null)} 
@@ -127,10 +126,6 @@ const Register = () => {
             style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
           >
             {loading ? 'Sending...' : '🔄 Resend OTP'}
-          </button>
-
-          <button onClick={() => setStep(1)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', textDecoration: 'underline', marginTop: '10px' }}>
-            Wrong Email? Go Back
           </button>
         </div>
       )}
