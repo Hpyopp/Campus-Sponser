@@ -1,101 +1,75 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
-  const [step, setStep] = useState(1); // 1 = Email, 2 = OTP
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Step 1: Send OTP
+  // STEP 1: Login & Catch OTP
   const handleSendOTP = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post('/api/users/login', { email });
-      setStep(2); // OTP screen dikhao
-      alert(`OTP sent to ${email}`);
+      const res = await axios.post('/api/users/login', { email });
+      setStep(2);
+
+      // 👇 BYPASS ALERT
+      if (res.data.debugOtp) {
+        alert(`⚠️ Email Server Busy!\n\nYOUR LOGIN OTP IS: ${res.data.debugOtp}`);
+      } else {
+        alert(`OTP sent to ${email}`);
+      }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to send OTP');
+      alert(err.response?.data?.message || 'Login Failed');
     } finally {
       setLoading(false);
     }
   };
 
-  // Step 2: Auto Verify Function
+  // STEP 2: Verify
   const verifyOtpRequest = async (enteredOtp) => {
     setLoading(true);
     try {
       const res = await axios.post('/api/users/login/verify', { email, otp: enteredOtp });
-      
-      // Save User & Redirect
       localStorage.setItem('user', JSON.stringify(res.data));
       navigate('/');
-      
     } catch (err) {
-      alert(err.response?.data?.message || 'Invalid OTP');
-      setOtp(''); // Clear galat OTP
+      alert(err.response?.data?.message || 'Wrong OTP');
+      setOtp('');
     } finally {
       setLoading(false);
     }
   };
 
-  // 👇 AUTO VERIFY LOGIC
   const handleOtpChange = (e) => {
     const val = e.target.value;
+    if (!/^\d*$/.test(val)) return;
     setOtp(val);
-
-    // Agar 6 digits ho gaye, toh apne aap submit karo
-    if (val.length === 6) {
-      verifyOtpRequest(val);
-    }
+    if (val.length === 6) verifyOtpRequest(val);
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '50px auto', textAlign: 'center', padding: '30px', border: '1px solid #ddd', borderRadius: '15px', fontFamily: 'Poppins' }}>
-      <h2 style={{color: '#1e293b'}}>🔐 {step === 1 ? 'Login' : 'Enter OTP'}</h2>
-      
+    <div style={{ maxWidth: '400px', margin: '50px auto', textAlign: 'center', padding: '30px', border: '1px solid #ddd', borderRadius: '15px' }}>
+      <h2>🔐 {step === 1 ? 'Login' : 'Enter OTP'}</h2>
       {step === 1 ? (
-        // EMAIL FORM
         <form onSubmit={handleSendOTP} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <p style={{color: '#64748b'}}>We will send a code to your email.</p>
-          <input 
-            type="email" 
-            placeholder="Enter your registered email" 
-            value={email} 
-            onChange={(e) => setEmail(e.target.value)} 
-            required 
-            style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ccc' }}
-          />
-          <button type="submit" disabled={loading} style={{ padding: '12px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
-            {loading ? 'Sending OTP... ⏳' : 'Get OTP ➡️'}
-          </button>
+          <input type="email" placeholder="Enter Email" value={email} onChange={(e) => setEmail(e.target.value)} required style={inputStyle} />
+          <button type="submit" disabled={loading} style={btnStyle}>{loading ? 'Wait...' : 'Get OTP ➡️'}</button>
         </form>
       ) : (
-        // OTP FORM
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <p style={{color: '#64748b'}}>Check your email for the code.</p>
-          <input 
-            type="text" 
-            placeholder="Enter 6-digit OTP" 
-            value={otp} 
-            onChange={handleOtpChange} // Auto check yahan hai
-            maxLength="6"
-            style={{ padding: '15px', borderRadius: '8px', border: '2px solid #2563eb', textAlign: 'center', fontSize: '1.5rem', letterSpacing: '5px' }}
-          />
-          <button onClick={() => setStep(1)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', textDecoration: 'underline' }}>
-            Wrong Email? Go Back
-          </button>
-          
-          {loading && <p>Verifying... 🔄</p>}
+          <p>OTP sent to {email}</p>
+          <input type="text" placeholder="______" value={otp} onChange={handleOtpChange} maxLength="6" autoFocus style={{ ...inputStyle, textAlign: 'center', fontSize: '1.5rem', letterSpacing: '5px' }} />
         </div>
       )}
-      
-      <p style={{ marginTop: '20px' }}>New here? <Link to="/register">Register</Link></p>
+      <p style={{ marginTop: '15px' }}>New here? <Link to="/register">Register</Link></p>
     </div>
   );
 };
-
+const inputStyle = { padding: '12px', borderRadius: '8px', border: '1px solid #ccc' };
+const btnStyle = { padding: '12px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' };
 export default Login;
