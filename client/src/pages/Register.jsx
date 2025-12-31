@@ -1,69 +1,49 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const Register = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'student' // Default role
-  });
-  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', phone: '' });
   const navigate = useNavigate();
+
+  const { name, email, password, phone } = formData;
+
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // 🔒 Simple Validation
+    if(phone.length !== 10) {
+      return alert("Please enter a valid 10-digit mobile number!");
+    }
+
     try {
-      // ✅ CORRECT ADDRESS: /api/users (Pehle /api/auth tha jo 404 de raha tha)
-      const { data } = await axios.post('/api/users', formData);
-      
-      localStorage.setItem('user', JSON.stringify(data));
-      alert("Registration Successful! Welcome to CampusSponsor 🚀");
-      navigate('/');
-      window.location.reload(); 
+      const res = await axios.post('/api/users', formData);
+      localStorage.setItem('user', JSON.stringify(res.data));
+      navigate('/'); // Go to Home
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
+      alert(err.response?.data?.message || 'Registration Failed');
     }
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '50px auto', padding: '20px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)', borderRadius: '10px', background: 'white' }}>
-      <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>📝 Register</h2>
-      {error && <p style={{ color: 'red', textAlign: 'center', fontSize: '0.9rem' }}>{error}</p>}
-      
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '15px' }}>
-          <label>Full Name</label>
-          <input type="text" placeholder="Enter Name" style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '5px', border: '1px solid #ccc' }}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
-        </div>
+    <div style={{ maxWidth: '400px', margin: '50px auto', textAlign: 'center', padding: '30px', border: '1px solid #ddd', borderRadius: '10px' }}>
+      <h2>📝 Register</h2>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+        
+        <input type="text" name="name" placeholder="Full Name" value={name} onChange={handleChange} required style={{ padding: '10px' }} />
+        
+        <input type="email" name="email" placeholder="Email Address" value={email} onChange={handleChange} required style={{ padding: '10px' }} />
+        
+        {/* 👇 Phone Number Input */}
+        <input type="number" name="phone" placeholder="Mobile Number (10 digits)" value={phone} onChange={handleChange} required style={{ padding: '10px' }} />
 
-        <div style={{ marginBottom: '15px' }}>
-          <label>Email Address</label>
-          <input type="email" placeholder="Enter Email" style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '5px', border: '1px solid #ccc' }}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
-        </div>
-
-        <div style={{ marginBottom: '15px' }}>
-          <label>Password</label>
-          <input type="password" placeholder="Create Password" style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '5px', border: '1px solid #ccc' }}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })} required />
-        </div>
-
-        <div style={{ marginBottom: '20px' }}>
-          <label>I am a:</label>
-          <select style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '5px', border: '1px solid #ccc' }}
-            value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })}>
-            <option value="student">Student</option>
-            <option value="sponsor">Sponsor</option>
-          </select>
-        </div>
-
-        <button type="submit" style={{ width: '100%', padding: '12px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-          Register Now
-        </button>
+        <input type="password" name="password" placeholder="Password" value={password} onChange={handleChange} required style={{ padding: '10px' }} />
+        
+        <button type="submit" style={{ padding: '10px', background: '#2563eb', color: 'white', border: 'none', cursor: 'pointer' }}>Register</button>
       </form>
+      <p style={{ marginTop: '10px' }}>Already have an account? <Link to="/login">Login</Link></p>
     </div>
   );
 };

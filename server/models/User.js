@@ -4,16 +4,17 @@ const userSchema = mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+    phone: { type: String, required: true }, // 👈 Phone Number Zaroori Hai
     role: { 
         type: String, 
         enum: ['student', 'sponsor', 'admin'], 
         default: 'student' 
     },
     isVerified: { type: Boolean, default: false },
-    verificationDoc: { type: String, default: "" } // Ye field zaroori hai
+    verificationDoc: { type: String, default: "" }
 }, {
     timestamps: true,
-    strict: false  // 👈 YE HAI JAADU. Ye naye fields ko reject hone se rokega.
+    strict: false 
 });
 
 module.exports = mongoose.model('User', userSchema);
