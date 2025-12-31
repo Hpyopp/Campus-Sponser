@@ -3,12 +3,12 @@ import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 
 const Register = () => {
-  // 'role' state mein add kiya (Default: student)
   const [formData, setFormData] = useState({ 
     name: '', email: '', password: '', phone: '', role: 'student' 
   });
   
   const [otp, setOtp] = useState('');
+  const [serverOtp, setServerOtp] = useState(null); // 👈 New: Screen par OTP dikhane ke liye
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -17,26 +17,29 @@ const Register = () => {
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  // 1. REGISTER & GET OTP
+  // 1. REGISTER & SHOW OTP ON SCREEN
   const handleRegister = async (e) => {
     e.preventDefault();
     if (!email.endsWith('@gmail.com')) return alert("Use @gmail.com only!");
     if (phone.length !== 10) return alert("Phone must be 10 digits!");
 
     setLoading(true);
+    setServerOtp(null); // Clear old OTP
+
     try {
       const res = await axios.post('/api/users', formData);
       setStep(2); 
 
-      // INSTANT OTP POP-UP
+      // 👇 OTP KO SCREEN PAR DIKHAO (Alert nahi)
       if (res.data.debugOtp) {
-        alert(`🚀 Developer Mode On!\n\nYOUR OTP IS: ${res.data.debugOtp}`);
+        setServerOtp(res.data.debugOtp);
       } else {
-        alert(`OTP Sent to ${email} 📩`);
+        alert(`OTP Sent to ${email}`);
       }
 
     } catch (err) {
       alert(err.response?.data?.message || 'Registration Failed');
+      setStep(1); // Error aaye toh wapas form par bhejo
     } finally {
       setLoading(false);
     }
@@ -47,11 +50,8 @@ const Register = () => {
     setLoading(true);
     try {
       const res = await axios.post('/api/users/register/verify', { email, otp: enteredOtp });
-      
       localStorage.setItem('user', JSON.stringify(res.data));
-      alert(`Welcome to CampusSponsor as a ${res.data.role.toUpperCase()}! 🎉`);
       navigate('/');
-      
     } catch (err) {
       alert(err.response?.data?.message || 'Invalid OTP');
       setOtp('');
@@ -69,30 +69,31 @@ const Register = () => {
 
   return (
     <div style={{ maxWidth: '400px', margin: '50px auto', textAlign: 'center', padding: '30px', border: '1px solid #ddd', borderRadius: '15px', fontFamily: 'Poppins, sans-serif' }}>
+      
+      {/* 👇 OTP DISPLAY BOX (Ye hamesha dikhega agar OTP aaya hai) */}
+      {serverOtp && (
+        <div style={{ background: '#dcfce7', color: '#166534', padding: '10px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #22c55e' }}>
+          <strong>🚀 YOUR OTP IS:</strong>
+          <h1 style={{ margin: '5px 0', fontSize: '2rem', letterSpacing: '5px' }}>{serverOtp}</h1>
+          <small>Do not share this code.</small>
+        </div>
+      )}
+
       <h2 style={{color: '#1e293b', marginBottom: '20px'}}>
         📝 {step === 1 ? 'Join CampusSponsor' : 'Verify Email'}
       </h2>
       
       {step === 1 ? (
         <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          
           <input type="text" name="name" placeholder="Full Name" value={name} onChange={handleChange} required style={inputStyle} />
-          
           <input type="email" name="email" placeholder="Email (@gmail.com)" value={email} onChange={handleChange} required style={inputStyle} />
-          
           <input type="number" name="phone" placeholder="Mobile Number" value={phone} onChange={handleChange} required style={inputStyle} />
 
-          {/* 👇 NEW ROLE SELECTOR 👇 */}
           <div style={{ textAlign: 'left' }}>
             <label style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 'bold', marginLeft: '5px' }}>I am a:</label>
-            <select 
-              name="role" 
-              value={role} 
-              onChange={handleChange}
-              style={{...inputStyle, marginTop: '5px', background: 'white', cursor: 'pointer'}}
-            >
-              <option value="student">🎓 Student (I want Funding)</option>
-              <option value="sponsor">💰 Sponsor (I want to Invest)</option>
+            <select name="role" value={role} onChange={handleChange} style={{...inputStyle, marginTop: '5px', background: 'white'}}>
+              <option value="student">🎓 Student</option>
+              <option value="sponsor">💰 Sponsor</option>
             </select>
           </div>
 
