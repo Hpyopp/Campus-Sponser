@@ -4,42 +4,40 @@ const { errorHandler } = require('./middleware/errorMiddleware');
 const connectDB = require('./config/db');
 const path = require('path'); 
 const fs = require('fs');
-const cors = require('cors'); // Ensure ye installed ho
+const cors = require('cors');
 
 const port = process.env.PORT || 5000;
 
-// Database Connect
 connectDB();
-
 const app = express();
 
-// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cors()); 
+app.use(cors()); // Frontend connection allow karo
 
-// Auto-Create Uploads Folder (Safety Check)
+// 👇 CRASH PROOF FOLDER CREATION
+// Render par kabhi-kabhi folder banane ki permission nahi hoti, 
+// isliye hum 'try-catch' lagayenge taaki server na ruke.
 const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)){
-    try {
-        fs.mkdirSync(uploadDir);
+try {
+    if (!fs.existsSync(uploadDir)){
+        fs.mkdirSync(uploadDir, { recursive: true });
         console.log('📂 Uploads folder created!');
-    } catch (err) {
-        console.log('Error creating upload folder:', err);
     }
+} catch (err) {
+    console.log('⚠️ Could not create upload folder (Check Permissions):', err);
 }
 
 // Routes
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/events', require('./routes/eventRoutes'));
 
-// Public Folder for Uploads
+// Public Folder
 app.use('/uploads', express.static(uploadDir));
 
-// Test Route (Taaki pata chale server zinda hai)
-app.get('/', (req, res) => res.send('Server is Running 🚀'));
+// Test Route (Browser mein API link khol kar check karne ke liye)
+app.get('/', (req, res) => res.send('✅ Server is Running Successfully!'));
 
-// Error Handler
 app.use(errorHandler);
 
 app.listen(port, () => console.log(`Server started on port ${port}`));
