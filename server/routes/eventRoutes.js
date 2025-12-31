@@ -1,16 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const { getEvents, createEvent } = require('../controllers/eventController');
+const Event = require('../models/Event');
 const { protect } = require('../middleware/authMiddleware');
 
-// 👇 Multer Setup
-const multer = require('multer');
-const { storage } = require('../config/cloudinary');
-const upload = multer({ storage });
-
-router.get('/', getEvents);
-
-// 👇 'upload.single' add kiya taaki file pakad sake
-router.post('/', protect, upload.single('image'), createEvent);
+// ✅ Get All Events with Organizer Names
+router.get('/', async (req, res) => {
+    try {
+        // 'createdBy' field ko populate karke User ka 'name' nikaalo
+        const events = await Event.find({}).populate('createdBy', 'name');
+        res.status(200).json(events);
+    } catch (error) {
+        res.status(500).json({ message: 'Events fetch failed' });
+    }
+});
 
 module.exports = router;
