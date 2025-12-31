@@ -2,9 +2,9 @@ const express = require('express');
 const dotenv = require('dotenv').config();
 const { errorHandler } = require('./middleware/errorMiddleware');
 const connectDB = require('./config/db');
-const path = require('path'); 
+const path = require('path');
 const fs = require('fs');
-const cors = require('cors');
+const cors = require('cors'); // npm install cors
 
 const port = process.env.PORT || 5000;
 
@@ -13,31 +13,29 @@ const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cors()); // Frontend connection allow karo
+app.use(cors());
 
-// 👇 CRASH PROOF FOLDER CREATION
-// Render par kabhi-kabhi folder banane ki permission nahi hoti, 
-// isliye hum 'try-catch' lagayenge taaki server na ruke.
-const uploadDir = path.join(__dirname, 'uploads');
-try {
-    if (!fs.existsSync(uploadDir)){
+// 👇 CRASH PROOF FOLDER SETUP
+// Hum root mein 'uploads' folder banayenge jo har jagah chalta hai
+const uploadDir = path.join(process.cwd(), 'uploads');
+
+if (!fs.existsSync(uploadDir)){
+    try {
         fs.mkdirSync(uploadDir, { recursive: true });
-        console.log('📂 Uploads folder created!');
+        console.log(`📂 Created Uploads Folder at: ${uploadDir}`);
+    } catch (err) {
+        console.log("⚠️ Error creating folder:", err);
     }
-} catch (err) {
-    console.log('⚠️ Could not create upload folder (Check Permissions):', err);
 }
 
 // Routes
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/events', require('./routes/eventRoutes'));
 
-// Public Folder
+// Folder Public Karo
 app.use('/uploads', express.static(uploadDir));
 
-// Test Route (Browser mein API link khol kar check karne ke liye)
-app.get('/', (req, res) => res.send('✅ Server is Running Successfully!'));
-
+app.get('/', (req, res) => res.send('Server is Running 🚀'));
 app.use(errorHandler);
 
 app.listen(port, () => console.log(`Server started on port ${port}`));

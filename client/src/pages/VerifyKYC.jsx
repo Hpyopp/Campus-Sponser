@@ -11,7 +11,6 @@ const VerifyKYC = () => {
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
     if (!storedUser) {
-        // Agar user nahi hai toh login pe bhejo
         navigate('/login');
     } else {
         setUser(storedUser);
@@ -22,11 +21,9 @@ const VerifyKYC = () => {
     setFile(e.target.files[0]);
   };
 
-  const handleUpload = async (e) => {
-    e.preventDefault(); // 👈 Page Refresh Roko
-    
+  const handleUpload = async () => {
     if (!file) return alert("Please select a document first!");
-    if (!user) return alert("User not found, please login again.");
+    if (!user) return alert("User session error. Login again.");
 
     const formData = new FormData();
     formData.append('document', file);
@@ -36,13 +33,13 @@ const VerifyKYC = () => {
       const config = {
         headers: {
           'Content-Type': 'multipart/form-data',
-          Authorization: `Bearer ${user.token}`, // Token Zaroori Hai
+          Authorization: `Bearer ${user.token}`,
         },
       };
 
       await axios.post('/api/users/verify', formData, config);
       
-      alert("Document Uploaded Successfully! 📤\nPlease wait for Admin Approval.");
+      alert("✅ Document Uploaded! Admin will verify shortly.");
       navigate('/'); 
 
     } catch (error) {
@@ -53,7 +50,7 @@ const VerifyKYC = () => {
     }
   };
 
-  if (!user) return <div style={{textAlign:'center', marginTop: '50px'}}>Loading...</div>;
+  if (!user) return <div style={{textAlign:'center', marginTop:'50px'}}>Loading...</div>;
 
   return (
     <div style={{ maxWidth: '500px', margin: '50px auto', textAlign: 'center', padding: '30px', border: '1px solid #ddd', borderRadius: '15px', fontFamily: 'Poppins' }}>
@@ -63,6 +60,7 @@ const VerifyKYC = () => {
         Verify your <strong>{user.role?.toUpperCase()}</strong> account.
       </p>
 
+      {/* 🛑 NO FORM TAG HERE - Refresh Issue Solved */}
       <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '10px', border: '1px dashed #94a3b8', marginBottom: '20px' }}>
         <input 
           type="file" 
@@ -73,7 +71,6 @@ const VerifyKYC = () => {
       </div>
 
       <button 
-        type="button" // 👈 IMPORTANT: Ye form submit hone se rokta hai
         onClick={handleUpload} 
         disabled={loading}
         style={{ padding: '12px 25px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}
