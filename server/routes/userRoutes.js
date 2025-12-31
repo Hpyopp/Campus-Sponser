@@ -11,14 +11,16 @@ const multer = require('multer');
 const { storage } = require('../config/cloudinary');
 const upload = multer({ storage });
 
-// ✅ Public Auth
+// ✅ PUBLIC ROUTES
 router.post('/', registerUser);
 router.post('/register/verify', verifyRegisterOTP);
 router.post('/login', loginUser);
 router.post('/login/verify', verifyLoginOTP);
 
-// ✅ Private User
+// ✅ PRIVATE ROUTES (User)
 router.get('/me', protect, getMe);
+
+// KYC Upload Route
 router.post('/verify', protect, upload.single('document'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
@@ -27,10 +29,10 @@ router.post('/verify', protect, upload.single('document'), async (req, res) => {
     } catch (error) { res.status(500).json({ message: error.message }); }
 });
 
-// 🔐 ADMIN ROUTES (Full Control)
+// 🔐 ADMIN ROUTES (Ye check kar, ye hone chahiye)
 router.get('/', protect, adminOnly, getAllUsers);
 router.put('/approve/:id', protect, adminOnly, approveUser);
-router.put('/unapprove/:id', protect, adminOnly, unverifyUser); // 👈 New Unapprove Route
-router.delete('/:id', protect, adminOnly, deleteUser);          // 👈 New Delete User Route
+router.put('/unapprove/:id', protect, adminOnly, unverifyUser); // 👈 YE MISSING HOGA
+router.delete('/:id', protect, adminOnly, deleteUser);          // 👈 YE BHI CHECK KAR
 
 module.exports = router;
