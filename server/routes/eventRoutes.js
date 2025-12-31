@@ -1,31 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const Event = require('../models/Event');
-const { protect } = require('../middleware/authMiddleware');
+const { createEvent, getEvents, deleteEvent } = require('../controllers/eventController');
+const { protect, adminOnly } = require('../middleware/authMiddleware');
 
-// ✅ GET ALL EVENTS
-router.get('/', async (req, res) => {
-    try {
-        const events = await Event.find({}).populate('createdBy', 'name email').sort({ createdAt: -1 });
-        res.status(200).json(events);
-    } catch (error) {
-        console.error("Event Fetch Error:", error); // Console mein error dikhega
-        res.status(500).json({ message: 'Server Error' });
-    }
-});
+// ✅ Public Route (Koi bhi dekh sakta hai)
+router.get('/', getEvents);
 
-// ✅ CREATE EVENT (Crash Proof)
-router.post('/', protect, async (req, res) => {
-    try {
-        const { title, date, location, budget, description } = req.body;
-        const event = await Event.create({
-            title, date, location, budget, description,
-            createdBy: req.user.id // 👈 Logged in user ki ID automatically jayegi
-        });
-        res.status(201).json(event);
-    } catch (error) {
-        res.status(500).json({ message: 'Event Create Failed' });
-    }
-});
+// ✅ Private Route (Sirf Logged-in & Verified users create kar sakte hain)
+// Note: Verification check controller ke andar hai
+router.post('/', protect, createEvent);
+
+// 🔐 Admin Only Route (Sirf Admin delete kar sakta hai)
+router.delete('/:id', protect, adminOnly, deleteEvent);
 
 module.exports = router;

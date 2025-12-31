@@ -1,120 +1,167 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const user = JSON.parse(localStorage.getItem('user'));
+  const [activeTab, setActiveTab] = useState('users'); // 'users' or 'events'
+  const navigate = useNavigate();
 
-  const fetchData = async () => {
-    try {
-      const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      // Dono requests ek saath bhejo
-      const [uRes, eRes] = await Promise.all([
-        axios.get('/api/users', config),
-        axios.get('/api/events', config)
-      ]);
-      setUsers(uRes.data);
-      setEvents(eRes.data);
-    } catch (err) {
-      console.error("Error fetching data:", err);
-      alert("Failed to fetch admin data.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Load Data
   useEffect(() => {
-    if (user?.token) {
-      fetchData();
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user || user.role !== 'admin') {
+      alert("Access Denied! Admins Only.");
+      navigate('/');
+      return;
     }
-  }, []);
+    fetchData(user.token);
+  }, [navigate]);
 
-  const handleApprove = async (id) => {
-    // Confirmation lo taaki galti se click na ho
-    if (!window.confirm("Are you sure you have verified the document and want to approve this user?")) return;
-
+  const fetchData = async (token) => {
+    const config = { headers: { Authorization: `Bearer ${token}` } };
     try {
-      const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      await axios.put(`/api/users/approve/${id}`, {}, config);
-      alert("User Approved Successfully! ✅");
-      fetchData(); // List refresh karo
+      // 1. Get Users
+      const usersRes = await axios.get('/api/users', config);
+      setUsers(usersRes.data);
+      
+      // 2. Get Events (Events public hote hain, but delete ke liye token chahiye)
+      const eventsRes = await axios.get('/api/events');
+      setEvents(eventsRes.data);
     } catch (err) {
-      alert("Approval failed! Please try again.");
+      console.error(err);
     }
   };
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '50px', fontSize: '1.2rem' }}>Loading Dashboard... ⏳</div>;
+  const getToken = () => JSON.parse(localStorage.getItem('user')).token;
+
+  // --- ACTIONS ---
+
+  // 1. Approve User
+  const approveUser = async (id) => {
+    try {
+      await axios.put(`/api/users/approve/${id}`, {}, { headers: { Authorization: `Bearer ${getToken()}` } });
+      alert("User Approved ✅");
+      fetchData(getToken()); // Refresh list
+    } catch (err) { alert("Failed to approve"); }
+  };
+
+  // 2. Unapprove User
+  const unapproveUser = async (id) => {
+    if(!window.confirm("Are you sure you want to un-verify this user?")) return;
+    try {
+      await axios.put(`/api/users/unapprove/${id}`, {}, { headers: { Authorization: `Bearer ${getToken()}` } });
+      alert("User Un-Verified ❌");
+      fetchData(getToken());
+    } catch (err) { alert("Failed to unverify"); }
+  };
+
+  // 3. Delete User
+  const deleteUser = async (id) => {
+    if(!window.confirm("WARNING: This will delete the user permanently!")) return;
+    try {
+      await axios.delete(`/api/users/${id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      alert("User Deleted 🗑️");
+      fetchData(getToken());
+    } catch (err) { alert("Failed to delete user"); }
+  };
+
+  // 4. Delete Event
+  const deleteEvent = async (id) => {
+    if(!window.confirm("Delete this event?")) return;
+    try {
+      await axios.delete(`/api/events/${id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      alert("Event Deleted 🗑️");
+      fetchData(getToken());
+    } catch (err) { alert("Failed to delete event"); }
+  };
 
   return (
-    <div style={{ padding: '30px', maxWidth: '1100px', margin: '0 auto', fontFamily: 'sans-serif', background: '#f8fafc', minHeight: '100vh' }}>
-      <h1 style={{ color: '#0f172a', borderBottom: '3px solid #0f172a', paddingBottom: '15px', marginBottom: '30px' }}>🛡️ Admin Control Portal</h1>
-
-      {/* --- USERS APPROVAL SECTION --- */}
-      <div style={{ background: '#fff', padding: '25px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
-        <h2 style={{ color: '#334155', marginBottom: '20px' }}>👥 Pending Verifications ({users.filter(u => !u.isVerified).length})</h2>
-        
-        {users.map(u => (
-          <div key={u._id} style={{ border: '1px solid #e2e8f0', padding: '20px', marginBottom: '15px', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: u.isVerified ? '#f0fdf4' : '#ffffff' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <strong style={{ fontSize: '1.1rem' }}>{u.name}</strong>
-                {/* 👇 ROLE DIKHAO (Student/Sponsor) */}
-                <span style={{ background: '#e2e8f0', padding: '3px 8px', borderRadius: '12px', fontSize: '0.75rem', textTransform: 'capitalize', fontWeight: 'bold', color: '#475569' }}>
-                  {u.role}
-                </span>
-                <span style={{ marginLeft: '5px', fontSize: '0.8rem', padding: '3px 8px', borderRadius: '12px', background: u.isVerified ? '#dcfce7' : '#fee2e2', color: u.isVerified ? '#166534' : '#991b1b', fontWeight: 'bold' }}>
-                  {u.isVerified ? '✅ Verified' : '⏳ Pending'}
-                </span>
-              </div>
-              <p style={{ margin: '5px 0', color: '#64748b', fontSize: '0.9rem' }}>{u.email}</p>
-              
-              {/* 👇 IMAGE LINK (Ye tabhi dikhega jab backend URL bhejega) */}
-              <div style={{ marginTop: '10px' }}>
-                {u.verificationDoc ? (
-                  <a href={u.verificationDoc} target="_blank" rel="noreferrer" 
-                     style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: '#3b82f6', color: 'white', padding: '8px 12px', borderRadius: '6px', textDecoration: 'none', fontSize: '0.85rem', fontWeight: '600' }}>
-                    📄 View Uploaded Document
-                  </a>
-                ) : (
-                  <span style={{ color: '#ef4444', fontSize: '0.85rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    ⚠️ No Document Uploaded Yet
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Approve Button */}
-            {!u.isVerified && (
-              <button onClick={() => handleApprove(u._id)} 
-                      disabled={!u.verificationDoc} // Document nahi toh button disable
-                      style={{ background: u.verificationDoc ? '#10b981' : '#94a3b8', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: u.verificationDoc ? 'pointer' : 'not-allowed', fontWeight: '600', transition: 'background 0.3s' }}>
-                {u.verificationDoc ? 'Approve User ✅' : 'Wait for Doc ⏳'}
-              </button>
-            )}
-          </div>
-        ))}
+    <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto', fontFamily: 'Poppins' }}>
+      <h1 style={{ textAlign: 'center', color: '#1e293b' }}>🛡️ Admin Dashboard</h1>
+      
+      {/* TABS */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', margin: '20px 0' }}>
+        <button onClick={() => setActiveTab('users')} style={activeTab === 'users' ? activeBtn : inactiveBtn}>Manage Users</button>
+        <button onClick={() => setActiveTab('events')} style={activeTab === 'events' ? activeBtn : inactiveBtn}>Manage Events</button>
       </div>
+
+      {/* --- USERS SECTION --- */}
+      {activeTab === 'users' && (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
+            <thead>
+              <tr style={{ background: '#f1f5f9', textAlign: 'left' }}>
+                <th style={th}>Name</th>
+                <th style={th}>Email</th>
+                <th style={th}>Role</th>
+                <th style={th}>Status</th>
+                <th style={th}>Doc</th>
+                <th style={th}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(user => (
+                <tr key={user._id} style={{ borderBottom: '1px solid #ddd' }}>
+                  <td style={td}>{user.name}</td>
+                  <td style={td}>{user.email}</td>
+                  <td style={td}>{user.role}</td>
+                  <td style={td}>
+                    {user.isVerified ? <span style={{color:'green', fontWeight:'bold'}}>Verified</span> : <span style={{color:'red'}}>Pending</span>}
+                  </td>
+                  <td style={td}>
+                    {user.verificationDoc ? <a href={user.verificationDoc} target="_blank" rel="noreferrer">View Doc</a> : 'No Doc'}
+                  </td>
+                  <td style={td}>
+                    {/* APPROVE / UNAPPROVE */}
+                    {user.role !== 'admin' && (
+                      <>
+                        {user.isVerified ? (
+                          <button onClick={() => unapproveUser(user._id)} style={{...btn, background: '#f59e0b', marginRight: '5px'}}>Unverify</button>
+                        ) : (
+                          <button onClick={() => approveUser(user._id)} style={{...btn, background: '#10b981', marginRight: '5px'}}>Approve</button>
+                        )}
+                        
+                        {/* DELETE */}
+                        <button onClick={() => deleteUser(user._id)} style={{...btn, background: '#ef4444'}}>Delete</button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* --- EVENTS SECTION --- */}
-      <h2 style={{ marginTop: '50px', color: '#334155' }}>📅 Live Events Monitor ({events.length})</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px', marginTop: '20px' }}>
-        {events.map(e => (
-          <div key={e._id} style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
-            <h3 style={{ margin: '0 0 10px', color: '#0f172a' }}>{e.title}</h3>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b', marginBottom: '15px' }}>
-              <span>📍 {e.location}</span>
-              <span style={{ fontWeight: 'bold', color: '#2563eb' }}>💰 ₹{e.budget}</span>
+      {activeTab === 'events' && (
+        <div>
+          {events.length === 0 ? <p style={{textAlign:'center'}}>No events found.</p> : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+              {events.map(event => (
+                <div key={event._id} style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
+                  <h3>{event.title}</h3>
+                  <p><strong>Date:</strong> {new Date(event.date).toDateString()}</p>
+                  <p><strong>Location:</strong> {event.location}</p>
+                  <p style={{color: '#64748b'}}>{event.description.substring(0, 100)}...</p>
+                  <button onClick={() => deleteEvent(event._id)} style={{...btn, background: '#ef4444', width: '100%', marginTop: '10px'}}>Delete Event 🗑️</button>
+                </div>
+              ))}
             </div>
-            <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px', fontSize: '0.8rem', color: '#475569' }}>
-              Organizer: <strong>{e.createdBy?.name || 'Unknown'}</strong> ({e.createdBy?.email})
-            </div>
-          </div>
-        ))}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
+
+// Styles
+const th = { padding: '12px', borderBottom: '2px solid #ddd' };
+const td = { padding: '12px' };
+const btn = { padding: '8px 12px', border: 'none', borderRadius: '5px', color: 'white', cursor: 'pointer', fontSize: '0.8rem' };
+const activeBtn = { padding: '10px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' };
+const inactiveBtn = { padding: '10px 20px', background: '#e2e8f0', color: 'black', border: 'none', borderRadius: '5px', cursor: 'pointer' };
 
 export default AdminDashboard;

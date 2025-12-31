@@ -1,38 +1,36 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, verifyRegisterOTP, loginUser, verifyLoginOTP, getMe } = require('../controllers/authController');
-const { protect } = require('../middleware/authMiddleware');
+const { 
+  registerUser, loginUser, verifyRegisterOTP, verifyLoginOTP, getMe,
+  getAllUsers, approveUser, unverifyUser, deleteUser 
+} = require('../controllers/authController');
+
+const { protect, adminOnly } = require('../middleware/authMiddleware');
 const User = require('../models/User');
 const multer = require('multer');
 const { storage } = require('../config/cloudinary');
 const upload = multer({ storage });
 
-// ✅ Auth Routes
-router.post('/', registerUser);               // Step 1 Register (Send OTP)
-router.post('/register/verify', verifyRegisterOTP); // Step 2 Register (Verify OTP)
+// ✅ Public Auth
+router.post('/', registerUser);
+router.post('/register/verify', verifyRegisterOTP);
+router.post('/login', loginUser);
+router.post('/login/verify', verifyLoginOTP);
 
-router.post('/login', loginUser);             // Step 1 Login
-router.post('/login/verify', verifyLoginOTP); // Step 2 Login
-
+// ✅ Private User
 router.get('/me', protect, getMe);
-
-// ✅ Upload Route
 router.post('/verify', protect, upload.single('document'), async (req, res) => {
     try {
-        const updatedUser = await User.findByIdAndUpdate(req.user.id, { verificationDoc: req.file.path }, { new: true });
-        res.status(200).json(updatedUser);
+        if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+        await User.findByIdAndUpdate(req.user.id, { verificationDoc: req.file.path, isVerified: false });
+        res.status(200).json({ message: 'Document Uploaded' });
     } catch (error) { res.status(500).json({ message: error.message }); }
 });
 
-// ✅ Admin Routes
-router.get('/', protect, async (req, res) => {
-    const users = await User.find({}).sort({ createdAt: -1 });
-    res.status(200).json(users);
-});
-
-router.put('/approve/:id', protect, async (req, res) => {
-    await User.findByIdAndUpdate(req.params.id, { isVerified: true });
-    res.status(200).json({ message: 'Approved' });
-});
+// 🔐 ADMIN ROUTES (Full Control)
+router.get('/', protect, adminOnly, getAllUsers);
+router.put('/approve/:id', protect, adminOnly, approveUser);
+router.put('/unapprove/:id', protect, adminOnly, unverifyUser); // 👈 New Unapprove Route
+router.delete('/:id', protect, adminOnly, deleteUser);          // 👈 New Delete User Route
 
 module.exports = router;
