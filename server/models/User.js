@@ -10,13 +10,10 @@ const userSchema = mongoose.Schema({
         default: 'student' 
     },
     isVerified: { type: Boolean, default: false },
-    // 👇 YE SABSE ZAROORI HAI. Iske bina upload fail hi hoga.
-    verificationDoc: { 
-        type: String, 
-        default: "" 
-    }
+    verificationDoc: { type: String, default: "" } // Ye field zaroori hai
 }, {
-    timestamps: true
+    timestamps: true,
+    strict: false  // 👈 YE HAI JAADU. Ye naye fields ko reject hone se rokega.
 });
 
 module.exports = mongoose.model('User', userSchema);
