@@ -4,113 +4,96 @@ import { Link } from 'react-router-dom';
 
 const Home = () => {
   const [events, setEvents] = useState([]);
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')));
-  const [checking, setChecking] = useState(false);
-
-  const refreshUserStatus = async () => {
-    if (!user?.token) return;
-    setChecking(true);
-    try {
-      const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      const { data } = await axios.get('/api/users/me', config);
-      
-      if (data.isVerified) {
-        const updatedUser = { ...user, isVerified: true, role: data.role };
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        setUser(updatedUser);
-        alert("🎉 Congrats! You are now Verified.");
-      } else {
-        alert("⏳ Status: Still Pending.\nAdmin has not approved your request yet.");
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setChecking(false);
-    }
-  };
-
-  const fetchEvents = async () => {
-    try {
-      const { data } = await axios.get('/api/events');
-      setEvents(data);
-    } catch (err) { console.error(err); }
-  };
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true); // Loading state
+  const [error, setError] = useState(null);     // Error state
 
   useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    setUser(storedUser);
+
+    const fetchEvents = async () => {
+      try {
+        setLoading(true);
+        // Backend se events maango
+        const res = await axios.get('/api/events');
+        setEvents(res.data);
+        setError(null);
+      } catch (err) {
+        console.error("Event Fetch Error:", err);
+        setError("Failed to load events. Backend might be sleeping 😴");
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchEvents();
-    if(user && !user.isVerified) refreshUserStatus();
   }, []);
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'Poppins, sans-serif' }}>
+    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'Poppins' }}>
       
-      {/* Hero Section */}
-      <div style={{ textAlign: 'center', padding: '50px 20px', background: '#f8fafc', borderRadius: '20px', marginBottom: '40px' }}>
-        <h1 style={{ color: '#1e293b', fontSize: '2.5rem', marginBottom: '10px' }}>🚀 CampusSponsor</h1>
-        <p style={{ color: '#64748b', fontSize: '1.2rem', marginBottom: '30px' }}>Connect Student Events with Top Sponsors</p>
+      {/* HEADER SECTION */}
+      <div style={{ textAlign: 'center', margin: '40px 0' }}>
+        <h1 style={{ fontSize: '3rem', color: '#1e293b', marginBottom: '10px' }}>🚀 CampusSponsor</h1>
+        <p style={{ fontSize: '1.2rem', color: '#64748b' }}>Connect Student Events with Top Sponsors</p>
 
-        {/* 👇 LOGIC CHANGE: Role Check Added */}
-        {user ? (
-          // 1. Agar Verified Hai:
-          user.isVerified ? (
-            user.role === 'sponsor' ? (
-              // 🏦 AGAR SPONSOR HAI -> Dashboard Link
-              <Link to="/sponsor" style={{ textDecoration: 'none' }}>
-                <button style={{ background: '#0f172a', color: 'white', padding: '15px 30px', fontSize: '1.1rem', borderRadius: '30px', border: 'none', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
-                  💰 Browse Opportunities
-                </button>
-              </Link>
-            ) : (
-              // 🎓 AGAR STUDENT HAI -> Create Event
-              <Link to="/create-event" style={{ textDecoration: 'none' }}>
-                <button style={{ background: '#2563eb', color: 'white', padding: '15px 30px', fontSize: '1.1rem', borderRadius: '30px', border: 'none', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 15px rgba(37, 99, 235, 0.4)' }}>
-                  + Create New Event
-                </button>
-              </Link>
-            )
-          ) : (
-            // 2. Agar Pending Hai (Common for both):
-            <div style={{ background: '#fff7ed', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', padding: '25px', borderRadius: '15px', border: '2px dashed #f97316' }}>
-              <span style={{ color: '#c2410c', fontWeight: 'bold', fontSize: '1.2rem', marginBottom: '5px' }}>⚠️ KYC Verification Pending</span>
-              <p style={{ margin: '0 0 15px', fontSize: '0.9rem', color: '#9a3412' }}>Complete these steps to activate your account:</p>
-              
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <Link to="/verify">
-                  <button style={{ background: '#ea580c', color: 'white', padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+        {/* KYC ALERT BOX */}
+        {user && !user.isVerified && (
+          <div style={{ margin: '30px auto', maxWidth: '600px', padding: '20px', background: '#fff7ed', border: '2px dashed #f97316', borderRadius: '15px' }}>
+            <h3 style={{ color: '#c2410c', margin: '0 0 10px 0' }}>⚠️ KYC Verification Pending</h3>
+            <p style={{ color: '#9a3412', marginBottom: '15px' }}>Complete these steps to activate your account:</p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                <Link to="/verify" style={{ padding: '10px 20px', background: '#f97316', color: 'white', textDecoration: 'none', borderRadius: '8px', fontWeight: 'bold' }}>
                     📂 Upload ID Proof
-                  </button>
                 </Link>
-
-                <button 
-                  onClick={refreshUserStatus} 
-                  disabled={checking}
-                  style={{ background: 'white', border: '2px solid #ea580c', color: '#ea580c', padding: '10px 20px', borderRadius: '8px', cursor: checking ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
-                >
-                  {checking ? 'Checking... 🔄' : 'Check Status ⚡'}
+                <button style={{ padding: '10px 20px', background: 'white', border: '2px solid #f97316', color: '#f97316', borderRadius: '8px', fontWeight: 'bold', cursor:'not-allowed' }}>
+                    Check Status ⚡
                 </button>
-              </div>
             </div>
-          )
-        ) : (
-          // 3. Agar Login Nahi Hai:
-          <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
-            <Link to="/login"><button style={{ padding: '12px 25px', borderRadius: '8px', border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Login</button></Link>
-            <Link to="/register"><button style={{ padding: '12px 25px', borderRadius: '8px', border: '1px solid #2563eb', background: 'white', color: '#2563eb', cursor: 'pointer', fontWeight: 'bold' }}>Register</button></Link>
           </div>
+        )}
+
+        {/* CREATE EVENT BUTTON */}
+        {user && user.role === 'student' && user.isVerified && (
+          <Link to="/create-event" style={{ display: 'inline-block', marginTop: '20px', padding: '15px 30px', background: '#2563eb', color: 'white', textDecoration: 'none', borderRadius: '30px', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(37, 99, 235, 0.3)' }}>
+            + Create New Event
+          </Link>
         )}
       </div>
 
-      {/* Events Feed */}
-      <h2 style={{ color: '#334155' }}>🔥 Trending Events</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginTop: '20px' }}>
-        {events.length === 0 ? <p style={{color: '#64748b'}}>No events yet.</p> : events.map(e => (
-          <div key={e._id} style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '15px', background: 'white' }}>
-            <h3>{e.title}</h3>
-            <p>📍 {e.location} | 💰 ₹{e.budget}</p>
-            <p style={{ fontSize: '0.8rem', color: '#94a3b8' }}>By: {e.createdBy?.name || 'Unknown'}</p>
-          </div>
-        ))}
-      </div>
+      {/* EVENTS SECTION */}
+      <h2 style={{ color: '#334155', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px', marginBottom: '20px' }}>🔥 Trending Events</h2>
+      
+      {loading ? (
+        <p style={{textAlign:'center', fontSize:'1.2rem', color:'#64748b'}}>Loading Events... ⏳</p>
+      ) : error ? (
+        <p style={{textAlign:'center', color:'#ef4444', background:'#fee2e2', padding:'10px', borderRadius:'8px'}}>{error}</p>
+      ) : events.length === 0 ? (
+        <p style={{textAlign:'center', color:'#64748b', fontSize:'1.1rem'}}>No events found. Be the first to create one! 🎉</p>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '25px' }}>
+          {events.map((event) => (
+            <div key={event._id} style={{ background: 'white', padding: '25px', borderRadius: '15px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', transition: 'transform 0.2s', border: '1px solid #f1f5f9' }}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'start'}}>
+                <h3 style={{ margin: '0 0 10px 0', color: '#1e293b', fontSize:'1.4rem' }}>{event.title}</h3>
+                <span style={{background:'#dbeafe', color:'#1e40af', padding:'5px 10px', borderRadius:'15px', fontSize:'0.75rem', fontWeight:'bold'}}>
+                   Budget: ₹{event.budget}
+                </span>
+              </div>
+              
+              <p style={{ color: '#64748b', fontSize: '0.95rem', lineHeight:'1.5', marginBottom:'15px' }}>
+                {event.description ? event.description.substring(0, 100) + '...' : 'No description'}
+              </p>
+              
+              <div style={{display:'flex', gap:'15px', fontSize:'0.9rem', color:'#475569', borderTop:'1px solid #f1f5f9', paddingTop:'15px'}}>
+                <span>📅 {new Date(event.date).toLocaleDateString()}</span>
+                <span>📍 {event.location}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
