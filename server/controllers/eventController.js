@@ -1,51 +1,101 @@
 const asyncHandler = require('express-async-handler');
 const Event = require('../models/Event');
+const User = require('../models/User');
 
-// @desc Create Event (Verified Only)
-const createEvent = asyncHandler(async (req, res) => {
-  if (!req.user.isVerified) { res.status(403); throw new Error('Access Denied! KYC Pending.'); }
-  const { title, date, location, budget, description } = req.body;
-  if (!title || !date || !location || !budget) { res.status(400); throw new Error('Please add all fields'); }
-
-  const event = await Event.create({ user: req.user.id, title, date, location, budget, description });
-  res.status(200).json(event);
-});
-
-// @desc Get Events
+// @desc    Get all events
+// @route   GET /api/events
+// @access  Public
 const getEvents = asyncHandler(async (req, res) => {
+  // Sort by Date (Naya event pehle)
   const events = await Event.find().sort({ createdAt: -1 });
   res.status(200).json(events);
 });
 
-// @desc Update Event (Owner Only) 👇 NEW
-const updateEvent = asyncHandler(async (req, res) => {
-  const event = await Event.findById(req.params.id);
-  if (!event) { res.status(404); throw new Error('Event not found'); }
-  
-  // Check Ownership
-  if (event.user.toString() !== req.user.id) { res.status(401); throw new Error('Not authorized'); }
+// @desc    Create new event
+// @route   POST /api/events
+// @access  Private (Students Only)
+const createEvent = asyncHandler(async (req, res) => {
+  if (!req.body.title || !req.body.budget) {
+    res.status(400);
+    throw new Error('Please add title and budget');
+  }
 
-  const updatedEvent = await Event.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  res.status(200).json(updatedEvent);
+  const event = await Event.create({
+    title: req.body.title,
+    description: req.body.description,
+    date: req.body.date,
+    location: req.body.location,
+    budget: req.body.budget,
+    user: req.user.id,
+  });
+
+  res.status(200).json(event);
 });
 
-// @desc Delete My Event (Owner Only) 👇 NEW
-const deleteMyEvent = asyncHandler(async (req, res) => {
-  const event = await Event.findById(req.params.id);
-  if (!event) { res.status(404); throw new Error('Event not found'); }
-
-  if (event.user.toString() !== req.user.id) { res.status(401); throw new Error('Not authorized'); }
-
-  await event.deleteOne();
-  res.status(200).json({ message: 'Event Deleted' });
-});
-
-// @desc Delete Event (Admin)
+// @desc    Delete event
+// @route   DELETE /api/events/:id
+// @access  Private (Owner or Admin)
 const deleteEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
-  if (!event) { res.status(404); throw new Error('Event not found'); }
+
+  if (!event) {
+    res.status(404);
+    throw new Error('Event not found');
+  }
+
+  // Check user (Admin can delete anyone's event)
+  if (event.user.toString() !== req.user.id && req.user.role !== 'admin') {
+    res.status(401);
+    throw new Error('User not authorized');
+  }
+
   await event.deleteOne();
-  res.status(200).json({ message: 'Event Deleted by Admin' });
+  res.status(200).json({ id: req.params.id });
 });
 
-module.exports = { createEvent, getEvents, updateEvent, deleteMyEvent, deleteEvent };
+// 👇 NEW: SPONSOR AN EVENT (THE DEAL MAKER)
+// @desc    Sponsor an event
+// @route   PUT /api/events/sponsor/:id
+// @access  Private (Sponsors Only)
+const sponsorEvent = asyncHandler(async (req, res) => {
+  const event = await Event.findById(req.params.id);
+
+  if (!event) {
+    res.status(404);
+    throw new Error('Event not found');
+  }
+
+  // 1. Check: Kya ye pehle se sponsored hai?
+  if (event.isSponsored) {
+    res.status(400);
+    throw new Error('Too Late! This event is already sponsored.');
+  }
+
+  // 2. Check: Kya user sach mein Sponsor hai?
+  // (req.user authMiddleware se aa raha hai)
+  if (req.user.role !== 'sponsor') {
+    res.status(401);
+    throw new Error('Only Sponsors can fund events.');
+  }
+
+  // 3. LOCK THE DEAL
+  event.isSponsored = true;
+  event.sponsorBy = req.user.id;
+  event.sponsorName = req.user.name;
+  event.sponsorEmail = req.user.email;
+  event.sponsoredAt = Date.now();
+
+  await event.save();
+
+  res.status(200).json({ 
+    message: `Deal Locked! You are now sponsoring ${event.title}`, 
+    event 
+  });
+});
+
+module.exports = {
+  getEvents,
+  createEvent,
+  deleteEvent,
+  sponsorEvent, // 👈 Export kiya naya function
+};
