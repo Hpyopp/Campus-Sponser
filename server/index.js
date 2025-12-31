@@ -1,5 +1,6 @@
 const express = require('express');
 const dotenv = require('dotenv').config();
+const cors = require('cors'); // 👈 Naya Import
 const { errorHandler } = require('./middleware/errorMiddleware');
 const connectDB = require('./config/db');
 
@@ -10,15 +11,17 @@ connectDB();
 
 const app = express();
 
+// 👇 SABSE ZAROORI: CORS Enable Karo
+app.use(cors()); 
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// 👇 ROUTES CONFIGURATION (Dhyan se dekhna)
-// Hum '/api/users' use karenge, '/api/auth' nahi.
+// Routes
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/events', require('./routes/eventRoutes'));
-app.use('/api/admin', require('./routes/adminRoutes'));
 
+// Error Handler
 app.use(errorHandler);
 
 app.listen(port, () => console.log(`Server started on port ${port}`));
