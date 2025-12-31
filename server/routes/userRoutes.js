@@ -1,44 +1,47 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser, getMe } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const User = require('../models/User');
 const multer = require('multer');
 const { storage } = require('../config/cloudinary');
 const upload = multer({ storage });
 
-// 1. Auth & Admin Routes
-router.post('/', registerUser);
-router.post('/login', loginUser);
-router.get('/me', protect, getMe);
+// ✅ Admin: Get all users
 router.get('/', protect, async (req, res) => {
-    const users = await User.find({}).select('-password');
-    res.json(users);
+    try {
+        const users = await User.find({}).select('-password');
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching users' });
+    }
 });
 
-// 2. Verification Upload (Pending Status)
+// ✅ User: ID Upload Logic (Fix)
 router.post('/verify', protect, upload.single('document'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+
+        // Cloudinary ka 'path' hi URL hota hai
         const updatedUser = await User.findByIdAndUpdate(
             req.user.id,
             { 
-                verificationDoc: req.file.path, 
-                isVerified: false // 👈 Approval ke liye rukega
+                verificationDoc: req.file.path, // 👈 Ye line database mein link save karegi
+                isVerified: false 
             },
             { new: true }
         );
+
         res.status(200).json(updatedUser);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
 
-// 3. Admin Approval Action (Naya Route)
+// ✅ Admin: Approve Action
 router.put('/approve/:id', protect, async (req, res) => {
     try {
-        const user = await User.findByIdAndUpdate(req.params.id, { isVerified: true }, { new: true });
-        res.json(user);
+        await User.findByIdAndUpdate(req.params.id, { isVerified: true });
+        res.json({ message: 'User approved' });
     } catch (error) {
         res.status(500).json({ message: 'Approval failed' });
     }
