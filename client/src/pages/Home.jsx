@@ -5,30 +5,63 @@ import { Link } from 'react-router-dom';
 const Home = () => {
   const [events, setEvents] = useState([]);
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); // Loading state
-  const [error, setError] = useState(null);     // Error state
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
-    setUser(storedUser);
+    
+    if (storedUser) {
+      setUser(storedUser);
+      // 👇 IMPORTANT: Page load hote hi taaza status check karo
+      fetchLatestStatus(storedUser);
+    }
 
-    const fetchEvents = async () => {
-      try {
-        setLoading(true);
-        // Backend se events maango
-        const res = await axios.get('/api/events');
-        setEvents(res.data);
-        setError(null);
-      } catch (err) {
-        console.error("Event Fetch Error:", err);
-        setError("Failed to load events. Backend might be sleeping 😴");
-      } finally {
-        setLoading(false);
-      }
-    };
-
+    // Events fetch karo
     fetchEvents();
   }, []);
+
+  // 🔄 1. LIVE STATUS CHECK FUNCTION
+  const fetchLatestStatus = async (currentUser) => {
+    try {
+      const config = { headers: { Authorization: `Bearer ${currentUser.token}` } };
+      // Backend se poocho: "Kya main verify ho gaya?"
+      const res = await axios.get('/api/users/me', config);
+      
+      // Agar backend bole "Haan Verified ho", aur local bole "Nahi", toh update karo
+      if (res.data.isVerified !== currentUser.isVerified) {
+        const updatedUser = { ...currentUser, isVerified: res.data.isVerified };
+        localStorage.setItem('user', JSON.stringify(updatedUser)); // Browser update
+        setUser(updatedUser); // State update
+        
+        if(res.data.isVerified) {
+            alert("🎉 Good News! Your account is now Verified.");
+        }
+      }
+    } catch (err) {
+      console.error("Status Check Failed:", err);
+    }
+  };
+
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get('/api/events');
+      setEvents(res.data);
+      setError(null);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load events. Backend might be sleeping 😴");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🔄 2. MANUAL CHECK BUTTON HANDLER
+  const handleCheckStatus = () => {
+    if(user) fetchLatestStatus(user);
+    alert("Checking with Admin... 📡");
+  };
 
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'Poppins' }}>
@@ -42,19 +75,26 @@ const Home = () => {
         {user && !user.isVerified && (
           <div style={{ margin: '30px auto', maxWidth: '600px', padding: '20px', background: '#fff7ed', border: '2px dashed #f97316', borderRadius: '15px' }}>
             <h3 style={{ color: '#c2410c', margin: '0 0 10px 0' }}>⚠️ KYC Verification Pending</h3>
-            <p style={{ color: '#9a3412', marginBottom: '15px' }}>Complete these steps to activate your account:</p>
+            <p style={{ color: '#9a3412', marginBottom: '15px' }}>
+              Upload proof if you haven't. If uploaded, wait for Admin approval.
+            </p>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
                 <Link to="/verify" style={{ padding: '10px 20px', background: '#f97316', color: 'white', textDecoration: 'none', borderRadius: '8px', fontWeight: 'bold' }}>
                     📂 Upload ID Proof
                 </Link>
-                <button style={{ padding: '10px 20px', background: 'white', border: '2px solid #f97316', color: '#f97316', borderRadius: '8px', fontWeight: 'bold', cursor:'not-allowed' }}>
+                
+                {/* 👇 BUTTON AB DISABLED NAHI HAI */}
+                <button 
+                  onClick={handleCheckStatus}
+                  style={{ padding: '10px 20px', background: 'white', border: '2px solid #f97316', color: '#f97316', borderRadius: '8px', fontWeight: 'bold', cursor:'pointer' }}
+                >
                     Check Status ⚡
                 </button>
             </div>
           </div>
         )}
 
-        {/* CREATE EVENT BUTTON */}
+        {/* CREATE EVENT BUTTON (Sirf Students ke liye) */}
         {user && user.role === 'student' && user.isVerified && (
           <Link to="/create-event" style={{ display: 'inline-block', marginTop: '20px', padding: '15px 30px', background: '#2563eb', color: 'white', textDecoration: 'none', borderRadius: '30px', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(37, 99, 235, 0.3)' }}>
             + Create New Event
