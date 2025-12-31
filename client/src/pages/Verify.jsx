@@ -24,40 +24,38 @@ const Verify = () => {
         },
       };
 
-      // Upload Request
-      const res = await axios.post('/api/users/verify', formData, config);
+      await axios.post('/api/users/verify', formData, config);
       
-      console.log("Server Response:", res.data);
-
-      // 👇 ASLI TEST: Agar yahan Link dikha, toh Database mein save ho gaya!
-      if (res.data.verificationDoc) {
-        alert(`SUCCESS! ✅\nLink Saved: ${res.data.verificationDoc}\n\nGo to Admin Panel now.`);
-        navigate('/');
-      } else {
-        alert("⚠️ Warning: Server sent 'Success' but Link is MISSING in response!");
-      }
+      // 👇 CLEAN MESSAGE (Ab user ko URL nahi dikhega)
+      alert("Document Uploaded Successfully! 📤\nPlease wait for Admin approval.");
+      navigate('/'); // Wapas Home par bhej do
 
     } catch (error) {
       console.error(error);
-      alert("Upload Failed! Check Console.");
+      alert("Upload Failed! Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '50px auto', textAlign: 'center', padding: '20px', border: '1px solid #ccc', borderRadius: '10px' }}>
-      <h2>📂 Upload ID Proof</h2>
+    <div style={{ maxWidth: '400px', margin: '50px auto', textAlign: 'center', padding: '30px', background: 'white', borderRadius: '15px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)', fontFamily: 'Poppins, sans-serif' }}>
+      <h2 style={{ color: '#1e293b' }}>📂 Upload Verification ID</h2>
+      <p style={{ color: '#64748b', marginBottom: '20px' }}>Upload your College ID or Company Proof.</p>
+      
       <form onSubmit={handleUpload}>
-        <input 
-          type="file" 
-          onChange={(e) => setFile(e.target.files[0])} 
-          required 
-          style={{ margin: '20px 0' }}
-        />
-        <br />
-        <button type="submit" disabled={loading} style={{ background: '#2563eb', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
-          {loading ? 'Uploading...' : 'Submit Document 🚀'}
+        <div style={{ border: '2px dashed #cbd5e1', padding: '20px', borderRadius: '10px', marginBottom: '20px', background: '#f8fafc' }}>
+          <input 
+            type="file" 
+            onChange={(e) => setFile(e.target.files[0])} 
+            accept="image/*,.pdf"
+            required 
+            style={{ width: '100%' }}
+          />
+        </div>
+
+        <button type="submit" disabled={loading} style={{ background: '#2563eb', color: 'white', width: '100%', padding: '12px', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: 'bold', cursor: loading ? 'not-allowed' : 'pointer' }}>
+          {loading ? 'Uploading... ⏳' : 'Submit Document 🚀'}
         </button>
       </form>
     </div>

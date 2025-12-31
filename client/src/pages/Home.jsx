@@ -7,7 +7,6 @@ const Home = () => {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')));
   const [checking, setChecking] = useState(false);
 
-  // Status Check Function
   const refreshUserStatus = async () => {
     if (!user?.token) return;
     setChecking(true);
@@ -50,31 +49,38 @@ const Home = () => {
         <h1 style={{ color: '#1e293b', fontSize: '2.5rem', marginBottom: '10px' }}>🚀 CampusSponsor</h1>
         <p style={{ color: '#64748b', fontSize: '1.2rem', marginBottom: '30px' }}>Connect Student Events with Top Sponsors</p>
 
-        {/* Dynamic Buttons */}
+        {/* 👇 LOGIC CHANGE: Role Check Added */}
         {user ? (
+          // 1. Agar Verified Hai:
           user.isVerified ? (
-            // ✅ AGAR VERIFIED HAI: Create Event Button
-            <Link to="/create-event" style={{ textDecoration: 'none' }}>
-              <button style={{ background: '#2563eb', color: 'white', padding: '15px 30px', fontSize: '1.1rem', borderRadius: '30px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
-                + Create New Event
-              </button>
-            </Link>
+            user.role === 'sponsor' ? (
+              // 🏦 AGAR SPONSOR HAI -> Dashboard Link
+              <Link to="/sponsor" style={{ textDecoration: 'none' }}>
+                <button style={{ background: '#0f172a', color: 'white', padding: '15px 30px', fontSize: '1.1rem', borderRadius: '30px', border: 'none', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
+                  💰 Browse Opportunities
+                </button>
+              </Link>
+            ) : (
+              // 🎓 AGAR STUDENT HAI -> Create Event
+              <Link to="/create-event" style={{ textDecoration: 'none' }}>
+                <button style={{ background: '#2563eb', color: 'white', padding: '15px 30px', fontSize: '1.1rem', borderRadius: '30px', border: 'none', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 15px rgba(37, 99, 235, 0.4)' }}>
+                  + Create New Event
+                </button>
+              </Link>
+            )
           ) : (
-            // ⚠️ AGAR PENDING HAI: KYC Section
+            // 2. Agar Pending Hai (Common for both):
             <div style={{ background: '#fff7ed', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', padding: '25px', borderRadius: '15px', border: '2px dashed #f97316' }}>
               <span style={{ color: '#c2410c', fontWeight: 'bold', fontSize: '1.2rem', marginBottom: '5px' }}>⚠️ KYC Verification Pending</span>
               <p style={{ margin: '0 0 15px', fontSize: '0.9rem', color: '#9a3412' }}>Complete these steps to activate your account:</p>
               
               <div style={{ display: 'flex', gap: '10px' }}>
-                
-                {/* 👇 Button 1: Upload Document (KYC Page) */}
                 <Link to="/verify">
                   <button style={{ background: '#ea580c', color: 'white', padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
                     📂 Upload ID Proof
                   </button>
                 </Link>
 
-                {/* 👇 Button 2: Check Status (Agar upload kar diya hai) */}
                 <button 
                   onClick={refreshUserStatus} 
                   disabled={checking}
@@ -82,11 +88,11 @@ const Home = () => {
                 >
                   {checking ? 'Checking... 🔄' : 'Check Status ⚡'}
                 </button>
-
               </div>
             </div>
           )
         ) : (
+          // 3. Agar Login Nahi Hai:
           <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
             <Link to="/login"><button style={{ padding: '12px 25px', borderRadius: '8px', border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Login</button></Link>
             <Link to="/register"><button style={{ padding: '12px 25px', borderRadius: '8px', border: '1px solid #2563eb', background: 'white', color: '#2563eb', cursor: 'pointer', fontWeight: 'bold' }}>Register</button></Link>
@@ -97,7 +103,7 @@ const Home = () => {
       {/* Events Feed */}
       <h2 style={{ color: '#334155' }}>🔥 Trending Events</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginTop: '20px' }}>
-        {events.length === 0 ? <p style={{color: '#64748b'}}>No events yet. Be the first to create one!</p> : events.map(e => (
+        {events.length === 0 ? <p style={{color: '#64748b'}}>No events yet.</p> : events.map(e => (
           <div key={e._id} style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '15px', background: 'white' }}>
             <h3>{e.title}</h3>
             <p>📍 {e.location} | 💰 ₹{e.budget}</p>
