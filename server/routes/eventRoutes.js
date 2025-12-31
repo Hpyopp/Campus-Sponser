@@ -1,16 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const { createEvent, getEvents, deleteEvent } = require('../controllers/eventController');
+const { 
+  createEvent, getEvents, deleteEvent, 
+  updateEvent, deleteMyEvent 
+} = require('../controllers/eventController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
-// ✅ Public Route (Koi bhi dekh sakta hai)
+// Public
 router.get('/', getEvents);
 
-// ✅ Private Route (Sirf Logged-in & Verified users create kar sakte hain)
-// Note: Verification check controller ke andar hai
+// Private (User)
 router.post('/', protect, createEvent);
+router.put('/:id', protect, updateEvent);      // 👈 Edit Route
+router.delete('/my/:id', protect, deleteMyEvent); // 👈 User Delete Route
 
-// 🔐 Admin Only Route (Sirf Admin delete kar sakta hai)
+// Admin
 router.delete('/:id', protect, adminOnly, deleteEvent);
 
 module.exports = router;

@@ -1,66 +1,51 @@
 const asyncHandler = require('express-async-handler');
 const Event = require('../models/Event');
-const User = require('../models/User');
 
-// @desc    Create new event
-// @route   POST /api/events
-// @access  Private (Verified Users Only)
+// @desc Create Event (Verified Only)
 const createEvent = asyncHandler(async (req, res) => {
-  
-  // 🔒 SECURITY CHECK: Kya User Verified hai?
-  if (!req.user.isVerified) {
-    res.status(403);
-    throw new Error('🚫 Access Denied! Your KYC is NOT Verified. Please wait for Admin Approval.');
-  }
-
+  if (!req.user.isVerified) { res.status(403); throw new Error('Access Denied! KYC Pending.'); }
   const { title, date, location, budget, description } = req.body;
+  if (!title || !date || !location || !budget) { res.status(400); throw new Error('Please add all fields'); }
 
-  if (!title || !date || !location || !budget) {
-    res.status(400);
-    throw new Error('Please add all fields');
-  }
-
-  // Create Event
-  const event = await Event.create({
-    user: req.user.id,
-    title,
-    date,
-    location,
-    budget,
-    description,
-  });
-
+  const event = await Event.create({ user: req.user.id, title, date, location, budget, description });
   res.status(200).json(event);
 });
 
-// @desc    Get all events
-// @route   GET /api/events
-// @access  Public
+// @desc Get Events
 const getEvents = asyncHandler(async (req, res) => {
-  // Sort by latest date (Newest first)
   const events = await Event.find().sort({ createdAt: -1 });
   res.status(200).json(events);
 });
 
-// @desc    Delete Event (Admin Only)
-// @route   DELETE /api/events/:id
-// @access  Private/Admin
-const deleteEvent = asyncHandler(async (req, res) => {
+// @desc Update Event (Owner Only) 👇 NEW
+const updateEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
+  if (!event) { res.status(404); throw new Error('Event not found'); }
+  
+  // Check Ownership
+  if (event.user.toString() !== req.user.id) { res.status(401); throw new Error('Not authorized'); }
 
-  if (!event) {
-    res.status(404);
-    throw new Error('Event not found');
-  }
-
-  // Event database se uda do
-  await event.deleteOne();
-
-  res.status(200).json({ message: 'Event Deleted Successfully 🗑️' });
+  const updatedEvent = await Event.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  res.status(200).json(updatedEvent);
 });
 
-module.exports = {
-  createEvent,
-  getEvents,
-  deleteEvent,
-};
+// @desc Delete My Event (Owner Only) 👇 NEW
+const deleteMyEvent = asyncHandler(async (req, res) => {
+  const event = await Event.findById(req.params.id);
+  if (!event) { res.status(404); throw new Error('Event not found'); }
+
+  if (event.user.toString() !== req.user.id) { res.status(401); throw new Error('Not authorized'); }
+
+  await event.deleteOne();
+  res.status(200).json({ message: 'Event Deleted' });
+});
+
+// @desc Delete Event (Admin)
+const deleteEvent = asyncHandler(async (req, res) => {
+  const event = await Event.findById(req.params.id);
+  if (!event) { res.status(404); throw new Error('Event not found'); }
+  await event.deleteOne();
+  res.status(200).json({ message: 'Event Deleted by Admin' });
+});
+
+module.exports = { createEvent, getEvents, updateEvent, deleteMyEvent, deleteEvent };
