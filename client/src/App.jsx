@@ -3,9 +3,10 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Register from './pages/Register';
 import Login from './pages/Login';
-import VerifyKYC from './pages/VerifyKYC'; // 👈 Ye Import Sahi Hona Chahiye
+import VerifyKYC from './pages/VerifyKYC';
 import AdminDashboard from './pages/AdminDashboard';
 import CreateEvent from './pages/CreateEvent';
+import Agreement from './pages/Agreement'; // 👈 IMPORT KIYA
 
 function App() {
   return (
@@ -13,17 +14,15 @@ function App() {
       <div className="container">
         <Navbar />
         <Routes>
-          {/* ✅ PUBLIC ROUTES */}
           <Route path="/" element={<Home />} />
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
-
-          {/* ✅ PROTECTED ROUTES */}
-          {/* Ye check kar: /verify route par VerifyKYC component hi load hona chahiye */}
           <Route path="/verify" element={<VerifyKYC />} />
-          
           <Route path="/create-event" element={<CreateEvent />} />
           <Route path="/admin" element={<AdminDashboard />} />
+          
+          {/* 👇 NEW ROUTE */}
+          <Route path="/agreement/:id" element={<Agreement />} />
         </Routes>
       </div>
     </Router>

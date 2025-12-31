@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom'; // 👈 useNavigate Import kiya
 
 const Home = () => {
   const [events, setEvents] = useState([]);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const navigate = useNavigate(); // 👈 Hook initialize
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
@@ -36,25 +36,24 @@ const Home = () => {
       setLoading(true);
       const res = await axios.get('/api/events');
       setEvents(res.data);
-      setError(null);
     } catch (err) {
-      setError("Failed to load events.");
+      console.log("Fetch error");
     } finally {
       setLoading(false);
     }
   };
 
-  // 👇 NEW: SPONSOR DEAL FUNCTION
+  // 👇 UPDATED SPONSOR FUNCTION (REDIRECTS NOW)
   const handleSponsor = async (eventId) => {
-    if(!window.confirm("Are you sure you want to Sponsor this event? Deal will be locked! 🔒")) return;
+    if(!window.confirm("Lock this deal? This action is irreversible. 🔒")) return;
 
     try {
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
-        // Backend ko bolo: "Ye event mera hua"
         await axios.put(`/api/events/sponsor/${eventId}`, {}, config);
         
-        alert("🎉 Deal Locked! Agreement Generated.");
-        fetchEvents(); // Refresh taaki 'Sold Out' dikhe
+        // 🚀 Redirect to Agreement Page
+        navigate(`/agreement/${eventId}`); 
+        
     } catch (error) {
         alert(error.response?.data?.message || "Sponsorship Failed");
     }
@@ -91,67 +90,32 @@ const Home = () => {
        events.length === 0 ? <p style={{textAlign:'center'}}>No events found.</p> : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '25px' }}>
           {events.map((event) => (
-            <div key={event._id} style={{ 
-                background: 'white', padding: '25px', borderRadius: '15px', 
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', border: '1px solid #f1f5f9',
-                display: 'flex', flexDirection: 'column', justifyContent: 'space-between' // 👈 ALIGNMENT FIX
-            }}>
-              
-              {/* CARD TOP */}
+            <div key={event._id} style={{ background: 'white', padding: '25px', borderRadius: '15px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'15px'}}>
-                    <h3 style={{ margin: '0', color: '#1e293b', fontSize:'1.3rem', wordBreak: 'break-word', maxWidth:'65%' }}>
-                        {event.title}
-                    </h3>
-                    {/* 👇 BUDGET BADGE FIX (No Wrap) */}
-                    <span style={{
-                        background:'#dbeafe', color:'#1e40af', padding:'6px 10px', 
-                        borderRadius:'12px', fontSize:'0.8rem', fontWeight:'bold', 
-                        whiteSpace: 'nowrap', flexShrink: 0 
-                    }}>
-                       💰 ₹{event.budget}
-                    </span>
+                    <h3 style={{ margin: '0', color: '#1e293b', fontSize:'1.3rem', wordBreak: 'break-word', maxWidth:'65%' }}>{event.title}</h3>
+                    <span style={{background:'#dbeafe', color:'#1e40af', padding:'6px 10px', borderRadius:'12px', fontSize:'0.8rem', fontWeight:'bold', whiteSpace: 'nowrap', flexShrink: 0 }}>💰 ₹{event.budget}</span>
                 </div>
-                
                 <p style={{ color: '#64748b', fontSize: '0.9rem', lineHeight:'1.5', marginBottom:'20px', minHeight: '60px' }}>
-                    {event.description ? event.description.substring(0, 100) + (event.description.length > 100 ? '...' : '') : 'No details provided.'}
+                    {event.description ? event.description.substring(0, 100) + '...' : 'No details.'}
                 </p>
-
                 <div style={{display:'flex', gap:'15px', fontSize:'0.85rem', color:'#475569', marginBottom:'20px'}}>
                     <span>📅 {new Date(event.date).toLocaleDateString()}</span>
                     <span>📍 {event.location}</span>
                 </div>
               </div>
-
-              {/* CARD BOTTOM (ACTION AREA) */}
               <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '15px' }}>
-                
-                {/* CASE 1: Event Already Sponsored */}
                 {event.isSponsored ? (
                     <div style={{width:'100%', padding:'10px', background:'#dcfce7', color:'#166534', textAlign:'center', borderRadius:'8px', fontWeight:'bold', border:'1px solid #86efac'}}>
-                        ✅ FUNDED by {event.sponsorName.split(' ')[0]}
+                        ✅ FUNDED by {event.sponsorName?.split(' ')[0] || 'Sponsor'}
                     </div>
                 ) : (
-                    // CASE 2: Not Sponsored Yet
                     user && user.role === 'sponsor' && user.isVerified ? (
-                        <button 
-                            onClick={() => handleSponsor(event._id)}
-                            style={{
-                                width: '100%', padding: '12px', background: '#0f172a', color: 'white', 
-                                border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold',
-                                transition: '0.2s', fontSize: '1rem'
-                            }}
-                        >
-                            🤝 Sponsor Now
-                        </button>
+                        <button onClick={() => handleSponsor(event._id)} style={{width: '100%', padding: '12px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem'}}>🤝 Sponsor Now</button>
                     ) : (
-                        // CASE 3: Student or Not Login
-                        <div style={{width:'100%', padding:'10px', background:'#f1f5f9', color:'#94a3b8', textAlign:'center', borderRadius:'8px', fontSize:'0.9rem'}}>
-                            Waiting for Sponsors...
-                        </div>
+                        <div style={{width:'100%', padding:'10px', background:'#f1f5f9', color:'#94a3b8', textAlign:'center', borderRadius:'8px', fontSize:'0.9rem'}}>Waiting for Sponsors...</div>
                     )
                 )}
-
               </div>
             </div>
           ))}
@@ -160,5 +124,4 @@ const Home = () => {
     </div>
   );
 };
-
 export default Home;
