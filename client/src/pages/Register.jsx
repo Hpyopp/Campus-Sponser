@@ -8,38 +8,37 @@ const Register = () => {
   });
   
   const [otp, setOtp] = useState('');
-  const [serverOtp, setServerOtp] = useState(null); // 👈 New: Screen par OTP dikhane ke liye
+  const [serverOtp, setServerOtp] = useState(null); // 👈 OTP Display State
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const { name, email, password, phone, role } = formData;
-
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  // 1. REGISTER & SHOW OTP ON SCREEN
+  // 1. REGISTER (Trigger OTP)
   const handleRegister = async (e) => {
-    e.preventDefault();
+    if(e) e.preventDefault(); // Resend button se click hone par error na de
+    
     if (!email.endsWith('@gmail.com')) return alert("Use @gmail.com only!");
     if (phone.length !== 10) return alert("Phone must be 10 digits!");
 
     setLoading(true);
-    setServerOtp(null); // Clear old OTP
+    setServerOtp(null); // Purana OTP hatao
 
     try {
       const res = await axios.post('/api/users', formData);
       setStep(2); 
 
-      // 👇 OTP KO SCREEN PAR DIKHAO (Alert nahi)
+      // 👇 OTP SHOW LOGIC
       if (res.data.debugOtp) {
         setServerOtp(res.data.debugOtp);
       } else {
-        alert(`OTP Sent to ${email}`);
+        alert("OTP sent via Email (Check Inbox/Spam)");
       }
 
     } catch (err) {
       alert(err.response?.data?.message || 'Registration Failed');
-      setStep(1); // Error aaye toh wapas form par bhejo
     } finally {
       setLoading(false);
     }
@@ -51,6 +50,7 @@ const Register = () => {
     try {
       const res = await axios.post('/api/users/register/verify', { email, otp: enteredOtp });
       localStorage.setItem('user', JSON.stringify(res.data));
+      alert(`Welcome! You are registered as a ${res.data.role.toUpperCase()} 🎉`);
       navigate('/');
     } catch (err) {
       alert(err.response?.data?.message || 'Invalid OTP');
@@ -70,20 +70,12 @@ const Register = () => {
   return (
     <div style={{ maxWidth: '400px', margin: '50px auto', textAlign: 'center', padding: '30px', border: '1px solid #ddd', borderRadius: '15px', fontFamily: 'Poppins, sans-serif' }}>
       
-      {/* 👇 OTP DISPLAY BOX (Ye hamesha dikhega agar OTP aaya hai) */}
-      {serverOtp && (
-        <div style={{ background: '#dcfce7', color: '#166534', padding: '10px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #22c55e' }}>
-          <strong>🚀 YOUR OTP IS:</strong>
-          <h1 style={{ margin: '5px 0', fontSize: '2rem', letterSpacing: '5px' }}>{serverOtp}</h1>
-          <small>Do not share this code.</small>
-        </div>
-      )}
-
       <h2 style={{color: '#1e293b', marginBottom: '20px'}}>
         📝 {step === 1 ? 'Join CampusSponsor' : 'Verify Email'}
       </h2>
       
       {step === 1 ? (
+        // --- STEP 1: FORM ---
         <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <input type="text" name="name" placeholder="Full Name" value={name} onChange={handleChange} required style={inputStyle} />
           <input type="email" name="email" placeholder="Email (@gmail.com)" value={email} onChange={handleChange} required style={inputStyle} />
@@ -104,10 +96,42 @@ const Register = () => {
           </button>
         </form>
       ) : (
+        // --- STEP 2: OTP INPUT + DISPLAY ---
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          
+          {/* 👇 OTP BOX (Ab ye yahan hai, input ke upar) */}
+          {serverOtp && (
+            <div style={{ background: '#dcfce7', color: '#166534', padding: '15px', borderRadius: '8px', border: '2px dashed #22c55e' }}>
+              <p style={{margin:0, fontSize: '0.9rem'}}>Developer Mode OTP:</p>
+              <h1 style={{ margin: '5px 0', fontSize: '2.5rem', letterSpacing: '5px', fontWeight: 'bold' }}>{serverOtp}</h1>
+            </div>
+          )}
+
           <p style={{color: '#64748b'}}>Enter OTP sent to <b>{email}</b></p>
-          <input type="text" placeholder="______" value={otp} onChange={handleOtpChange} maxLength="6" autoFocus style={{ ...inputStyle, textAlign: 'center', fontSize: '1.5rem', letterSpacing: '5px', fontWeight: 'bold', color: '#2563eb' }} />
-          <button onClick={() => setStep(1)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', textDecoration: 'underline' }}>Wrong Email? Go Back</button>
+          
+          <input 
+            type="text" 
+            placeholder="______" 
+            value={otp} 
+            onChange={handleOtpChange} 
+            maxLength="6" 
+            autoFocus 
+            style={{ ...inputStyle, textAlign: 'center', fontSize: '1.5rem', letterSpacing: '5px', fontWeight: 'bold', color: '#2563eb' }} 
+          />
+
+          {/* 👇 RESEND BUTTON */}
+          <button 
+            type="button" 
+            onClick={() => handleRegister(null)} 
+            disabled={loading}
+            style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+          >
+            {loading ? 'Sending...' : '🔄 Resend OTP'}
+          </button>
+
+          <button onClick={() => setStep(1)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', textDecoration: 'underline', marginTop: '10px' }}>
+            Wrong Email? Go Back
+          </button>
         </div>
       )}
       
