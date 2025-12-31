@@ -9,23 +9,31 @@ const User = require('../models/User');
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone } = req.body;
 
+  // 1. Basic Validation
   if (!name || !email || !password || !phone) {
     res.status(400);
     throw new Error('Please add all fields including Phone Number');
   }
 
-  // Check if user exists
+  // 🔒 2. STRICT EMAIL VALIDATION (Backend Guard)
+  // Agar email '@gmail.com' se khatam nahi hota, toh reject karo
+  if (!email.endsWith('@gmail.com')) {
+    res.status(400);
+    throw new Error('Registration Restricted: Only @gmail.com addresses are allowed.');
+  }
+
+  // 3. Check if user exists
   const userExists = await User.findOne({ email });
   if (userExists) {
     res.status(400);
     throw new Error('User already exists');
   }
 
-  // Hash password
+  // 4. Hash password
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
-  // Create user
+  // 5. Create user
   const user = await User.create({
     name,
     email,
@@ -64,7 +72,7 @@ const loginUser = asyncHandler(async (req, res) => {
       email: user.email,
       phone: user.phone,
       role: user.role,
-      isVerified: user.isVerified, // Frontend ke liye zaroori
+      isVerified: user.isVerified,
       token: generateToken(user._id),
     });
   } else {
