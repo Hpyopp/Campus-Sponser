@@ -4,55 +4,97 @@ import { useNavigate, Link } from 'react-router-dom';
 
 const Register = () => {
   const [formData, setFormData] = useState({ name: '', email: '', password: '', phone: '' });
+  const [otp, setOtp] = useState('');
+  const [step, setStep] = useState(1); // 1 = Form, 2 = OTP
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const { name, email, password, phone } = formData;
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  const handleSubmit = async (e) => {
+  // STEP 1: Submit Details & Get OTP
+  const handleRegister = async (e) => {
     e.preventDefault();
-    
-    // 🔒 1. Gmail Validation (Sirf @gmail.com chalega)
-    if (!email.endsWith('@gmail.com')) {
-      return alert("🚫 Invalid Email! Please use a valid Google account (@gmail.com)");
-    }
+    if (!email.endsWith('@gmail.com')) return alert("Use @gmail.com only!");
+    if (phone.length !== 10) return alert("Phone must be 10 digits!");
 
-    // 🔒 2. Phone Validation
-    if(phone.length !== 10) {
-      return alert("🚫 Invalid Phone! Please enter a 10-digit mobile number.");
-    }
-
+    setLoading(true);
     try {
-      const res = await axios.post('/api/users', formData);
-      localStorage.setItem('user', JSON.stringify(res.data));
-      navigate('/'); // Go to Home
+      await axios.post('/api/users', formData);
+      setStep(2); // OTP Screen
+      alert(`OTP Sent to ${email} 📩`);
     } catch (err) {
       alert(err.response?.data?.message || 'Registration Failed');
+    } finally {
+      setLoading(false);
     }
   };
 
-  return (
-    <div style={{ maxWidth: '400px', margin: '50px auto', textAlign: 'center', padding: '30px', border: '1px solid #ddd', borderRadius: '10px', fontFamily: 'Poppins, sans-serif' }}>
-      <h2 style={{color: '#1e293b'}}>📝 Register</h2>
-      <p style={{color: '#64748b', fontSize: '0.9rem', marginBottom: '20px'}}>Use your official Gmail account.</p>
+  // STEP 2: Verify OTP
+  const handleVerifyOtp = async (enteredOtp) => {
+    setLoading(true);
+    try {
+      const res = await axios.post('/api/users/register/verify', { email, otp: enteredOtp });
       
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        
-        <input type="text" name="name" placeholder="Full Name" value={name} onChange={handleChange} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
-        
-        {/* 👇 Input type email hai, par hum JS se strict check karenge */}
-        <input type="email" name="email" placeholder="Email (@gmail.com only)" value={email} onChange={handleChange} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
-        
-        <input type="number" name="phone" placeholder="Mobile Number (10 digits)" value={phone} onChange={handleChange} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
+      localStorage.setItem('user', JSON.stringify(res.data));
+      alert("Registration Successful! 🎉");
+      navigate('/');
+      
+    } catch (err) {
+      alert(err.response?.data?.message || 'Invalid OTP');
+      setOtp('');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        <input type="password" name="password" placeholder="Password" value={password} onChange={handleChange} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
-        
-        <button type="submit" style={{ padding: '12px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem' }}>Register Now</button>
-      </form>
-      <p style={{ marginTop: '15px', fontSize: '0.9rem' }}>Already have an account? <Link to="/login" style={{color: '#2563eb'}}>Login</Link></p>
+  const handleOtpChange = (e) => {
+    const val = e.target.value;
+    if (!/^\d*$/.test(val)) return;
+    setOtp(val);
+    if (val.length === 6) handleVerifyOtp(val);
+  };
+
+  return (
+    <div style={{ maxWidth: '400px', margin: '50px auto', textAlign: 'center', padding: '30px', border: '1px solid #ddd', borderRadius: '15px', fontFamily: 'Poppins' }}>
+      <h2 style={{color: '#1e293b'}}>📝 {step === 1 ? 'Register' : 'Verify Email'}</h2>
+      
+      {step === 1 ? (
+        // FORM SCREEN
+        <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <input type="text" name="name" placeholder="Full Name" value={name} onChange={handleChange} required style={inputStyle} />
+          <input type="email" name="email" placeholder="Email (@gmail.com)" value={email} onChange={handleChange} required style={inputStyle} />
+          <input type="number" name="phone" placeholder="Mobile (10 digits)" value={phone} onChange={handleChange} required style={inputStyle} />
+          <input type="password" name="password" placeholder="Password" value={password} onChange={handleChange} required style={inputStyle} />
+          
+          <button type="submit" disabled={loading} style={btnStyle}>
+            {loading ? 'Sending OTP... ⏳' : 'Next ➡️'}
+          </button>
+        </form>
+      ) : (
+        // OTP SCREEN
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <p>Enter code sent to <b>{email}</b></p>
+          <input 
+            type="text" 
+            placeholder="______" 
+            value={otp} 
+            onChange={handleOtpChange} 
+            maxLength="6"
+            autoFocus
+            style={{ ...inputStyle, textAlign: 'center', fontSize: '1.5rem', letterSpacing: '5px' }} 
+          />
+          {loading && <p>Verifying... 🔄</p>}
+        </div>
+      )}
+      
+      <p style={{ marginTop: '15px' }}>Already have an account? <Link to="/login">Login</Link></p>
     </div>
   );
 };
+
+const inputStyle = { padding: '12px', borderRadius: '8px', border: '1px solid #ccc' };
+const btnStyle = { padding: '12px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' };
 
 export default Register;
