@@ -2,15 +2,14 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
-const sendEmail = require('../utils/sendEmail');
 
-// --- REGISTER USER ---
+// --- REGISTER (INSTANT OTP MODE) ---
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone } = req.body;
 
   if (!name || !email || !password || !phone) { res.status(400); throw new Error('Please add all fields'); }
-  
-  // Check User
+  if (!email.endsWith('@gmail.com')) { res.status(400); throw new Error('Only @gmail.com allowed'); }
+
   const userExists = await User.findOne({ email });
   if (userExists && userExists.isVerified) { res.status(400); throw new Error('User already exists'); }
 
@@ -31,40 +30,34 @@ const registerUser = asyncHandler(async (req, res) => {
     user = await User.create({ name, email, password: hashedPassword, phone, otp, otpExpires, isVerified: false });
   }
 
-  // 👇 BYPASS LOGIC: Try Email, if fail -> Send OTP in Response
-  try {
-    await sendEmail({ email: user.email, subject: 'Verification Code', message: `${otp}` });
-    res.status(200).json({ message: 'OTP sent to email' });
-  } catch (error) {
-    console.log("⚠️ Email Failed. Sending Debug OTP.");
-    res.status(200).json({ 
-      message: 'Email Server Busy. USE THIS OTP:', 
-      debugOtp: otp // 👈 Ye frontend pe dikhega
-    });
-  }
+  // ⚡ INSTANT RESPONSE (No Email Sending)
+  console.log(`[SIMULATION] OTP for ${email}: ${otp}`); // Server logs mein bhi dikhega
+  
+  res.status(200).json({ 
+    message: 'Verification Code Generated (Dev Mode)', 
+    debugOtp: otp // 👈 Frontend ko turant OTP mil gaya
+  });
 });
 
-// --- LOGIN USER ---
+// --- LOGIN (INSTANT OTP MODE) ---
 const loginUser = asyncHandler(async (req, res) => {
   const { email } = req.body;
   const user = await User.findOne({ email });
-  if (!user) { res.status(404); throw new Error('User not found.'); }
+
+  if (!user) { res.status(404); throw new Error('User not found. Please Register.'); }
 
   const otp = Math.floor(100000 + Math.random() * 900000);
   user.otp = otp;
   user.otpExpires = Date.now() + 10 * 60 * 1000;
   await user.save();
 
-  try {
-    await sendEmail({ email: user.email, subject: 'Login OTP', message: `${otp}` });
-    res.status(200).json({ message: 'OTP sent to email' });
-  } catch (error) {
-    console.log("⚠️ Email Failed. Sending Debug OTP.");
-    res.status(200).json({ 
-      message: 'Email Server Busy. USE THIS OTP:', 
-      debugOtp: otp 
-    });
-  }
+  // ⚡ INSTANT RESPONSE
+  console.log(`[SIMULATION] Login OTP for ${email}: ${otp}`);
+
+  res.status(200).json({ 
+    message: 'Login Code Generated (Dev Mode)', 
+    debugOtp: otp 
+  });
 });
 
 // --- VERIFY FUNCTIONS (Ye same rahenge) ---
@@ -73,7 +66,9 @@ const verifyRegisterOTP = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email });
   if (user && user.otp == otp) {
     user.isVerified = true; user.otp = undefined; user.otpExpires = undefined; await user.save();
-    res.status(201).json({ _id: user.id, name: user.name, email: user.email, token: generateToken(user._id) });
+    res.status(201).json({ 
+        _id: user.id, name: user.name, email: user.email, role: user.role, token: generateToken(user._id) 
+    });
   } else { res.status(400); throw new Error('Invalid OTP'); }
 });
 
@@ -82,7 +77,9 @@ const verifyLoginOTP = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email });
   if (user && user.otp == otp) {
     user.otp = undefined; user.otpExpires = undefined; await user.save();
-    res.json({ _id: user.id, name: user.name, email: user.email, token: generateToken(user._id) });
+    res.json({ 
+        _id: user.id, name: user.name, email: user.email, role: user.role, isVerified: user.isVerified, token: generateToken(user._id) 
+    });
   } else { res.status(400); throw new Error('Invalid OTP'); }
 });
 
