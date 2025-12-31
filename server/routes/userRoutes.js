@@ -1,37 +1,43 @@
 const express = require('express');
 const router = express.Router();
-const Event = require('../models/Event');
+const { registerUser, loginUser, getMe } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
+const User = require('../models/User');
+const multer = require('multer');
+const { storage } = require('../config/cloudinary');
+const upload = multer({ storage });
 
-// ✅ 1. Get All Events (Populated)
-router.get('/', async (req, res) => {
+// Debugging ke liye (Agar login fail ho toh ise browser mein khol kar dekhna)
+router.get('/test', (req, res) => res.send('User Route is Working'));
+
+// ✅ Auth Routes
+router.post('/', registerUser);
+router.post('/login', loginUser); // Rasta: /api/users/login
+router.get('/me', protect, getMe);
+
+// ✅ Admin & Upload
+router.get('/', protect, async (req, res) => {
     try {
-        const events = await Event.find({}).populate('createdBy', 'name email');
-        res.json(events);
-    } catch (error) {
-        console.error("Event Fetch Error:", error);
-        res.status(500).json({ message: 'Server Error Fetching Events' });
-    }
+        const users = await User.find({}).select('-password').sort({ createdAt: -1 });
+        res.status(200).json(users);
+    } catch (err) { res.status(500).json({message: err.message}); }
 });
 
-// ✅ 2. Create Event (Link with User ID)
-router.post('/', protect, async (req, res) => {
+router.post('/verify', protect, upload.single('document'), async (req, res) => {
     try {
-        const { title, date, location, budget, description } = req.body;
-        
-        const event = await Event.create({
-            title,
-            date,
-            location,
-            budget,
-            description,
-            createdBy: req.user.id // 👈 Ye ID save karega, String nahi
-        });
+        if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+        const updatedUser = await User.findByIdAndUpdate(
+            req.user.id,
+            { verificationDoc: req.file.path, isVerified: false },
+            { new: true }
+        );
+        res.status(200).json(updatedUser);
+    } catch (error) { res.status(500).json({ message: error.message }); }
+});
 
-        res.status(201).json(event);
-    } catch (error) {
-        res.status(500).json({ message: 'Event creation failed' });
-    }
+router.put('/approve/:id', protect, async (req, res) => {
+    await User.findByIdAndUpdate(req.params.id, { isVerified: true });
+    res.status(200).json({ message: 'Approved' });
 });
 
 module.exports = router;

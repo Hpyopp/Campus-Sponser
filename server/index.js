@@ -6,7 +6,7 @@ const { errorHandler } = require('./middleware/errorMiddleware');
 
 const port = process.env.PORT || 5000;
 
-// Connect to Database
+// Database Connection
 connectDB();
 
 const app = express();
@@ -16,16 +16,18 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// 👇 1. WELCOME ROUTE (Ye 'Cannot GET /' ko hatayega)
+// 👇 TEST ROUTE (Ye confirm karega ki naya code live hai)
 app.get('/', (req, res) => {
-    res.send('API is Running Successfully 🚀');
+    res.status(200).send("✅ API is Live & Updated! (New Code)");
 });
 
-// 👇 2. MAIN ROUTES
+// 👇 MAIN ROUTES (Yahan se rasta ban raha hai)
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/events', require('./routes/eventRoutes'));
 
 // Error Handler
 app.use(errorHandler);
 
-app.listen(port, () => console.log(`Server started on port ${port}`));
+app.listen(port, () => {
+    console.log(`🚀 SERVER RESTARTED ON PORT ${port}`); // Logs mein ye dhundna hai
+});
