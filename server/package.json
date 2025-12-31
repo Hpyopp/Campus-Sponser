@@ -12,7 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "cloudinary": "^1.41.3",
+    "cloudinary": "^1.41.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
@@ -20,9 +20,10 @@
     "mongodb": "^7.0.0",
     "mongoose": "^8.9.3",
     "multer": "^2.0.2",
-    "multer-storage-cloudinary": "^4.0.0"
+    "multer-storage-cloudinary": "^3.0.0"
   },
   "devDependencies": {
+    "babel-plugin-react-compiler": "^1.0.0",
     "nodemon": "^3.1.9"
   }
 }

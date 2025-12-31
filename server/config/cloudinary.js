@@ -2,8 +2,6 @@ const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 cloudinary.config({
-  // 👇 Yahan Numbers mat daalna! Sirf ye NAAM rehne de.
-  // Code apne aap .env file se numbers utha lega.
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
@@ -13,7 +11,7 @@ const storage = new CloudinaryStorage({
   cloudinary,
   params: {
     folder: 'campus-sponsor-events',
-    allowedFormats: ['jpeg', 'png', 'jpg'],
+    format: ['jpeg', 'png', 'jpg'],
   },
 });
 

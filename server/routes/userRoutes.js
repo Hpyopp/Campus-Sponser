@@ -1,21 +1,23 @@
 const express = require('express');
 const router = express.Router();
-// 👇 Dhyan de: Maine 'userController' ki jagah 'authController' likha hai kyunki tere PC pe wahi file hai
+// 👇 Tere system mein authController hai, isliye wahi use kar raha hu
 const { registerUser, loginUser, getMe } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
-const User = require('../models/User'); 
+const User = require('../models/User');
 
 // 👇 Cloudinary Setup
 const multer = require('multer');
 const { storage } = require('../config/cloudinary');
 const upload = multer({ storage });
 
-// Existing Routes
+// --- ROUTES ---
+
+// 1. Auth Routes (Register/Login)
 router.post('/', registerUser);
 router.post('/login', loginUser);
 router.get('/me', protect, getMe);
 
-// 👇 VERIFICATION ROUTE
+// 2. Verification Route (ID Upload)
 router.post('/verify', protect, upload.single('document'), async (req, res) => {
     try {
         console.log("📥 Verification Request Received..."); 
@@ -25,13 +27,13 @@ router.post('/verify', protect, upload.single('document'), async (req, res) => {
             return res.status(400).json({ message: 'Please upload an ID Card photo' });
         }
 
-        console.log("✅ File Uploaded:", req.file.path); 
+        console.log("✅ File Uploaded to Cloudinary:", req.file.path); 
 
         const updatedUser = await User.findByIdAndUpdate(
             req.user.id,
             {
                 verificationDoc: req.file.path,
-                isVerified: true 
+                isVerified: true
             },
             { new: true }
         ).select('-password');
@@ -48,7 +50,7 @@ router.post('/verify', protect, upload.single('document'), async (req, res) => {
         });
 
     } catch (error) {
-        console.error("🔥 Error:", error); 
+        console.error("🔥 Server Error:", error); 
         res.status(500).json({ message: error.message || 'Server Error' });
     }
 });

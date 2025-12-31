@@ -1,34 +1,24 @@
-require('dotenv').config();
 const express = require('express');
-const cors = require('cors'); // Sirf ek baar import karo
+const dotenv = require('dotenv').config();
+const { errorHandler } = require('./middleware/errorMiddleware');
 const connectDB = require('./config/db');
 
-const app = express();
+const port = process.env.PORT || 5000;
 
 // Database Connect
 connectDB();
 
-// 👇 MIDDLEWARE SABSE PEHLE AATE HAIN
-// 1. CORS Configuration (Sabse Important)
-app.use(cors({
-    origin: ["http://localhost:5173", "https://campus-sponser.vercel.app"],
-    credentials: true
-}));
+const app = express();
 
-// 2. JSON Parser
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
-// 👇 ROUTES USKE BAAD AATE HAIN
-app.use('/api/auth', require('./routes/authRoutes'));
+// 👇 ROUTES CONFIGURATION (Dhyan se dekhna)
+// Hum '/api/users' use karenge, '/api/auth' nahi.
+app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/events', require('./routes/eventRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 
-// Test Route
-app.get('/', (req, res) => {
-    res.send("CampuSponsor API is Running... 🚀");
-});
+app.use(errorHandler);
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT} 🔥`);
-});
+app.listen(port, () => console.log(`Server started on port ${port}`));

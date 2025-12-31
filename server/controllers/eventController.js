@@ -1,47 +1,44 @@
 const Event = require('../models/Event');
 
-// @desc    Get all events (Approved only)
+// GET EVENTS (only approved)
 const getEvents = async (req, res) => {
-    try {
-        const events = await Event.find({ status: 'approved' }).populate('organizer', 'name email');
-        res.json(events);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
+  try {
+    const events = await Event.find({ status: 'approved' }).sort({
+      createdAt: -1,
+    });
+
+    res.status(200).json(events);
+  } catch (error) {
+    console.error('EVENT FETCH ERROR:', error);
+    res.status(500).json({ message: 'Failed to fetch events' });
+  }
 };
 
-// @desc    Create a new event (Supports File Upload & Social Links)
+// CREATE EVENT
 const createEvent = async (req, res) => {
-    // Note: FormData se data aata hai toh req.body string ban jata hai kabhi kabhi
-    const { title, date, location, budget, description, category, instagram, linkedin } = req.body;
+  try {
+    const { title, date, location, budget, description, category } = req.body;
 
     if (!title || !date || !location || !budget || !description || !category) {
-        return res.status(400).json({ message: 'Please fill all fields' });
+      return res.status(400).json({ message: 'All fields required' });
     }
 
-    try {
-        // 👇 File Check
-        let imageUrl = undefined;
-        if (req.file) {
-            imageUrl = req.file.path; // Cloudinary URL
-        }
+    const event = await Event.create({
+      title,
+      date,
+      location,
+      budget,
+      description,
+      category,
+      image: req.file ? req.file.path : undefined,
+      organizer: req.user._id,
+    });
 
-        const event = new Event({
-            title, date, location, budget, description, category,
-            image: imageUrl, 
-            socialLinks: {
-                instagram: instagram || '',
-                linkedin: linkedin || ''
-            },
-            organizer: req.user._id,
-            status: 'pending'
-        });
-
-        const createdEvent = await event.save();
-        res.status(201).json(createdEvent);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
+    res.status(201).json(event);
+  } catch (error) {
+    console.error('EVENT CREATE ERROR:', error);
+    res.status(500).json({ message: 'Event creation failed' });
+  }
 };
 
 module.exports = { getEvents, createEvent };

@@ -2,41 +2,31 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 const protect = async (req, res, next) => {
-    let token;
+  let token;
 
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-        try {
-            // Token nikalo header se ("Bearer eyJhbGci...")
-            token = req.headers.authorization.split(' ')[1];
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith('Bearer')
+  ) {
+    try {
+      token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-            // Verify karo
-            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret123');
-
-            // User dhundo DB mein
-            req.user = await User.findById(decoded.id).select('-password');
-
-            next(); // Sab sahi hai, aage badho
-        } catch (error) {
-            res.status(401).json({ message: 'Not authorized, invalid token' });
-        }
+      req.user = await User.findById(decoded.id).select('-password');
+      return next();
+    } catch (error) {
+      return res.status(401).json({ message: 'Invalid token' });
     }
+  }
 
-    if (!token) {
-        res.status(401).json({ message: 'Not authorized, no token' });
-    }
+  return res.status(401).json({ message: 'No token provided' });
 };
 
-module.exports = { protect };
-// ... Upar wala code waise hi rehne de ...
-
-// Admin Check Middleware
 const adminOnly = (req, res, next) => {
-    if (req.user && req.user.role === 'admin') {
-        next();
-    } else {
-        res.status(401).json({ message: 'Not authorized as admin' });
-    }
+  if (req.user && req.user.role === 'admin') {
+    return next();
+  }
+  return res.status(403).json({ message: 'Admin access only' });
 };
 
-// Export update kar (adminOnly add kar)
 module.exports = { protect, adminOnly };
