@@ -140,7 +140,7 @@ const Home = () => {
 
                   {user && user.role === 'sponsor' ? (
                     <a 
-                      href={`https://wa.me/919022489602?text=Hi, I want to sponsor ${event.title}`} 
+                      href={`https://wa.me/919022489860?text=Hi, I want to sponsor ${event.title}`} 
                       target="_blank" rel="noopener noreferrer"
                       style={{ background: '#f59e0b', color: 'white', padding: '8px 16px', borderRadius: '6px', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9rem', boxShadow: '0 2px 4px rgba(245, 158, 11, 0.3)' }}>
                       🤝 Sponsor Now
