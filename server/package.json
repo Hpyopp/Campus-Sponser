@@ -20,7 +20,7 @@
     "mongodb": "^7.0.0",
     "mongoose": "^8.9.3",
     "multer": "^2.0.2",
-    "multer-storage-cloudinary": "^3.0.1"
+    "multer-storage-cloudinary": "^4.0.0"
   },
   "devDependencies": {
     "babel-plugin-react-compiler": "^1.0.0",

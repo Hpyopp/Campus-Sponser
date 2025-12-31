@@ -1,25 +1,21 @@
-const cloudinary = require('cloudinary').v2; // 👈 Ye .v2 zaroori hai
+const cloudinary = require('cloudinary').v2; // 👈 .v2 zaroori hai
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const dotenv = require('dotenv');
 
-// Config load karo
 dotenv.config();
 
-// Debugging: Check karo credentials load hue ya nahi
-if (!process.env.CLOUDINARY_CLOUD_NAME) {
-  console.error("❌ ERROR: Cloudinary Cloud Name Missing in .env file!");
-}
-
+// 1. Config Set Karo
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// 2. Storage Engine Banao
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: 'campus-sponsor-docs', // Folder ka naam Cloudinary par
+    folder: 'campus-sponsor-docs',
     allowed_formats: ['jpg', 'png', 'jpeg', 'pdf'],
   },
 });
