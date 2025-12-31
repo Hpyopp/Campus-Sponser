@@ -1,5 +1,8 @@
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const dotenv = require('dotenv');
+
+dotenv.config();
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -8,10 +11,10 @@ cloudinary.config({
 });
 
 const storage = new CloudinaryStorage({
-  cloudinary,
+  cloudinary: cloudinary,
   params: {
-    folder: 'campus-sponsor-events',
-    format: ['jpeg', 'png', 'jpg'],
+    folder: 'campus-sponsor-docs',
+    allowed_formats: ['jpg', 'png', 'jpeg', 'pdf'],
   },
 });
 
