@@ -1,28 +1,32 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 const Home = () => {
   const [events, setEvents] = useState([]);
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user'))); // Local state
-  const navigate = useNavigate();
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')));
+  const [checking, setChecking] = useState(false);
 
-  // 👇 YE NAYA CODE HAI: Background mein status check karega
+  // Status Check Function
   const refreshUserStatus = async () => {
     if (!user?.token) return;
+    setChecking(true);
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
       const { data } = await axios.get('/api/users/me', config);
       
-      // Agar status badal gaya hai (Verified ho gaya), toh LocalStorage update karo
-      if (data.isVerified !== user.isVerified) {
-        const updatedUser = { ...user, isVerified: data.isVerified, role: data.role };
+      if (data.isVerified) {
+        const updatedUser = { ...user, isVerified: true, role: data.role };
         localStorage.setItem('user', JSON.stringify(updatedUser));
-        setUser(updatedUser); // State bhi update karo taaki button turant dikhe
-        console.log("User Status Auto-Updated: ", data.isVerified);
+        setUser(updatedUser);
+        alert("🎉 Congrats! You are now Verified.");
+      } else {
+        alert("⏳ Status: Still Pending.\nAdmin has not approved your request yet.");
       }
     } catch (error) {
-      console.error("Status Check Failed:", error);
+      console.error(error);
+    } finally {
+      setChecking(false);
     }
   };
 
@@ -35,7 +39,7 @@ const Home = () => {
 
   useEffect(() => {
     fetchEvents();
-    refreshUserStatus(); // 👈 Page load hote hi status check karo
+    if(user && !user.isVerified) refreshUserStatus();
   }, []);
 
   return (
@@ -46,19 +50,40 @@ const Home = () => {
         <h1 style={{ color: '#1e293b', fontSize: '2.5rem', marginBottom: '10px' }}>🚀 CampusSponsor</h1>
         <p style={{ color: '#64748b', fontSize: '1.2rem', marginBottom: '30px' }}>Connect Student Events with Top Sponsors</p>
 
-        {/* 👇 DYNAMIC BUTTON LOGIC */}
+        {/* Dynamic Buttons */}
         {user ? (
           user.isVerified ? (
+            // ✅ AGAR VERIFIED HAI: Create Event Button
             <Link to="/create-event" style={{ textDecoration: 'none' }}>
-              <button style={{ background: '#2563eb', color: 'white', padding: '15px 30px', fontSize: '1.1rem', borderRadius: '30px', border: 'none', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 15px rgba(37, 99, 235, 0.4)' }}>
+              <button style={{ background: '#2563eb', color: 'white', padding: '15px 30px', fontSize: '1.1rem', borderRadius: '30px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
                 + Create New Event
               </button>
             </Link>
           ) : (
-            <div style={{ background: '#fff7ed', display: 'inline-block', padding: '15px 25px', borderRadius: '10px', border: '1px solid #ffedd5' }}>
-              <span style={{ color: '#c2410c', fontWeight: 'bold' }}>⏳ Verification Pending</span>
-              <p style={{ margin: '5px 0 0', fontSize: '0.9rem', color: '#9a3412' }}>You can create events once Admin approves your ID.</p>
-              <button onClick={refreshUserStatus} style={{ marginTop: '10px', background: 'transparent', border: '1px solid #c2410c', color: '#c2410c', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', fontSize: '0.8rem' }}>Check Status Again 🔄</button>
+            // ⚠️ AGAR PENDING HAI: KYC Section
+            <div style={{ background: '#fff7ed', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', padding: '25px', borderRadius: '15px', border: '2px dashed #f97316' }}>
+              <span style={{ color: '#c2410c', fontWeight: 'bold', fontSize: '1.2rem', marginBottom: '5px' }}>⚠️ KYC Verification Pending</span>
+              <p style={{ margin: '0 0 15px', fontSize: '0.9rem', color: '#9a3412' }}>Complete these steps to activate your account:</p>
+              
+              <div style={{ display: 'flex', gap: '10px' }}>
+                
+                {/* 👇 Button 1: Upload Document (KYC Page) */}
+                <Link to="/verify">
+                  <button style={{ background: '#ea580c', color: 'white', padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+                    📂 Upload ID Proof
+                  </button>
+                </Link>
+
+                {/* 👇 Button 2: Check Status (Agar upload kar diya hai) */}
+                <button 
+                  onClick={refreshUserStatus} 
+                  disabled={checking}
+                  style={{ background: 'white', border: '2px solid #ea580c', color: '#ea580c', padding: '10px 20px', borderRadius: '8px', cursor: checking ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
+                >
+                  {checking ? 'Checking... 🔄' : 'Check Status ⚡'}
+                </button>
+
+              </div>
             </div>
           )
         ) : (
@@ -72,11 +97,11 @@ const Home = () => {
       {/* Events Feed */}
       <h2 style={{ color: '#334155' }}>🔥 Trending Events</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginTop: '20px' }}>
-        {events.map(e => (
-          <div key={e._id} style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '15px', background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-            <h3 style={{ margin: '0 0 10px' }}>{e.title}</h3>
-            <p style={{ color: '#64748b' }}>📍 {e.location} | 💰 ₹{e.budget}</p>
-            <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '10px' }}>By: {e.createdBy?.name || 'Unknown'}</p>
+        {events.length === 0 ? <p style={{color: '#64748b'}}>No events yet. Be the first to create one!</p> : events.map(e => (
+          <div key={e._id} style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '15px', background: 'white' }}>
+            <h3>{e.title}</h3>
+            <p>📍 {e.location} | 💰 ₹{e.budget}</p>
+            <p style={{ fontSize: '0.8rem', color: '#94a3b8' }}>By: {e.createdBy?.name || 'Unknown'}</p>
           </div>
         ))}
       </div>

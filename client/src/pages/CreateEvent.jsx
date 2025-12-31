@@ -3,107 +3,100 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 const CreateEvent = () => {
-  const [formData, setFormData] = useState({
-    title: '', date: '', location: '', budget: '', description: '', category: 'Technical',
-    instagram: '', linkedin: ''
-  });
-  const [imageFile, setImageFile] = useState(null);
-  const [loading, setLoading] = useState(false);
-
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
 
-  // 👇 SECURITY CHECK (The Bouncer) 🚧
+  // Form Data State
+  const [formData, setFormData] = useState({
+    title: '',
+    date: '',
+    location: '',
+    budget: '',
+    description: ''
+  });
+
+  const [loading, setLoading] = useState(false);
+
+  // Security Check: Login hai ya nahi? Verified hai ya nahi?
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-    } else if (!user.isVerified) {
-      // Agar verified nahi hai, toh bhaga do Verify page pe
-      alert("⚠️ Access Denied! You must verify your Identity first.");
-      navigate('/verify');
+    if (!user) navigate('/login');
+    else if (!user.isVerified) {
+      alert("You need to be verified first!");
+      navigate('/');
     }
   }, [user, navigate]);
 
-  // Agar user nahi hai toh null return karo (Crash se bachne ke liye)
-  if (!user) return null;
-
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-  const handleFileChange = (e) => setImageFile(e.target.files[0]);
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    const data = new FormData();
-    Object.keys(formData).forEach(key => data.append(key, formData[key]));
-    if (imageFile) data.append('image', imageFile);
-
     try {
       const config = {
-        headers: {
-          Authorization: `Bearer ${user.token}`,
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { Authorization: `Bearer ${user.token}` }
       };
-      await axios.post('/api/events', data, config);
-      alert('Event Created Successfully! Wait for Approval.');
-      navigate('/');
+
+      // Backend ko data bhejo
+      await axios.post('/api/events', formData, config);
+      
+      alert("Success! Event Created Successfully. 🎉");
+      navigate('/'); // Wapas Home par bhej do
+
     } catch (error) {
       console.error(error);
-      alert('Error creating event.');
+      alert(error.response?.data?.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
-      <div style={{ background: 'white', padding: '30px', borderRadius: '10px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
-        <h1 style={{ textAlign: 'center', color: '#333' }}>🚀 Create Event</h1>
+    <div style={{ maxWidth: '600px', margin: '50px auto', padding: '30px', background: '#fff', borderRadius: '15px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)', fontFamily: 'Poppins, sans-serif' }}>
+      <h2 style={{ textAlign: 'center', color: '#1e293b', marginBottom: '20px' }}>📢 Create New Event</h2>
+      
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
         
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
-          
-          <input type="text" name="title" placeholder="Event Title" required onChange={handleChange} style={inputStyle} />
-          
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <input type="date" name="date" required onChange={handleChange} style={{ ...inputStyle, flex: 1 }} />
-            <input type="text" name="location" placeholder="Location" required onChange={handleChange} style={{ ...inputStyle, flex: 1 }} />
-          </div>
+        {/* Title */}
+        <div>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Event Title</label>
+          <input type="text" name="title" placeholder="e.g. Hackathon 2025" onChange={handleChange} required style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #cbd5e1' }} />
+        </div>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <input type="number" name="budget" placeholder="Budget (₹)" required onChange={handleChange} style={{ ...inputStyle, flex: 1 }} />
-            <select name="category" onChange={handleChange} style={{ ...inputStyle, flex: 1 }}>
-              <option value="Technical">Technical</option>
-              <option value="Cultural">Cultural</option>
-              <option value="Sports">Sports</option>
-            </select>
-          </div>
+        {/* Date */}
+        <div>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Event Date</label>
+          <input type="date" name="date" onChange={handleChange} required style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #cbd5e1' }} />
+        </div>
 
-          {/* File Upload */}
-          <div>
-            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Event Poster</label>
-            <input type="file" accept="image/*" onChange={handleFileChange} style={{ ...inputStyle, background: '#f9f9f9' }} />
-          </div>
+        {/* Location */}
+        <div>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Location</label>
+          <input type="text" name="location" placeholder="e.g. Main Auditorium" onChange={handleChange} required style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #cbd5e1' }} />
+        </div>
 
-          {/* Social Links */}
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <input type="url" name="instagram" placeholder="Instagram URL" onChange={handleChange} style={{ ...inputStyle, flex: 1 }} />
-            <input type="url" name="linkedin" placeholder="LinkedIn URL" onChange={handleChange} style={{ ...inputStyle, flex: 1 }} />
-          </div>
+        {/* Budget */}
+        <div>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Budget Needed (₹)</label>
+          <input type="number" name="budget" placeholder="e.g. 50000" onChange={handleChange} required style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #cbd5e1' }} />
+        </div>
 
-          <textarea name="description" rows="4" placeholder="Description..." required onChange={handleChange} style={inputStyle}></textarea>
+        {/* Description */}
+        <div>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Description</label>
+          <textarea name="description" rows="4" placeholder="Tell sponsors why they should fund you..." onChange={handleChange} style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #cbd5e1', resize: 'vertical' }}></textarea>
+        </div>
 
-          <button type="submit" disabled={loading} style={{ 
-            background: loading ? '#ccc' : '#2563eb', color: 'white', padding: '12px', border: 'none', borderRadius: '5px', cursor: 'pointer' 
-          }}>
-            {loading ? 'Uploading... ⏳' : 'Submit Event 📩'}
-          </button>
-        </form>
-      </div>
+        {/* Submit Button */}
+        <button type="submit" disabled={loading} style={{ marginTop: '10px', padding: '15px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}>
+          {loading ? 'Publishing... ⏳' : '🚀 Publish Event'}
+        </button>
+
+      </form>
     </div>
   );
 };
-
-const inputStyle = { width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #ccc' };
 
 export default CreateEvent;

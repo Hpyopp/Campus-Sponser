@@ -3,10 +3,10 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import CreateEvent from './pages/CreateEvent';
 import AdminDashboard from './pages/AdminDashboard';
-import Verify from './pages/Verify'; // 👈 Step 1: Import kiya
+import Verify from './pages/Verify';
 import SponsorDashboard from './pages/SponsorDashboard';
+import CreateEvent from './pages/CreateEvent'; // 👈 Sirf EK baar hona chahiye
 
 function App() {
   return (
@@ -16,12 +16,10 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/create-event" element={<CreateEvent />} />
-        
-        {/* 👇 Step 2: Naya Route Add kiya */}
-        <Route path="/verify" element={<Verify />} />
-        
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/verify" element={<Verify />} />
+        <Route path="/sponsor" element={<SponsorDashboard />} />
+        <Route path="/create-event" element={<CreateEvent />} />
       </Routes>
     </Router>
   );
