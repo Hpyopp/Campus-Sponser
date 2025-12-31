@@ -3,69 +3,34 @@ import axios from 'axios';
 
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
   const user = JSON.parse(localStorage.getItem('user'));
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const config = {
-          headers: { Authorization: `Bearer ${user.token}` }
-        };
+  const fetchData = async () => {
+    const config = { headers: { Authorization: `Bearer ${user.token}` } };
+    const { data } = await axios.get('/api/users', config);
+    setUsers(data);
+  };
 
-        // ✅ SAHI ADDRESSES: /api/users aur /api/events
-        // Pehle yahan /api/admin/... tha jo 404 de raha tha
-        const usersRes = await axios.get('/api/users', config); 
-        const eventsRes = await axios.get('/api/events', config);
+  const handleApprove = async (id) => {
+    const config = { headers: { Authorization: `Bearer ${user.token}` } };
+    await axios.put(`/api/users/approve/${id}`, {}, config);
+    alert("User Approved! ✅");
+    fetchData(); // List update karo
+  };
 
-        setUsers(usersRes.data);
-        setEvents(eventsRes.data);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (user && user.token) {
-      fetchData();
-    }
-  }, []);
-
-  if (loading) return <h2 style={{ textAlign: 'center', marginTop: '50px' }}>Loading Dashboard... ⏳</h2>;
+  useEffect(() => { fetchData(); }, []);
 
   return (
-    <div style={{ padding: '30px', maxWidth: '1200px', margin: '0 auto' }}>
-      <h1 style={{ color: '#e11d48', marginBottom: '30px' }}>🛡️ Admin Dashboard</h1>
-      
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-        {/* Users Section */}
-        <div style={{ background: '#f9fafb', padding: '20px', borderRadius: '15px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
-          <h3>👥 Users ({users.length})</h3>
-          {users.map(u => (
-            <div key={u._id} style={{ padding: '10px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between' }}>
-              <div>
-                <strong>{u.name}</strong> <br />
-                <span style={{ fontSize: '0.8rem', color: '#666' }}>{u.email} ({u.role})</span>
-              </div>
-            </div>
-          ))}
+    <div style={{ padding: '20px' }}>
+      <h1>🛡️ Admin Dashboard</h1>
+      {users.map(u => (
+        <div key={u._id} style={{ border: '1px solid #ddd', padding: '10px', margin: '10px 0', display: 'flex', justifyContent: 'space-between' }}>
+          <span>{u.name} - {u.isVerified ? '✅ Verified' : '⏳ Pending'}</span>
+          {!u.isVerified && (
+            <button onClick={() => handleApprove(u._id)} style={{ background: 'green', color: 'white' }}>Approve</button>
+          )}
         </div>
-
-        {/* Events Section */}
-        <div style={{ background: '#f9fafb', padding: '20px', borderRadius: '15px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
-          <h3>📅 Events ({events.length})</h3>
-          {events.map(e => (
-            <div key={e._id} style={{ padding: '10px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between' }}>
-              <div>
-                <strong>{e.title}</strong> <br />
-                <span style={{ fontSize: '0.8rem', color: '#666' }}>By: {e.createdBy?.name || 'Unknown'}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      ))}
     </div>
   );
 };
