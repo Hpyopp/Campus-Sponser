@@ -19,7 +19,7 @@ const Login = () => {
   const onSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('/api/auth/login', formData);
+      const response = await axios.post('/api/users/login', formData);
       // Data browser mein save karo
       localStorage.setItem('user', JSON.stringify(res.data));
       // Home page pe bhej do

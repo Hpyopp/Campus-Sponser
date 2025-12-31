@@ -25,7 +25,7 @@ const Register = () => {
     e.preventDefault();
     try {
       // 1. Backend ko data bhejo
-      const res = await axios.post('/api/auth/register', formData);
+     const response = await axios.post('/api/users', formData);
       
       // 2. Token save karo (Auto Login)
       localStorage.setItem('user', JSON.stringify(res.data));
