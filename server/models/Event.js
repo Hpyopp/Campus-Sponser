@@ -2,17 +2,17 @@ const mongoose = require('mongoose');
 
 const eventSchema = mongoose.Schema({
     title: { type: String, required: true },
-    date: { type: String, required: true }, // Date string rakha hai simplicity ke liye
+    date: { type: String, required: true },
     location: { type: String, required: true },
     budget: { type: Number, required: true },
     description: { type: String },
+    // 👇 Ye line crash rokegi: Hamesha ObjectId hona chahiye
     createdBy: {
-        type: mongoose.Schema.Types.ObjectId, // 👈 Ye zaroori hai populate ke liye
-        ref: 'User', // 👈 User model se link karega
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
         required: true
     },
-    // Optional: Agar poster URL store karna hai
-    poster: { type: String } 
+    poster: { type: String }
 }, {
     timestamps: true
 });
