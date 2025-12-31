@@ -4,164 +4,137 @@ import { useNavigate } from 'react-router-dom';
 
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
-  const [events, setEvents] = useState([]);
-  const [activeTab, setActiveTab] = useState('users'); // 'users' or 'events'
+  const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
-  // Load Data
+  // 👇 TERA BACKEND URL (Isko Note Karle)
+  // Agar kabhi URL change ho toh yahan badal dena
+  const API_URL = "https://campus-sponser-api.onrender.com";
+
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user'));
-    if (!user || user.role !== 'admin') {
-      alert("Access Denied! Admins Only.");
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (!storedUser || storedUser.email !== 'admin@gmail.com') {
       navigate('/');
-      return;
+    } else {
+      setUser(storedUser);
+      fetchUsers(storedUser.token);
     }
-    fetchData(user.token);
   }, [navigate]);
 
-  const fetchData = async (token) => {
-    const config = { headers: { Authorization: `Bearer ${token}` } };
+  const fetchUsers = async (token) => {
     try {
-      // 1. Get Users
-      const usersRes = await axios.get('/api/users', config);
-      setUsers(usersRes.data);
-      
-      // 2. Get Events (Events public hote hain, but delete ke liye token chahiye)
-      const eventsRes = await axios.get('/api/events');
-      setEvents(eventsRes.data);
-    } catch (err) {
-      console.error(err);
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const res = await axios.get('/api/users', config);
+      setUsers(res.data);
+    } catch (error) {
+      console.log(error);
     }
   };
 
-  const getToken = () => JSON.parse(localStorage.getItem('user')).token;
-
-  // --- ACTIONS ---
-
-  // 1. Approve User
-  const approveUser = async (id) => {
+  const verifyUser = async (id, status) => {
     try {
-      await axios.put(`/api/users/approve/${id}`, {}, { headers: { Authorization: `Bearer ${getToken()}` } });
-      alert("User Approved ✅");
-      fetchData(getToken()); // Refresh list
-    } catch (err) { alert("Failed to approve"); }
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      if (status) {
+        await axios.put(`/api/users/approve/${id}`, {}, config);
+      } else {
+        await axios.put(`/api/users/unapprove/${id}`, {}, config);
+      }
+      fetchUsers(user.token);
+    } catch (error) {
+      alert('Action Failed');
+    }
   };
 
-  // 2. Unapprove User
-  const unapproveUser = async (id) => {
-    if(!window.confirm("Are you sure you want to un-verify this user?")) return;
-    try {
-      await axios.put(`/api/users/unapprove/${id}`, {}, { headers: { Authorization: `Bearer ${getToken()}` } });
-      alert("User Un-Verified ❌");
-      fetchData(getToken());
-    } catch (err) { alert("Failed to unverify"); }
-  };
-
-  // 3. Delete User
   const deleteUser = async (id) => {
-    if(!window.confirm("WARNING: This will delete the user permanently!")) return;
+    if(!window.confirm("Are you sure?")) return;
     try {
-      await axios.delete(`/api/users/${id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
-      alert("User Deleted 🗑️");
-      fetchData(getToken());
-    } catch (err) { alert("Failed to delete user"); }
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      await axios.delete(`/api/users/${id}`, config);
+      fetchUsers(user.token);
+    } catch (error) {
+      alert('Delete Failed');
+    }
   };
 
-  // 4. Delete Event
-  const deleteEvent = async (id) => {
-    if(!window.confirm("Delete this event?")) return;
-    try {
-      await axios.delete(`/api/events/${id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
-      alert("Event Deleted 🗑️");
-      fetchData(getToken());
-    } catch (err) { alert("Failed to delete event"); }
-  };
+  // Styles
+  const th = { padding: '12px', background: '#f1f5f9', borderBottom: '2px solid #ddd' };
+  const td = { padding: '12px', borderBottom: '1px solid #eee' };
+  const btn = { padding: '5px 10px', margin: '0 5px', border: 'none', borderRadius: '4px', cursor: 'pointer', color: 'white', fontWeight: 'bold' };
 
   return (
     <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto', fontFamily: 'Poppins' }}>
-      <h1 style={{ textAlign: 'center', color: '#1e293b' }}>🛡️ Admin Dashboard</h1>
-      
-      {/* TABS */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', margin: '20px 0' }}>
-        <button onClick={() => setActiveTab('users')} style={activeTab === 'users' ? activeBtn : inactiveBtn}>Manage Users</button>
-        <button onClick={() => setActiveTab('events')} style={activeTab === 'events' ? activeBtn : inactiveBtn}>Manage Events</button>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
+        <h2 style={{color: '#1e293b'}}>🛡️ Admin Dashboard</h2>
+        <button onClick={() => { localStorage.removeItem('user'); navigate('/login'); }} style={{...btn, background: '#ef4444'}}>Logout</button>
       </div>
 
-      {/* --- USERS SECTION --- */}
-      {activeTab === 'users' && (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
-            <thead>
-              <tr style={{ background: '#f1f5f9', textAlign: 'left' }}>
-                <th style={th}>Name</th>
-                <th style={th}>Email</th>
-                <th style={th}>Role</th>
-                <th style={th}>Status</th>
-                <th style={th}>Doc</th>
-                <th style={th}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map(user => (
-                <tr key={user._id} style={{ borderBottom: '1px solid #ddd' }}>
-                  <td style={td}>{user.name}</td>
-                  <td style={td}>{user.email}</td>
-                  <td style={td}>{user.role}</td>
-                  <td style={td}>
-                    {user.isVerified ? <span style={{color:'green', fontWeight:'bold'}}>Verified</span> : <span style={{color:'red'}}>Pending</span>}
-                  </td>
-                  <td style={td}>
-                    {user.verificationDoc ? <a href={user.verificationDoc} target="_blank" rel="noreferrer">View Doc</a> : 'No Doc'}
-                  </td>
-                  <td style={td}>
-                    {/* APPROVE / UNAPPROVE */}
-                    {user.role !== 'admin' && (
-                      <>
-                        {user.isVerified ? (
-                          <button onClick={() => unapproveUser(user._id)} style={{...btn, background: '#f59e0b', marginRight: '5px'}}>Unverify</button>
-                        ) : (
-                          <button onClick={() => approveUser(user._id)} style={{...btn, background: '#10b981', marginRight: '5px'}}>Approve</button>
-                        )}
-                        
-                        {/* DELETE */}
-                        <button onClick={() => deleteUser(user._id)} style={{...btn, background: '#ef4444'}}>Delete</button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <div style={{overflowX: 'auto'}}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+          <thead>
+            <tr style={{textAlign:'left'}}>
+              <th style={th}>User Info</th>
+              <th style={th}>Role</th>
+              <th style={th}>Document</th>
+              <th style={th}>Status</th>
+              <th style={th}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map(u => (
+              <tr key={u._id}>
+                <td style={td}>
+                  <div style={{fontWeight:'bold'}}>{u.name}</div>
+                  <div style={{fontSize:'0.85rem', color:'#64748b'}}>{u.email}</div>
+                </td>
+                
+                <td style={td}>
+                    <span style={{
+                        padding: '4px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold',
+                        background: u.role === 'sponsor' ? '#dbeafe' : '#fef3c7',
+                        color: u.role === 'sponsor' ? '#1e40af' : '#92400e'
+                    }}>
+                        {u.role ? u.role.toUpperCase() : 'USER'}
+                    </span>
+                </td>
 
-      {/* --- EVENTS SECTION --- */}
-      {activeTab === 'events' && (
-        <div>
-          {events.length === 0 ? <p style={{textAlign:'center'}}>No events found.</p> : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
-              {events.map(event => (
-                <div key={event._id} style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
-                  <h3>{event.title}</h3>
-                  <p><strong>Date:</strong> {new Date(event.date).toDateString()}</p>
-                  <p><strong>Location:</strong> {event.location}</p>
-                  <p style={{color: '#64748b'}}>{event.description.substring(0, 100)}...</p>
-                  <button onClick={() => deleteEvent(event._id)} style={{...btn, background: '#ef4444', width: '100%', marginTop: '10px'}}>Delete Event 🗑️</button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+                <td style={td}>
+                  {u.verificationDoc ? (
+                    <a 
+                      // 👇 FIX: Backend URL + File Path
+                      href={`${API_URL}${u.verificationDoc}`} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      style={{color: '#2563eb', fontWeight: 'bold', textDecoration: 'underline'}}
+                    >
+                      View Doc 📎
+                    </a>
+                  ) : (
+                    <span style={{color: '#94a3b8'}}>No File</span>
+                  )}
+                </td>
+
+                <td style={td}>
+                  {u.isVerified 
+                    ? <span style={{color:'green', fontWeight:'bold'}}>✅ Verified</span> 
+                    : <span style={{color:'orange', fontWeight:'bold'}}>⏳ Pending</span>}
+                </td>
+
+                <td style={td}>
+                  {!u.isVerified && (
+                    <button onClick={() => verifyUser(u._id, true)} style={{...btn, background: '#22c55e'}}>Approve</button>
+                  )}
+                  {u.isVerified && (
+                    <button onClick={() => verifyUser(u._id, false)} style={{...btn, background: '#f59e0b'}}>Revoke</button>
+                  )}
+                  <button onClick={() => deleteUser(u._id)} style={{...btn, background: '#ef4444'}}>Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
-
-// Styles
-const th = { padding: '12px', borderBottom: '2px solid #ddd' };
-const td = { padding: '12px' };
-const btn = { padding: '8px 12px', border: 'none', borderRadius: '5px', color: 'white', cursor: 'pointer', fontSize: '0.8rem' };
-const activeBtn = { padding: '10px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' };
-const inactiveBtn = { padding: '10px 20px', background: '#e2e8f0', color: 'black', border: 'none', borderRadius: '5px', cursor: 'pointer' };
 
 export default AdminDashboard;
