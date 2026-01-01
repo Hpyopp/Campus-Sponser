@@ -24,15 +24,19 @@ const registerUser = asyncHandler(async (req, res) => {
     otp, otpExpires: Date.now() + 10 * 60 * 1000, isVerified: false
   });
 
-  // Send OTP
-  try {
-     await sendEmail({ email: user.email, subject: 'Verify Account', message: `Your OTP is: ${otp}` });
-  } catch (error) { console.log("Email failed"); }
+  // ⚡ INSTANT RESPONSE (Background Email)
+  sendEmail({ email: user.email, subject: 'Verify Account', message: `Your OTP is: ${otp}` })
+    .catch(err => console.log("Background Email Failed (Check logs)"));
 
-  res.status(200).json({ message: 'OTP Generated', email: user.email, debugOtp: otp });
+  // Wait mat karo, seedha OTP bhejo
+  res.status(200).json({ 
+    message: 'OTP Generated Instantly', 
+    email: user.email, 
+    debugOtp: otp // 👈 Green Box ke liye
+  });
 });
 
-// 2. LOGIN (Send OTP)
+// 2. LOGIN (Instant OTP)
 const loginUser = asyncHandler(async (req, res) => {
   const { email } = req.body;
   const cleanEmail = email ? email.toLowerCase().trim() : '';
@@ -44,14 +48,19 @@ const loginUser = asyncHandler(async (req, res) => {
   user.otpExpires = Date.now() + 10 * 60 * 1000;
   await user.save();
 
-  try {
-     await sendEmail({ email: user.email, subject: 'Login OTP', message: `Your OTP is: ${otp}` });
-  } catch (error) { console.log("Email failed"); }
+  // ⚡ FIRE AND FORGET (No 'await')
+  // Email peeche chalta rahega, hum user ko nahi rokenge
+  sendEmail({ email: user.email, subject: 'Login OTP', message: `Your OTP is: ${otp}` })
+    .catch(err => console.log("Background Email Failed"));
 
-  res.status(200).json({ message: 'OTP Sent', debugOtp: otp });
+  // Turant Jawab
+  res.status(200).json({ 
+    message: 'OTP Ready', 
+    debugOtp: otp // 👈 Green Box turant dikhega
+  });
 });
 
-// 3. VERIFY LOGIN OTP
+// 3. VERIFY LOGIN
 const verifyLogin = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   const user = await User.findOne({ email: email.toLowerCase().trim() });
@@ -64,11 +73,10 @@ const verifyLogin = asyncHandler(async (req, res) => {
   }
 });
 
-// 4. VERIFY REGISTER OTP
+// 4. VERIFY REGISTER
 const verifyRegisterOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   const user = await User.findOne({ email: email.toLowerCase().trim() });
-
   if (user && user.otp === otp.toString().trim()) {
     user.otp = undefined; user.otpExpires = undefined; await user.save();
     res.status(200).json({ _id: user.id, name: user.name, email: user.email, role: user.role, token: generateToken(user._id), isVerified: false });
@@ -77,46 +85,27 @@ const verifyRegisterOTP = asyncHandler(async (req, res) => {
   }
 });
 
-// 5. UPLOAD DOC (User Logic - ID Proof Upload) 📄
+// 5. UPLOAD DOC
 const uploadDoc = asyncHandler(async (req, res) => {
-  // Check if file is uploaded by Multer
-  if (!req.file || !req.file.path) {
-    res.status(400);
-    throw new Error('File upload failed');
-  }
-
-  const imageUrl = req.file.path; // Cloudinary URL
+  if (!req.file || !req.file.path) { res.status(400); throw new Error('Upload failed'); }
   const user = await User.findById(req.user.id);
-
   if (user) {
-    user.verificationDoc = imageUrl;
-    user.isVerified = false; // Upload karne ke baad wapas unverified ho jayega jab tak Admin approve na kare
+    user.verificationDoc = req.file.path;
+    user.isVerified = false; 
     await user.save();
-    res.status(200).json({ message: 'Uploaded Successfully', docUrl: imageUrl });
-  } else {
-    res.status(404);
-    throw new Error('User not found');
-  }
+    res.status(200).json({ message: 'Uploaded', docUrl: req.file.path });
+  } else { res.status(404); throw new Error('User not found'); }
 });
 
-// 6. GET CURRENT USER
-const getMe = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id);
-  res.status(200).json(user);
-});
+// 6. GET ME
+const getMe = asyncHandler(async (req, res) => { const user = await User.findById(req.user.id); res.status(200).json(user); });
 
-// --- ADMIN FUNCTIONS ---
+// ADMIN FUNCTIONS
 const getAllUsers = asyncHandler(async (req, res) => { const users = await User.find().sort({ createdAt: -1 }); res.status(200).json(users); });
 const approveUser = asyncHandler(async (req, res) => { await User.findByIdAndUpdate(req.params.id, { isVerified: true }); res.status(200).json({ message: 'Verified' }); });
 const unverifyUser = asyncHandler(async (req, res) => { await User.findByIdAndUpdate(req.params.id, { isVerified: false }); res.status(200).json({ message: 'Revoked' }); });
 const deleteUser = asyncHandler(async (req, res) => { await User.findByIdAndDelete(req.params.id); res.status(200).json({ message: 'Deleted' }); });
 
-// Generate JWT
 const generateToken = (id) => { return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' }); };
 
-// ⚠️ IMPORTANT: Saare functions yahan export hone chahiye
-module.exports = { 
-  registerUser, loginUser, verifyLogin, verifyRegisterOTP, 
-  uploadDoc, // 👈 Ye zaroori hai error hatane ke liye
-  getMe, getAllUsers, approveUser, unverifyUser, deleteUser 
-};
+module.exports = { registerUser, loginUser, verifyLogin, verifyRegisterOTP, uploadDoc, getMe, getAllUsers, approveUser, unverifyUser, deleteUser };
