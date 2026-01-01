@@ -7,7 +7,9 @@ const AdminDashboard = () => {
   const [events, setEvents] = useState([]);
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
-  const API_URL = "https://campus-sponser-api.onrender.com";
+  
+  // 👇 TERA RENDER SERVER URL (Isse hardcode kiya taaki galti na ho)
+  const API_BASE_URL = "https://campus-sponser-api.onrender.com";
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
@@ -27,25 +29,25 @@ const AdminDashboard = () => {
 
   const fetchUsers = async (token) => {
     try {
-      const res = await axios.get('/api/users', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.get(`${API_BASE_URL}/api/users`, { headers: { Authorization: `Bearer ${token}` } });
       setUsers(res.data);
     } catch (error) { console.error(error); }
   };
 
   const fetchEvents = async () => {
     try {
-      const res = await axios.get('/api/events');
+      const res = await axios.get(`${API_BASE_URL}/api/events`);
       setEvents(res.data);
     } catch (error) { console.error(error); }
   };
 
-  // 👇 REAL DELETE FUNCTION (No Fake Updates)
+  // 👇 REAL DELETE FUNCTION (Using Full URL)
   const deleteEvent = async (id) => {
     if(!window.confirm("⚠️ DELETE PERMANENTLY? This cannot be undone.")) return;
 
     try {
-      // 1. Server ko call karo
-      await axios.delete(`/api/events/${id}`, { 
+      // 1. Server ko call karo (FULL URL USE KAR RAHE HAIN)
+      await axios.delete(`${API_BASE_URL}/api/events/${id}`, { 
         headers: { Authorization: `Bearer ${user.token}` } 
       });
 
@@ -63,14 +65,14 @@ const AdminDashboard = () => {
   const deleteUser = async (id) => {
     if(!window.confirm("Delete User?")) return;
     try {
-      await axios.delete(`/api/users/${id}`, { headers: { Authorization: `Bearer ${user.token}` } });
+      await axios.delete(`${API_BASE_URL}/api/users/${id}`, { headers: { Authorization: `Bearer ${user.token}` } });
       setUsers(users.filter(u => u._id !== id));
     } catch (error) { alert('Delete Failed'); }
   };
 
   const verifyUser = async (id, status) => {
     try {
-      const url = status ? `/api/users/approve/${id}` : `/api/users/unapprove/${id}`;
+      const url = status ? `${API_BASE_URL}/api/users/approve/${id}` : `${API_BASE_URL}/api/users/unapprove/${id}`;
       await axios.put(url, {}, { headers: { Authorization: `Bearer ${user.token}` } });
       fetchUsers(user.token);
     } catch (error) { alert('Action Failed'); }
@@ -78,7 +80,7 @@ const AdminDashboard = () => {
 
   const getDocLink = (path) => {
     if (!path) return "#";
-    return path.startsWith('http') ? path : `${API_URL}${path}`;
+    return path.startsWith('http') ? path : `${API_BASE_URL}${path}`;
   };
 
   if (!user) return null;
@@ -117,7 +119,7 @@ const AdminDashboard = () => {
         </table>
       </div>
 
-      {/* USERS TABLE (No Change in Logic, Just Style) */}
+      {/* USERS TABLE */}
       <h3>👤 User Management</h3>
       <div style={{overflowX: 'auto', boxShadow:'0 4px 10px rgba(0,0,0,0.1)', borderRadius:'10px'}}>
         <table style={{width:'100%', borderCollapse:'collapse'}}>

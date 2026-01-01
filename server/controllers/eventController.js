@@ -1,4 +1,4 @@
-// 👇 YE 3 LINES BAHUT ZAROORI HAIN (Inke bina server crash hoga)
+// 👇 YE 3 LINES SABSE ZYADA ZAROORI HAIN - INKO MAT HATANA
 const asyncHandler = require('express-async-handler');
 const Event = require('../models/Event');
 const User = require('../models/User');
@@ -51,8 +51,7 @@ const deleteEvent = asyncHandler(async (req, res) => {
     throw new Error('Event not found in Database');
   }
 
-  // Permission Check: Admin ho ya Owner ho
-  // Note: 'admin' check ko safe banaya hai (Case Insensitive)
+  // Permission Check: Admin ho ya Owner ho (Case Insensitive)
   const isAdmin = req.user.role && req.user.role.toLowerCase() === 'admin';
   const isOwner = event.user.toString() === req.user.id;
 
