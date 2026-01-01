@@ -1,50 +1,48 @@
-// 👇 Imports (Bahut Zaroori)
 const asyncHandler = require('express-async-handler');
 const Event = require('../models/Event');
 const User = require('../models/User');
 
-// --- 1. GET ALL EVENTS ---
+// 1. GET ALL EVENTS
 const getEvents = asyncHandler(async (req, res) => {
-  const events = await Event.find()
-    .populate('user', 'name email collegeName') 
-    .sort({ createdAt: -1 });
-  res.status(200).json(events);
+  const events = await Event.find().sort({ createdAt: -1 });
+  res.json(events);
 });
 
-// --- 2. GET SINGLE EVENT ---
+// 2. GET SINGLE EVENT
 const getEventById = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id).populate('user', 'name email collegeName');
   if (event) {
-    res.status(200).json(event);
+    res.json(event);
   } else {
     res.status(404);
     throw new Error('Event not found');
   }
 });
 
-// --- 3. CREATE EVENT (With Contact Info) ---
+// 3. CREATE EVENT
 const createEvent = asyncHandler(async (req, res) => {
   const { title, description, date, location, budget, contactEmail, instagramLink } = req.body;
 
-  // Validation
-  if (!title || !budget || !contactEmail) {
+  if (!title || !description || !date || !location || !budget || !contactEmail) {
     res.status(400);
-    throw new Error('Please add Title, Budget and Contact Email');
+    throw new Error('Please fill all fields');
   }
 
-  // Create
   const event = await Event.create({
-    title, description, date, location, budget,
-    contactEmail, // 👈 Ye ab Schema mein hai, toh save hoga
-    instagramLink,
     user: req.user.id,
+    title,
+    description,
+    date,
+    location,
+    budget,
+    contactEmail,
+    instagramLink
   });
-  
-  console.log("✅ Event Created:", event);
-  res.status(200).json(event);
+
+  res.status(201).json(event);
 });
 
-// --- 4. DELETE EVENT (Crash Proof) ---
+// 4. DELETE EVENT
 const deleteEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
 
@@ -53,41 +51,88 @@ const deleteEvent = asyncHandler(async (req, res) => {
     throw new Error('Event not found');
   }
 
-  // Safety Check for old events
-  const eventOwnerId = event.user ? event.user.toString() : null;
-  const isAdmin = req.user.role && req.user.role.toLowerCase() === 'admin';
-  const isOwner = eventOwnerId === req.user.id;
-
-  if (!isAdmin && !isOwner) {
+  // Check user
+  if (event.user.toString() !== req.user.id && req.user.role !== 'admin') {
     res.status(401);
-    throw new Error('Not Authorized');
+    throw new Error('User not authorized');
   }
 
-  await Event.findByIdAndDelete(req.params.id);
-  res.status(200).json({ id: req.params.id, message: "Deleted" });
+  await event.deleteOne();
+  res.json({ message: 'Event removed' });
 });
 
-// --- 5. SPONSOR EVENT ---
+// 5. SPONSOR EVENT (Partial Funding Logic)
 const sponsorEvent = asyncHandler(async (req, res) => {
+  const { amount } = req.body;
   const event = await Event.findById(req.params.id);
-  if (!event) { res.status(404); throw new Error('Event not found'); }
-  if (event.isSponsored) { res.status(400); throw new Error('Already Sponsored'); }
-  if (req.user.role !== 'sponsor') { res.status(401); throw new Error('Only Sponsors allow'); }
 
-  event.isSponsored = true;
-  event.sponsorBy = req.user.id;
-  event.sponsorName = req.user.companyName || req.user.name;
-  event.sponsorEmail = req.user.email;
-  event.sponsoredAt = Date.now();
+  if (!event) {
+    res.status(404);
+    throw new Error('Event not found');
+  }
+
+  const payAmount = Number(amount);
+  const currentRaised = event.raisedAmount || 0;
+
+  // Validation
+  if (payAmount < 500) {
+    res.status(400);
+    throw new Error('Minimum sponsorship amount is ₹500');
+  }
+  
+  if (currentRaised + payAmount > event.budget) {
+    res.status(400);
+    throw new Error(`Amount exceeds remaining budget! Need only ₹${event.budget - currentRaised}`);
+  }
+
+  // Add to Array
+  event.sponsors.push({
+    sponsorId: req.user.id,
+    name: req.user.name,
+    email: req.user.email,
+    amount: payAmount
+  });
+
+  // Update Total
+  event.raisedAmount = currentRaised + payAmount;
   
   await event.save();
-  res.status(200).json({ message: 'Deal Locked', event });
+  res.status(200).json(event);
 });
 
-module.exports = { 
-  getEvents, 
-  getEventById, 
-  createEvent, 
-  deleteEvent, 
-  sponsorEvent 
+// 6. CANCEL SPONSORSHIP (Refund Logic)
+const cancelSponsorship = asyncHandler(async (req, res) => {
+  const event = await Event.findById(req.params.id);
+  
+  if (!event) {
+    res.status(404);
+    throw new Error('Event not found');
+  }
+
+  // Find the specific sponsorship
+  const sponsorIndex = event.sponsors.findIndex(s => s.sponsorId.toString() === req.user.id);
+
+  if (sponsorIndex === -1) {
+    res.status(400);
+    throw new Error('You have not sponsored this event');
+  }
+
+  // Deduct Amount
+  const amountToRefund = event.sponsors[sponsorIndex].amount;
+  event.raisedAmount -= amountToRefund;
+
+  // Remove from Array
+  event.sponsors.splice(sponsorIndex, 1);
+  
+  await event.save();
+  res.status(200).json({ message: 'Sponsorship Cancelled', refundedAmount: amountToRefund });
+});
+
+module.exports = {
+  getEvents,
+  getEventById,
+  createEvent,
+  deleteEvent,
+  sponsorEvent,
+  cancelSponsorship
 };

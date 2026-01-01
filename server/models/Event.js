@@ -26,8 +26,6 @@ const eventSchema = mongoose.Schema({
     type: Number,
     required: [true, 'Please add a budget'],
   },
-
-  // 👇 YE FIELDS MISSING THE - INKO ADD KARNA ZAROORI HAI
   contactEmail: {
     type: String,
     required: [true, 'Please add contact email'],
@@ -37,28 +35,21 @@ const eventSchema = mongoose.Schema({
     default: ''
   },
 
-  // Sponsorship Logic
-  isSponsored: {
-    type: Boolean,
-    default: false,
+  // 👇 NEW CROWDFUNDING LOGIC
+  raisedAmount: {
+    type: Number,
+    default: 0
   },
-  sponsorBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
-  },
-  sponsorName: {
-    type: String,
-    default: '' 
-  },
-  sponsorEmail: {
-    type: String,
-    default: ''
-  },
-  sponsoredAt: {
-    type: Date,
-    default: null
-  }
+  
+  // List of Multiple Sponsors
+  sponsors: [{
+    sponsorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    name: String,
+    email: String,
+    amount: Number,
+    date: { type: Date, default: Date.now }
+  }]
+
 }, {
   timestamps: true,
 });
