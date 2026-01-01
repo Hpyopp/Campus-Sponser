@@ -1,13 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 const CreateEvent = () => {
   const [formData, setFormData] = useState({
     title: '', description: '', date: '', location: '', budget: '',
-    contactEmail: '', instagramLink: '' // 👈 New
+    contactEmail: '', instagramLink: ''
   });
   const navigate = useNavigate();
+
+  // 👇 SECURITY CHECK: Verify hai ya nahi?
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user || !user.isVerified) {
+        alert("⛔ Access Denied! You must be Verified to create events.");
+        navigate('/');
+    }
+  }, [navigate]);
 
   const onChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -36,7 +45,6 @@ const CreateEvent = () => {
         </div>
         <input type="text" name="location" onChange={onChange} placeholder="Location" required style={inputStyle} />
         
-        {/* 👇 NEW CONTACT INPUTS */}
         <h4 style={{margin:'10px 0', color:'#64748b'}}>📞 Contact Details for Sponsors</h4>
         <input type="email" name="contactEmail" onChange={onChange} placeholder="Official Contact Email" required style={inputStyle} />
         <input type="text" name="instagramLink" onChange={onChange} placeholder="Instagram Link (Optional)" style={inputStyle} />
