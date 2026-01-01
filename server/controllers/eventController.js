@@ -2,16 +2,16 @@ const asyncHandler = require('express-async-handler');
 const Event = require('../models/Event');
 const User = require('../models/User');
 
-// Get All Events
+// --- 1. GET ALL EVENTS ---
 const getEvents = asyncHandler(async (req, res) => {
-  // 👇 IMP: Student ka Name, Email aur College Name sath bhejo
+  // Student ka Name, Email aur College Name sath bhejo
   const events = await Event.find()
     .populate('user', 'name email collegeName') 
     .sort({ createdAt: -1 });
   res.status(200).json(events);
 });
 
-// 👇 NEW: SINGLE EVENT FETCH (Details Page ke liye)
+// --- 2. GET SINGLE EVENT ---
 const getEventById = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id).populate('user', 'name email collegeName');
   if (event) {
@@ -21,7 +21,7 @@ const getEventById = asyncHandler(async (req, res) => {
   }
 });
 
-// Create Event
+// --- 3. CREATE EVENT ---
 const createEvent = asyncHandler(async (req, res) => {
   const { title, description, date, location, budget, contactEmail, instagramLink } = req.body;
 
@@ -31,24 +31,34 @@ const createEvent = asyncHandler(async (req, res) => {
 
   const event = await Event.create({
     title, description, date, location, budget,
-    contactEmail, instagramLink, // 👈 New Fields
+    contactEmail, instagramLink,
     user: req.user.id,
   });
   res.status(200).json(event);
 });
 
-// Delete Event
+// --- 4. DELETE EVENT (FIXED 🛠️) ---
 const deleteEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
-  if (!event) { res.status(404); throw new Error('Event not found'); }
-  if (event.user.toString() !== req.user.id && req.user.role !== 'admin') {
-    res.status(401); throw new Error('Not authorized');
+
+  if (!event) {
+    res.status(404);
+    throw new Error('Event not found');
   }
-  await event.deleteOne();
-  res.status(200).json({ id: req.params.id });
+
+  // Check: Sirf Owner ya Admin hi delete kar sakta hai
+  if (event.user.toString() !== req.user.id && req.user.role !== 'admin') {
+    res.status(401);
+    throw new Error('User not authorized');
+  }
+
+  // 🔥 DIRECT DATABASE DELETE (Ye zombie issue solve karega)
+  await Event.findByIdAndDelete(req.params.id);
+
+  res.status(200).json({ id: req.params.id, message: "Event Deleted Successfully" });
 });
 
-// Sponsor Event
+// --- 5. SPONSOR EVENT ---
 const sponsorEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
   if (!event) { res.status(404); throw new Error('Event not found'); }

@@ -37,7 +37,6 @@ const AdminDashboard = () => {
     if(!window.confirm("Delete User?")) return;
     try {
       await axios.delete(`/api/users/${id}`, { headers: { Authorization: `Bearer ${user.token}` } });
-      // Instant Update
       setUsers(users.filter(u => u._id !== id));
     } catch (error) { alert('Delete Failed'); }
   };
@@ -52,18 +51,22 @@ const AdminDashboard = () => {
 
   // 👇 FIXED DELETE EVENT FUNCTION
   const deleteEvent = async (id) => {
-    if(!window.confirm("Delete Event Permanently?")) return;
+    if(!window.confirm("⚠️ Are you sure you want to PERMANENTLY delete this event?")) return;
+
     try {
-      // 1. UI se pehle hi hata do (Fast Feel)
+      // Server ko bolo delete karne ko
+      await axios.delete(`/api/events/${id}`, { 
+        headers: { Authorization: `Bearer ${user.token}` } 
+      });
+
+      // ✅ Jab Server bole "OK", tabhi UI se hatao
+      // Isse "Fake Delete" ka issue nahi hoga
       setEvents(events.filter(e => e._id !== id));
-      
-      // 2. Phir Backend call karo
-      await axios.delete(`/api/events/${id}`, { headers: { Authorization: `Bearer ${user.token}` } });
-      alert("🗑️ Event Deleted");
+      alert("🗑️ Event Deleted Successfully from Database.");
+
     } catch (error) {
       console.error(error);
-      alert('Delete Failed');
-      fetchEvents(); // Galti hui toh wapas lao
+      alert('❌ Delete Failed! Server Error.');
     }
   };
 
