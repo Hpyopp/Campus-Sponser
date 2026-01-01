@@ -1,4 +1,4 @@
-// 👇 YE LINES BAHUT ZAROORI HAIN (Inhe mat hatana)
+// 👇 YE 3 LINES BAHUT ZAROORI HAIN - INHE MAT HATANA
 const asyncHandler = require('express-async-handler');
 const Event = require('../models/Event');
 const User = require('../models/User');
@@ -39,11 +39,11 @@ const createEvent = asyncHandler(async (req, res) => {
   res.status(200).json(event);
 });
 
-// --- 4. DELETE EVENT (Fixed) ---
+// --- 4. DELETE EVENT (Fixed Logic) ---
 const deleteEvent = asyncHandler(async (req, res) => {
   console.log(`🔥 DELETE REQUEST: Event ID ${req.params.id}`);
 
-  // Find Event
+  // Event dhundo
   const event = await Event.findById(req.params.id);
 
   if (!event) {
@@ -51,18 +51,18 @@ const deleteEvent = asyncHandler(async (req, res) => {
     throw new Error('Event not found in Database');
   }
 
-  // Permission Check (Admin or Owner)
-  // req.user authMiddleware se aata hai
+  // Permission Check: Admin ho ya Owner ho
+  // Note: 'admin' check ko safe banaya hai (Case Insensitive)
   const isAdmin = req.user.role && req.user.role.toLowerCase() === 'admin';
   const isOwner = event.user.toString() === req.user.id;
 
   if (!isAdmin && !isOwner) {
-    console.log("⛔ Access Denied: User is neither Admin nor Owner");
+    console.log("⛔ Access Denied");
     res.status(401);
     throw new Error('Not Authorized to Delete');
   }
 
-  // Direct Delete
+  // 🔥 DIRECT DATABASE DELETE COMMAND
   await Event.findByIdAndDelete(req.params.id);
   
   console.log("✅ Event Deleted Successfully!");
