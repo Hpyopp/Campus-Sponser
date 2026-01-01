@@ -1,4 +1,4 @@
-// 👇 YE 3 LINES SABSE ZYADA ZAROORI HAIN - INKO MAT HATANA
+// 👇 IMPORTS (Bahut Zaroori)
 const asyncHandler = require('express-async-handler');
 const Event = require('../models/Event');
 const User = require('../models/User');
@@ -39,11 +39,10 @@ const createEvent = asyncHandler(async (req, res) => {
   res.status(200).json(event);
 });
 
-// --- 4. DELETE EVENT (Fixed Logic) ---
+// --- 4. DELETE EVENT (CRASH PROOF & ZOMBIE KILLER 🧟‍♂️) ---
 const deleteEvent = asyncHandler(async (req, res) => {
   console.log(`🔥 DELETE REQUEST: Event ID ${req.params.id}`);
 
-  // Event dhundo
   const event = await Event.findById(req.params.id);
 
   if (!event) {
@@ -51,17 +50,22 @@ const deleteEvent = asyncHandler(async (req, res) => {
     throw new Error('Event not found in Database');
   }
 
-  // Permission Check: Admin ho ya Owner ho (Case Insensitive)
-  const isAdmin = req.user.role && req.user.role.toLowerCase() === 'admin';
-  const isOwner = event.user.toString() === req.user.id;
+  // 👇 SAFETY CHECK: Purane events ke liye jinka user data missing ho sakta hai
+  // Agar event.user null hai, toh usse string mein convert mat karo, null hi rehne do.
+  const eventOwnerId = event.user ? event.user.toString() : null;
 
+  // Permissions Check
+  const isAdmin = req.user.role && req.user.role.toLowerCase() === 'admin';
+  const isOwner = eventOwnerId === req.user.id;
+
+  // Agar banda na Admin hai, na Owner -> Bhagao
   if (!isAdmin && !isOwner) {
-    console.log("⛔ Access Denied: User is not Admin or Owner");
+    console.log("⛔ Access Denied: Not Admin or Owner");
     res.status(401);
     throw new Error('Not Authorized to Delete');
   }
 
-  // 🔥 DIRECT DATABASE DELETE COMMAND
+  // 🔥 DIRECT DELETE
   await Event.findByIdAndDelete(req.params.id);
   
   console.log("✅ Event Deleted Successfully!");
