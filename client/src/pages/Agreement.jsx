@@ -10,35 +10,31 @@ const Agreement = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // 1. Signature Font
+    // 1. Load Signature Font
     const link = document.createElement('link');
     link.href = "https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
 
-    // 2. Get User
+    // 2. Get Current Logged In User
     const storedUser = JSON.parse(localStorage.getItem('user'));
     setCurrentUser(storedUser);
 
     if (!storedUser) {
         alert("Please login to view agreement");
         navigate('/login');
+        return;
     }
 
-    // 3. Fetch Event
+    // 3. FETCH SINGLE EVENT (Detailed Data)
     const fetchEvent = async () => {
       try {
-        const res = await axios.get('/api/events');
-        const foundEvent = res.data.find(e => e._id === id);
-        
-        if (foundEvent) {
-          setEvent(foundEvent);
-        } else {
-          alert("Event not found!");
-          navigate('/');
-        }
+        // 👇 FIX: Direct Single Event call karo taaki Organizer Details milein
+        const res = await axios.get(`/api/events/${id}`);
+        setEvent(res.data);
       } catch (error) {
         console.error(error);
+        alert("Error loading agreement details.");
       } finally {
         setLoading(false);
       }
@@ -49,7 +45,7 @@ const Agreement = () => {
   if (loading) return <div style={{textAlign:'center', padding:'50px'}}>Generating Receipt... 🧾</div>;
   if (!event || !currentUser) return null;
 
-  // 👇 LOGIC: Find MY sponsorship in the list
+  // 👇 FIND MY SPONSORSHIP
   const mySponsorship = event.sponsors?.find(s => s.sponsorId === currentUser._id);
 
   if (!mySponsorship) {
@@ -66,6 +62,11 @@ const Agreement = () => {
   const sponsorEmail = mySponsorship.email;
   const contributionAmount = mySponsorship.amount;
   const dealDate = mySponsorship.date;
+
+  // 👇 Organizer Details (Safe Check)
+  const organizerName = event.user?.name || "Event Coordinator";
+  const organizerEmail = event.user?.email || "Email Hidden";
+  const organizerCollege = event.user?.collegeName || "Campus Event Committee";
 
   return (
     <div style={{ background: '#525659', minHeight: '100vh', padding: '40px 0' }}>
@@ -96,7 +97,7 @@ const Agreement = () => {
             This Agreement is made on <strong>{new Date(dealDate).toLocaleDateString()}</strong>, by and between:
           </p>
 
-          {/* PARTIES */}
+          {/* PARTIES BOX */}
           <div style={{ display:'flex', justifyContent:'space-between', gap:'20px', background: '#f8fafc', padding: '20px', border: '1px solid #94a3b8', marginBottom: '20px', textAlign:'left' }}>
             
             {/* SPONSOR */}
@@ -106,12 +107,12 @@ const Agreement = () => {
                 <div style={{fontSize:'0.9rem', color:'#334155', marginTop:'2px'}}>Email: {sponsorEmail}</div>
             </div>
 
-            {/* ORGANIZER */}
+            {/* ORGANIZER (Ab Data Dikhega ✅) */}
             <div style={{width:'48%', borderLeft:'1px solid #cbd5e1', paddingLeft:'20px'}}>
                 <div style={{fontSize:'0.9rem', color:'#64748b', textDecoration:'underline', marginBottom:'5px'}}>THE ORGANIZER:</div>
-                <div style={{fontSize: '1.2rem', fontWeight:'bold', lineHeight:'1.2'}}>{event.user?.collegeName || "Campus Event Committee"}</div>
-                <div style={{fontSize:'0.9rem', color:'#334155', marginTop:'2px'}}>Rep: {event.user?.name}</div>
-                <div style={{fontSize:'0.9rem', color:'#334155'}}>Email: {event.user?.email}</div>
+                <div style={{fontSize: '1.2rem', fontWeight:'bold', lineHeight:'1.2'}}>{organizerCollege}</div>
+                <div style={{fontSize:'0.9rem', color:'#334155', marginTop:'2px'}}>Rep: {organizerName}</div>
+                <div style={{fontSize:'0.9rem', color:'#334155'}}>Email: {organizerEmail}</div>
             </div>
 
           </div>
@@ -165,7 +166,7 @@ const Agreement = () => {
              </div>
             <div style={{ borderBottom: '2px solid #000', marginBottom: '5px' }}></div>
             <p style={{ margin: 0, fontWeight: 'bold', fontSize:'0.9rem' }}>Event Coordinator</p>
-            <p style={{ margin: 0, fontSize: '0.75rem', textTransform: 'uppercase' }}>CampusSponsor Verified</p>
+            <p style={{ margin: 0, fontSize: '0.75rem', textTransform: 'uppercase' }}>{organizerCollege}</p>
           </div>
         </div>
 
