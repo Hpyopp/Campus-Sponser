@@ -20,6 +20,17 @@ const EventDetails = () => {
     fetchEvent();
   }, [id]);
 
+  // 👇 SMART LINK FIXER: Ye function link ko sahi karega
+  const getInstaUrl = (link) => {
+    if (!link) return "#";
+    // Agar link me http pehle se hai, toh wahi use karo
+    if (link.startsWith("http")) return link;
+    // Agar www se shuru hai, toh https jodo
+    if (link.startsWith("www.")) return `https://${link}`;
+    // Agar sirf username hai, toh instagram.com jodo
+    return `https://instagram.com/${link.replace('@', '')}`;
+  };
+
   const handleSponsor = async () => {
     if(!window.confirm("Confirm Sponsorship? Deal will be locked. 🔒")) return;
     try {
@@ -54,7 +65,7 @@ const EventDetails = () => {
       <h3 style={{color:'#334155'}}>📝 Description</h3>
       <p style={{lineHeight:'1.8', color:'#4b5563', fontSize:'1.05rem', marginBottom:'30px'}}>{event.description}</p>
 
-      {/* STATS */}
+      {/* CONTACT & BUDGET */}
       <div style={{display:'flex', gap:'20px', flexWrap:'wrap', marginBottom:'40px'}}>
         <div style={{flex:1, background:'#eff6ff', padding:'20px', borderRadius:'15px', textAlign:'center'}}>
             <span style={{display:'block', fontSize:'0.9rem', color:'#1e40af'}}>Sponsorship Needed</span>
@@ -62,31 +73,42 @@ const EventDetails = () => {
         </div>
         <div style={{flex:1, background:'#fdf4ff', padding:'20px', borderRadius:'15px', textAlign:'center'}}>
              <span style={{display:'block', fontSize:'0.9rem', color:'#86198f'}}>Contact Info</span>
-             <a href={`mailto:${event.contactEmail}`} style={{display:'block', fontWeight:'bold', color:'#c026d3', textDecoration:'none'}}>{event.contactEmail}</a>
-             {event.instagramLink && <a href={event.instagramLink} target="_blank" rel="noreferrer" style={{fontSize:'0.9rem', color:'#c026d3', textDecoration:'underline'}}>📸 Instagram</a>}
+             
+             {event.contactEmail ? (
+                <a href={`mailto:${event.contactEmail}`} style={{display:'block', fontWeight:'bold', color:'#c026d3', textDecoration:'none', wordBreak:'break-all'}}>{event.contactEmail}</a>
+             ) : (
+                <span style={{color:'#aaa', fontStyle:'italic'}}>Email not provided</span>
+             )}
+
+             {event.instagramLink && (
+                // 👇 YAHAN HUMNE FIX FUNCTION USE KIYA HAI
+                <a 
+                    href={getInstaUrl(event.instagramLink)} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    style={{fontSize:'0.9rem', color:'#c026d3', textDecoration:'underline', marginTop:'8px', display:'inline-block'}}
+                >
+                    📸 Instagram Profile
+                </a>
+             )}
         </div>
       </div>
 
-      {/* 👇 ACTION AREA (LOGIC CHANGED) */}
+      {/* ACTION BUTTONS */}
       <div style={{borderTop:'1px solid #eee', paddingTop:'20px'}}>
-        
-        {/* CASE 1: Already Funded */}
         {event.isSponsored ? (
            <div style={{padding:'20px', background:'#dcfce7', color:'#166534', textAlign:'center', borderRadius:'15px', fontWeight:'bold', fontSize:'1.2rem'}}>
               ✅ EVENT ALREADY FUNDED
            </div>
         ) : (
-           // CASE 2: Not Funded Yet
            user && user.role === 'sponsor' ? (
-              // Agar Sponsor hai toh BUTTON dikhao
               <button onClick={handleSponsor} style={{width:'100%', padding:'18px', background:'#0f172a', color:'white', border:'none', borderRadius:'15px', fontSize:'1.2rem', fontWeight:'bold', cursor:'pointer', boxShadow:'0 10px 20px rgba(15, 23, 42, 0.2)'}}>
                   🤝 Sponsor This Event Now
               </button>
            ) : (
-              // Agar Student hai ya Public hai toh bas STATUS dikhao
               <div style={{textAlign:'center', padding:'15px', background:'#f8fafc', borderRadius:'10px', color:'#64748b', border:'1px dashed #cbd5e1'}}>
                   {user && user.role === 'student' ? (
-                      <span>🚀 <strong>Your Event is Live!</strong> Waiting for Sponsors to connect.</span>
+                      <span>🚀 <strong>Your Event is Live!</strong> Waiting for Sponsors.</span>
                   ) : (
                       <span>Login as a <strong>Sponsor</strong> to fund this event.</span>
                   )}
