@@ -19,7 +19,7 @@ const Agreement = () => {
     fetchEvent();
   }, [id, navigate]);
 
-  if (!event) return <div style={{textAlign:'center', padding:'50px'}}>Loading Agreement...</div>;
+  if (!event) return <div style={{textAlign:'center', padding:'50px'}}>Generating Agreement... ⏳</div>;
 
   return (
     <div style={{ background: '#525659', minHeight: '100vh', padding: '40px 0' }}>
@@ -31,9 +31,9 @@ const Agreement = () => {
           <p style={{ fontStyle: 'italic', color: '#444', marginTop: '10px' }}>Official Memorandum of Understanding</p>
         </div>
 
-        {/* PARTIES */}
+        {/* DETAILS BOX */}
         <div style={{ background: '#f8fafc', padding: '20px', border: '1px solid #ddd', margin: '20px 0' }}>
-            {/* SPONSOR DETAILS */}
+            {/* SPONSOR */}
             <div style={{marginBottom:'15px'}}>
                 <strong style={{textTransform:'uppercase', color:'#475569'}}>The Sponsor:</strong><br/>
                 <span style={{fontSize:'1.2rem', fontWeight:'bold'}}>{event.sponsorName}</span><br/>
@@ -42,43 +42,45 @@ const Agreement = () => {
             
             <hr style={{borderTop:'1px dashed #ccc'}}/>
 
-            {/* ORGANIZER (STUDENT) DETAILS */}
+            {/* ORGANIZER (STUDENT) */}
             <div style={{marginTop:'15px'}}>
                 <strong style={{textTransform:'uppercase', color:'#475569'}}>The Organizer:</strong><br/>
-                <span style={{fontSize:'1.2rem', fontWeight:'bold'}}>Student Representative</span><br/>
+                <span style={{fontSize:'1.2rem', fontWeight:'bold'}}>Student Committee</span><br/>
                 <span style={{color:'blue', textDecoration:'underline'}}>
-                    {/* 👇 Yahan Student ka Email aayega */}
-                    {event.user?.email || "student@college.edu"}
+                    {/* 👇 ASLI EMAIL YAHAN DIKHEGA AB */}
+                    {event.user?.email}
                 </span>
             </div>
         </div>
 
-        {/* EVENT DETAILS */}
+        {/* TEXT */}
         <p style={{ lineHeight: '1.6', fontSize: '1.1rem', textAlign: 'justify' }}>
-          This agreement confirms that <strong>{event.sponsorName}</strong> has agreed to sponsor the event <strong>"{event.title}"</strong> organized by the student committee. The total sponsorship amount of <strong>₹{event.budget}</strong> will be transferred to the organizer.
+          This agreement confirms that <strong>{event.sponsorName}</strong> has officially sponsored the event <strong>"{event.title}"</strong>. The total amount of <strong>₹{event.budget}</strong> is to be transferred to the organizer's account within 3 working days.
         </p>
 
-        {/* SIGNATURES - EMAILS VISIBLE */}
+        {/* SIGNATURES */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '80px', paddingTop: '20px' }}>
-          
           <div style={{ width: '45%' }}>
             <div style={{ borderBottom: '2px solid #000', marginBottom: '10px', height: '40px' }}></div>
             <p style={{ margin: 0, fontWeight: 'bold' }}>Authorized Signatory</p>
-            <p style={{ margin: 0, fontSize: '0.9rem' }}>{event.sponsorEmail}</p> {/* Sponsor Email */}
+            <p style={{ margin: 0, fontSize: '0.9rem' }}>For {event.sponsorName}</p>
           </div>
-
           <div style={{ width: '45%' }}>
             <div style={{ borderBottom: '2px solid #000', marginBottom: '10px', height: '40px' }}></div>
-            <p style={{ margin: 0, fontWeight: 'bold' }}>Organizer (Student)</p>
-            <p style={{ margin: 0, fontSize: '0.9rem' }}>{event.user?.email}</p> {/* Student Email */}
+            <p style={{ margin: 0, fontWeight: 'bold' }}>Organizer</p>
+            <p style={{ margin: 0, fontSize: '0.9rem' }}>{event.user?.email}</p>
           </div>
-
         </div>
 
-        {/* PRINT BUTTON */}
-        <div className="no-print" style={{ marginTop: '60px', textAlign: 'center' }}>
+        {/* ACTIONS */}
+        <div className="no-print" style={{ marginTop: '60px', textAlign: 'center', display:'flex', gap:'20px', justifyContent:'center' }}>
           <button onClick={() => window.print()} style={{ padding: '12px 25px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor:'pointer' }}>
-            🖨️ Print / Save PDF
+            🖨️ Print Agreement
+          </button>
+          
+          {/* 👇 REFRESH FIX: Yeh button ab Home ko reload karega */}
+          <button onClick={() => { window.location.href = '/' }} style={{ padding: '12px 25px', background: 'transparent', border: '2px solid #0f172a', cursor: 'pointer', borderRadius: '5px', fontWeight: 'bold' }}>
+            Go Back Home
           </button>
         </div>
 

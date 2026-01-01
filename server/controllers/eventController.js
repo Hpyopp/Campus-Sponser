@@ -2,14 +2,11 @@ const asyncHandler = require('express-async-handler');
 const Event = require('../models/Event');
 const User = require('../models/User');
 
-// 👇 UPDATED: AB YE STUDENT KA DATA (NAME, EMAIL) BHI BHEJEGA
+// 👇 UPDATE 1: .populate() LAGAYA HAI (Student Email Lane Ke Liye)
 const getEvents = asyncHandler(async (req, res) => {
-  // .populate('user', 'name email') ka matlab:
-  // Event ke saath uske malik (Student) ka Naam aur Email bhi attach karo
   const events = await Event.find()
-    .populate('user', 'name email') 
+    .populate('user', 'name email') // <--- YE LINE SABSE IMPORTANT HAI
     .sort({ createdAt: -1 });
-    
   res.status(200).json(events);
 });
 
@@ -31,8 +28,6 @@ const createEvent = asyncHandler(async (req, res) => {
 const deleteEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
   if (!event) { res.status(404); throw new Error('Event not found'); }
-
-  // Admin Power Check
   if (event.user.toString() !== req.user.id && req.user.role !== 'admin') {
     res.status(401); throw new Error('User not authorized');
   }
@@ -48,8 +43,6 @@ const sponsorEvent = asyncHandler(async (req, res) => {
 
   event.isSponsored = true;
   event.sponsorBy = req.user.id;
-  
-  // Use Company Name if available
   event.sponsorName = req.user.companyName || req.user.name || "Sponsor"; 
   event.sponsorEmail = req.user.email;
   event.sponsoredAt = Date.now();
