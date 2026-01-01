@@ -5,54 +5,54 @@ import axios from 'axios';
 const Home = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [events, setEvents] = useState([]); // Events ka data yahan aayega
   const [loading, setLoading] = useState(false);
 
-  // 1. Load User on Startup
+  // 1. Load User
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
     if (!storedUser) {
       navigate('/login');
     } else {
       setUser(storedUser);
+      fetchEvents(); // Login hai toh events mangwao
     }
   }, [navigate]);
 
-  // 2. LOGOUT FUNCTION
+  // 2. FETCH EVENTS FUNCTION
+  const fetchEvents = async () => {
+    try {
+      const res = await axios.get('/api/events'); // Backend se events lo
+      setEvents(res.data);
+    } catch (error) {
+      console.log("Error fetching events:", error);
+    }
+  };
+
+  // 3. LOGOUT
   const handleLogout = () => {
     localStorage.removeItem('user');
     navigate('/login');
   };
 
-  // 3. CHECK STATUS FUNCTION (Ye hai wo Magic Button Logic 🛠️)
+  // 4. CHECK STATUS
   const checkStatus = async () => {
     setLoading(true);
     try {
-      // Token ke saath Server ko call karo
-      const config = {
-        headers: { Authorization: `Bearer ${user.token}` },
-      };
-      
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
       const res = await axios.get('/api/users/me', config);
-      
-      // Naya data (updated verification status) save karo
-      // Dhyan rakhna: Token purana wala hi use karenge agar naya nahi aaya
       const updatedUser = { ...user, ...res.data }; 
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
 
-      // Result batao
-      if (res.data.isVerified) {
-        alert("🎉 Congrats! You are VERIFIED by Admin.");
-      } else if (res.data.verificationDoc) {
-        alert("⏳ Status: PENDING Admin Approval.");
-      } else {
-        alert("⚠️ Status: Not Verified. Please Upload ID.");
-        navigate('/verify'); // Upload page pe bhejo
+      if (res.data.isVerified) alert("🎉 You are VERIFIED!");
+      else if (res.data.verificationDoc) alert("⏳ Status: PENDING Admin Approval.");
+      else {
+        alert("⚠️ Not Verified. Please Upload ID.");
+        navigate('/verify');
       }
-
     } catch (error) {
-      console.error(error);
-      alert("Error checking status. Try login again.");
+      alert("Error checking status.");
     } finally {
       setLoading(false);
     }
@@ -61,71 +61,85 @@ const Home = () => {
   if (!user) return null;
 
   return (
-    <div style={{ fontFamily: 'Poppins', padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+    <div style={{ fontFamily: 'Poppins', padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
       
-      {/* HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
-        <h2 style={{ color: '#1e293b' }}>🚀 CampusSponsor</h2>
-        <button onClick={handleLogout} style={{ padding: '8px 15px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
-          Logout
-        </button>
+      {/* --- HEADER --- */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+        <h2 style={{ color: '#1e293b', display:'flex', alignItems:'center', gap:'10px' }}>
+            🚀 CampusSponsor
+        </h2>
+        <div style={{display:'flex', gap:'15px', alignItems:'center'}}>
+            <span style={{fontWeight:'bold', color:'#64748b'}}>Hi, {user.name} 👋</span>
+            <button onClick={handleLogout} style={{ padding: '8px 15px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight:'bold' }}>Logout</button>
+        </div>
       </div>
 
-      {/* USER CARD */}
-      <div style={{ background: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+      {/* --- SECTION 1: USER STATUS CARD --- */}
+      <div style={{ background: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', textAlign: 'center', marginBottom:'40px' }}>
         
         <div style={{ fontSize: '3rem', marginBottom: '10px' }}>
           {user.isVerified ? '✅' : '⏳'}
         </div>
 
-        <h1 style={{ color: '#0f172a' }}>Welcome, {user.name}!</h1>
-        <p style={{ color: '#64748b' }}>Role: <strong style={{ textTransform: 'capitalize' }}>{user.role}</strong></p>
-
-        {/* STATUS BADGE */}
+        <h2 style={{ color: '#0f172a', margin:'0 0 10px 0' }}>Welcome, {user.name}!</h2>
+        
+        {/* Status Badge */}
         <div style={{ 
             display: 'inline-block', padding: '8px 20px', borderRadius: '20px', 
             background: user.isVerified ? '#dcfce7' : '#fff7ed', 
             color: user.isVerified ? '#166534' : '#c2410c',
-            fontWeight: 'bold', marginTop: '10px', border: user.isVerified ? '1px solid #22c55e' : '1px solid #f97316'
+            fontWeight: 'bold', border: user.isVerified ? '1px solid #22c55e' : '1px solid #f97316'
         }}>
           {user.isVerified ? 'Verified Account' : 'Verification Pending'}
         </div>
 
+        {/* Action Buttons */}
         <div style={{ marginTop: '30px', display: 'flex', gap: '15px', justifyContent: 'center', flexWrap:'wrap' }}>
-          
-          {/* 👇 YE BUTTON AB PAKKA CHALEGA */}
-          <button 
-            onClick={checkStatus} 
-            disabled={loading}
-            style={{ 
-              padding: '12px 25px', background: '#2563eb', color: 'white', 
-              border: 'none', borderRadius: '8px', cursor: 'pointer', 
-              fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px'
-            }}
-          >
+          <button onClick={checkStatus} disabled={loading} style={{ padding: '12px 25px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', display:'flex', alignItems:'center', gap:'8px' }}>
             {loading ? 'Checking...' : '🔄 Check Status'}
           </button>
 
           {!user.isVerified && (
-            <button 
-              onClick={() => navigate('/verify')} 
-              style={{ padding: '12px 25px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '1rem' }}
-            >
+            <button onClick={() => navigate('/verify')} style={{ padding: '12px 25px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
               📂 Upload ID Proof
             </button>
           )}
 
-          {user.isVerified && (
-            <button 
-              onClick={() => navigate('/create-event')} 
-              style={{ padding: '12px 25px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '1rem' }}
-            >
+          {user.role === 'student' && (
+            <button onClick={() => navigate('/create-event')} style={{ padding: '12px 25px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
               ➕ Create Event
             </button>
           )}
-
         </div>
       </div>
+
+      {/* --- SECTION 2: EVENTS LIST --- */}
+      <h3 style={{ color: '#1e293b', borderBottom:'2px solid #e2e8f0', paddingBottom:'10px' }}>📅 Upcoming Campus Events</h3>
+      
+      {events.length === 0 ? (
+        <div style={{textAlign:'center', padding:'40px', color:'#94a3b8'}}>
+            <h3>No events found 📭</h3>
+            <p>Be the first one to create an event!</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginTop: '20px' }}>
+          {events.map((event) => (
+            <div key={event._id} style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', transition:'transform 0.2s' }}>
+                <h3 style={{ margin: '0 0 10px 0', color:'#2563eb' }}>{event.title}</h3>
+                <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom:'15px', height:'40px', overflow:'hidden' }}>{event.description}</p>
+                
+                <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.85rem', color:'#475569', background:'#f8fafc', padding:'10px', borderRadius:'8px'}}>
+                    <span>📍 {event.location}</span>
+                    <span>💰 ₹{event.budget}</span>
+                </div>
+                
+                <div style={{marginTop:'15px', textAlign:'right', fontSize:'0.8rem', color:'#94a3b8'}}>
+                    {new Date(event.date).toDateString()}
+                </div>
+            </div>
+          ))}
+        </div>
+      )}
 
     </div>
   );
