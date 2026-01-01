@@ -1,37 +1,39 @@
 const express = require('express');
 const router = express.Router();
-const multer = require('multer'); 
-const { 
-  registerUser, 
-  loginUser, 
-  verifyLogin, 
-  verifyRegisterOTP, 
-  uploadDoc, 
-  getMe, // 👈 IMPORTED!
-  getAllUsers, approveUser, unverifyUser, deleteUser
-} = require('../controllers/authController');
-const { protect } = require('../middleware/authMiddleware');
 
-// Cloudinary Config
-const { storage } = require('../config/cloudinary'); 
-const upload = multer({ storage: storage });
+// 👇 Imports wahi hone chahiye jo Controller me export kiye hain
+const { 
+    registerUser, 
+    loginUser, 
+    verifyLogin, 
+    verifyRegisterOTP, 
+    uploadDoc, // 👈 Ye ab Defined hai
+    getMe, 
+    getAllUsers, 
+    approveUser, 
+    unverifyUser, 
+    deleteUser 
+} = require('../controllers/userController');
+
+const { protect } = require('../middleware/authMiddleware');
+const upload = require('../middleware/uploadMiddleware'); // Multer
 
 // Public Routes
 router.post('/', registerUser);
-router.post('/verify-otp', verifyRegisterOTP);
 router.post('/login', loginUser);
-router.post('/login/verify', verifyLogin);
+router.post('/verify-login', verifyLogin);
+router.post('/verify-otp', verifyRegisterOTP);
 
-// Protected Routes
-router.post('/verify', protect, upload.single('document'), uploadDoc); 
-
-// 👇 YE ROUTE "CHECK STATUS" BUTTON KE LIYE HAI
+// Protected Routes (Logged in Users)
 router.get('/me', protect, getMe);
 
+// 👇 THE UPLOAD ROUTE (Sabke liye open - Students & Sponsors)
+router.post('/upload-doc', protect, upload.single('doc'), uploadDoc);
+
 // Admin Routes
-router.get('/', getAllUsers); 
+router.get('/all', protect, getAllUsers);
 router.put('/approve/:id', protect, approveUser);
-router.put('/unapprove/:id', protect, unverifyUser);
+router.put('/unverify/:id', protect, unverifyUser);
 router.delete('/:id', protect, deleteUser);
 
 module.exports = router;
