@@ -4,7 +4,7 @@ const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail'); 
 
-// --- 1. REGISTER USER (OTP + Backup Popup) ---
+// 1. REGISTER (OTP + Backup Popup)
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone, role, companyName, collegeName } = req.body;
 
@@ -30,50 +30,38 @@ const registerUser = asyncHandler(async (req, res) => {
     isVerified: false 
   });
 
-  try {
-    await sendEmail({ email: user.email, subject: 'Verify Account', message: otp });
-  } catch (err) { console.log("Email failed, using popup."); }
+  try { await sendEmail({ email: user.email, subject: 'Verify', message: otp }); } 
+  catch (err) { console.log("Email failed, popup mode active"); }
 
+  // Send OTP to Frontend
   res.status(200).json({ 
     message: 'OTP Generated', 
     email: user.email,
-    debugOtp: otp // Register wala Green Box
+    debugOtp: otp 
   });
 });
 
-// --- 2. LOGIN USER (STEP 1: SEND OTP) ---
-// 🛑 YE CHANGE HAI: Ab ye Password nahi mangega, sirf Email se OTP dega
+// 2. LOGIN STEP 1 (Send OTP)
 const loginUser = asyncHandler(async (req, res) => {
   const { email } = req.body;
-  if (!email) { res.status(400); throw new Error('Please enter email'); }
-
-  const cleanEmail = email.toLowerCase().trim();
+  const cleanEmail = email ? email.toLowerCase().trim() : '';
+  
   const user = await User.findOne({ email: cleanEmail });
+  if (!user) { res.status(404); throw new Error('User not found'); }
 
-  if (!user) { res.status(404); throw new Error('User not found. Please Register.'); }
-
-  // Generate Login OTP
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   
-  // Save OTP to DB
   user.otp = otp;
   user.otpExpires = Date.now() + 10 * 60 * 1000;
   await user.save();
 
-  // Try Email
-  try {
-    await sendEmail({ email: user.email, subject: 'Login OTP', message: otp });
-  } catch (err) { console.log("Email failed, using popup."); }
+  try { await sendEmail({ email: user.email, subject: 'Login OTP', message: otp }); } 
+  catch (err) { console.log("Email failed"); }
 
-  // Send Debug OTP for Green Box
-  res.status(200).json({
-    message: 'OTP Sent',
-    debugOtp: otp // Login wala Green Box yahan se aayega
-  });
+  res.status(200).json({ message: 'OTP Sent', debugOtp: otp });
 });
 
-// --- 3. VERIFY LOGIN (STEP 2: CHECK OTP) ---
-// 🛑 YE NAYA FUNCTION HAI
+// 3. LOGIN STEP 2 (Verify OTP) - 🛑 YE FUNCTION EXPORT HONA ZAROORI HAI
 const verifyLogin = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   const cleanEmail = email.toLowerCase().trim();
@@ -82,10 +70,7 @@ const verifyLogin = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email: cleanEmail });
   if (!user) { res.status(404); throw new Error('User not found'); }
 
-  // Check Match
   if (user.otp === inputOtp && user.otpExpires > Date.now()) {
-    
-    // Clear OTP
     user.otp = undefined;
     user.otpExpires = undefined;
     await user.save();
@@ -98,11 +83,11 @@ const verifyLogin = asyncHandler(async (req, res) => {
       token: generateToken(user._id),
     });
   } else {
-    res.status(400); throw new Error('Invalid or Expired OTP');
+    res.status(400); throw new Error('Invalid OTP');
   }
 });
 
-// --- 4. VERIFY REGISTER (For New Accounts) ---
+// 4. VERIFY REGISTER
 const verifyRegisterOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   const cleanEmail = email ? email.toLowerCase().trim() : '';
@@ -111,7 +96,7 @@ const verifyRegisterOTP = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email: cleanEmail });
   if (!user) { res.status(404); throw new Error('User not found'); }
 
-  if (user.otp === inputOtp && user.otpExpires > Date.now()) {
+  if (user.otp === inputOtp) { // Simple check for register
     user.isVerified = true;
     user.otp = undefined;
     user.otpExpires = undefined;
@@ -129,7 +114,7 @@ const verifyRegisterOTP = asyncHandler(async (req, res) => {
   }
 });
 
-// --- 5. UPLOAD DOC (Fixed for 'document' field) ---
+// 5. UPLOAD DOC
 const uploadDoc = asyncHandler(async (req, res) => {
   if (!req.file || !req.file.path) {
     res.status(400); throw new Error('Upload Failed');
@@ -154,4 +139,12 @@ const unverifyUser = asyncHandler(async (req, res) => { await User.findByIdAndUp
 const deleteUser = asyncHandler(async (req, res) => { await User.findByIdAndDelete(req.params.id); res.status(200).json({ message: 'Deleted' }); });
 const generateToken = (id) => { return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' }); };
 
-module.exports = { registerUser, loginUser, verifyLogin, verifyRegisterOTP, uploadDoc, getMe, getAllUsers, approveUser, unverifyUser, deleteUser };
+// 👇 EXPORTS CHECK KAR LENA, YE SAB HONA CHAHIYE
+module.exports = { 
+  registerUser, 
+  loginUser, 
+  verifyLogin,      // 👈 IMPORT FOR CRASH FIX
+  verifyRegisterOTP, 
+  uploadDoc, 
+  getMe, getAllUsers, approveUser, unverifyUser, deleteUser 
+};
