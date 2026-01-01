@@ -14,8 +14,8 @@ const Register = () => {
   const { name, email, password, phone, role, companyName, collegeName } = formData;
 
   // Verify Data
-  const [serverOtp, setServerOtp] = useState(''); // Jo server ne bheja (Dev mode dikhane ke liye)
-  const [userOtp, setUserOtp] = useState('');   // Jo user dalega
+  const [serverOtp, setServerOtp] = useState(''); 
+  const [userOtp, setUserOtp] = useState('');   
   
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -28,8 +28,8 @@ const Register = () => {
     e.preventDefault(); setLoading(true);
     try {
       const res = await axios.post('/api/users', formData);
-      // Success! Ab Step 2 (Green Box) dikhao
-      setServerOtp(res.data.debugOtp); // Dev mode OTP save karo
+      // Success! Move to Green Box
+      setServerOtp(res.data.debugOtp);
       setStep(2); 
     } catch (error) { 
         alert(error.response?.data?.message || 'Registration Failed'); 
@@ -39,12 +39,17 @@ const Register = () => {
   // STEP 2: VERIFY OTP SUBMIT
   const onVerifySubmit = async (e) => {
     e.preventDefault(); setLoading(true);
+    
+    // Clean Input before sending
+    const cleanOtp = userOtp.replace(/\s/g, ''); 
+
     try {
-      const res = await axios.post('/api/users/verify-otp', { email, otp: userOtp });
-      // Success! Auto Login & Redirect
+      const res = await axios.post('/api/users/verify-otp', { email, otp: cleanOtp });
+      
+      // Success! Auto Login
       localStorage.setItem('user', JSON.stringify(res.data)); 
       alert('✅ Verified & Logged In! Welcome.');
-      navigate('/'); // Home page par bhejo
+      navigate('/'); 
     } catch (error) {
       alert(error.response?.data?.message || 'Invalid OTP. Try again.');
     } finally { setLoading(false); }
@@ -76,7 +81,7 @@ const Register = () => {
         </div>
       )}
 
-      {/* 👇 STEP 2: THE STYLISH GREEN VERIFY BOX (Replaces the form) */}
+      {/* 👇 STEP 2: THE STYLISH GREEN VERIFY BOX (FIXED INPUT) */}
       {step === 2 && (
         <div style={{
             background: '#dcfce7', border: '2px solid #22c55e', color: '#14532d',
@@ -94,14 +99,19 @@ const Register = () => {
             </div>
 
             <form onSubmit={onVerifySubmit}>
+                {/* 👇 SPACE BLOCKER INPUT */}
                 <input 
                     type="text" 
                     value={userOtp} 
-                    onChange={(e) => setUserOtp(e.target.value)} 
+                    onChange={(e) => setUserOtp(e.target.value.replace(/\s/g, ''))} // Auto Remove Spaces 
                     placeholder="Enter 6-digit Code" 
                     maxLength="6"
                     required 
-                    style={{padding:'15px', fontSize:'1.2rem', textAlign:'center', letterSpacing:'5px', width:'80%', marginBottom:'20px', borderRadius:'8px', border:'2px solid #14532d', outline:'none'}} 
+                    style={{
+                        padding:'15px', fontSize:'1.2rem', textAlign:'center', 
+                        letterSpacing:'5px', width:'80%', marginBottom:'20px', 
+                        borderRadius:'8px', border:'2px solid #14532d', outline:'none'
+                    }} 
                 />
                 <br/>
                 <button type="submit" disabled={loading} style={{padding:'12px 30px', background:'#14532d', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontSize:'1.1rem', fontWeight:'bold', boxShadow:'0 5px 15px rgba(20, 83, 45, 0.3)'}}>
