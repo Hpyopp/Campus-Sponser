@@ -2,42 +2,27 @@ const asyncHandler = require('express-async-handler');
 const Event = require('../models/Event');
 const User = require('../models/User');
 
-// --- 1. GET ALL EVENTS ---
 const getEvents = asyncHandler(async (req, res) => {
-  // Student ka Name, Email aur College Name sath bhejo
-  const events = await Event.find()
-    .populate('user', 'name email collegeName') 
-    .sort({ createdAt: -1 });
+  const events = await Event.find().populate('user', 'name email collegeName').sort({ createdAt: -1 });
   res.status(200).json(events);
 });
 
-// --- 2. GET SINGLE EVENT ---
 const getEventById = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id).populate('user', 'name email collegeName');
-  if (event) {
-    res.status(200).json(event);
-  } else {
-    res.status(404); throw new Error('Event not found');
-  }
+  if (event) res.status(200).json(event);
+  else { res.status(404); throw new Error('Event not found'); }
 });
 
-// --- 3. CREATE EVENT ---
 const createEvent = asyncHandler(async (req, res) => {
   const { title, description, date, location, budget, contactEmail, instagramLink } = req.body;
-
-  if (!title || !budget || !contactEmail) {
-    res.status(400); throw new Error('Please add Title, Budget and Contact Email');
-  }
-
+  if (!title || !budget || !contactEmail) { res.status(400); throw new Error('Missing fields'); }
   const event = await Event.create({
-    title, description, date, location, budget,
-    contactEmail, instagramLink,
-    user: req.user.id,
+    title, description, date, location, budget, contactEmail, instagramLink, user: req.user.id,
   });
   res.status(200).json(event);
 });
 
-// --- 4. DELETE EVENT (FIXED 🛠️) ---
+// 👇 FIXED DELETE LOGIC (POWERFUL DELETE)
 const deleteEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
 
@@ -46,19 +31,24 @@ const deleteEvent = asyncHandler(async (req, res) => {
     throw new Error('Event not found');
   }
 
-  // Check: Sirf Owner ya Admin hi delete kar sakta hai
-  if (event.user.toString() !== req.user.id && req.user.role !== 'admin') {
+  // Debugging Log (Render Console mein dikhega)
+  console.log(`[DELETE REQUEST] User Role: ${req.user.role}, Event Owner: ${event.user}`);
+
+  // Check: Owner OR Admin (Case Insensitive)
+  const isAdmin = req.user.role.toLowerCase() === 'admin';
+  const isOwner = event.user.toString() === req.user.id;
+
+  if (!isOwner && !isAdmin) {
     res.status(401);
-    throw new Error('User not authorized');
+    throw new Error('Not Authorized. You are not the Owner or Admin.');
   }
 
-  // 🔥 DIRECT DATABASE DELETE (Ye zombie issue solve karega)
+  // Direct Delete Command
   await Event.findByIdAndDelete(req.params.id);
 
-  res.status(200).json({ id: req.params.id, message: "Event Deleted Successfully" });
+  res.status(200).json({ id: req.params.id, message: "Deleted Successfully" });
 });
 
-// --- 5. SPONSOR EVENT ---
 const sponsorEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
   if (!event) { res.status(404); throw new Error('Event not found'); }

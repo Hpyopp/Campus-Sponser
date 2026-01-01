@@ -7,12 +7,20 @@ const AdminDashboard = () => {
   const [events, setEvents] = useState([]);
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
+
+  // 👇 TERA BACKEND URL
   const API_URL = "https://campus-sponser-api.onrender.com";
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
-    if (!storedUser) navigate('/login');
-    else {
+    
+    // 🔒 SECURITY CHECK (GATEKEEPER)
+    // 1. Agar login nahi hai -> Bhagao
+    // 2. Agar role 'admin' nahi hai -> Bhagao
+    if (!storedUser || storedUser.role !== 'admin') {
+      alert("⛔ Access Denied! Only Admins allowed.");
+      navigate('/'); 
+    } else {
       setUser(storedUser);
       fetchUsers(storedUser.token);
       fetchEvents();
@@ -23,16 +31,41 @@ const AdminDashboard = () => {
     try {
       const res = await axios.get('/api/users', { headers: { Authorization: `Bearer ${token}` } });
       setUsers(res.data);
-    } catch (error) { console.error(error); }
+    } catch (error) { console.error("User Fetch Error", error); }
   };
 
   const fetchEvents = async () => {
     try {
+      // Events fetch karne ke liye token ki zaroorat nahi hoti (Public route)
       const res = await axios.get('/api/events');
       setEvents(res.data);
-    } catch (error) { console.error(error); }
+    } catch (error) { console.error("Event Fetch Error", error); }
   };
 
+  // --- DELETE FUNCTION (With Debugging) ---
+  const deleteEvent = async (id) => {
+    if(!window.confirm("⚠️ Are you sure you want to DELETE this event permanently?")) return;
+
+    try {
+      // Optimistic UI Update (Turant gayab karo)
+      const previousEvents = [...events];
+      setEvents(events.filter(e => e._id !== id));
+
+      // Server Request
+      await axios.delete(`/api/events/${id}`, { 
+        headers: { Authorization: `Bearer ${user.token}` } 
+      });
+
+      alert("🗑️ Event Deleted Successfully.");
+
+    } catch (error) {
+      console.error(error);
+      alert('❌ Delete Failed! Server rejected the request.');
+      fetchEvents(); // Galti hui toh wapas lao
+    }
+  };
+
+  // ... (Baaki User Delete/Verify functions same rahenge) ...
   const deleteUser = async (id) => {
     if(!window.confirm("Delete User?")) return;
     try {
@@ -49,49 +82,28 @@ const AdminDashboard = () => {
     } catch (error) { alert('Action Failed'); }
   };
 
-  // 👇 FIXED DELETE EVENT FUNCTION
-  const deleteEvent = async (id) => {
-    if(!window.confirm("⚠️ Are you sure you want to PERMANENTLY delete this event?")) return;
-
-    try {
-      // Server ko bolo delete karne ko
-      await axios.delete(`/api/events/${id}`, { 
-        headers: { Authorization: `Bearer ${user.token}` } 
-      });
-
-      // ✅ Jab Server bole "OK", tabhi UI se hatao
-      // Isse "Fake Delete" ka issue nahi hoga
-      setEvents(events.filter(e => e._id !== id));
-      alert("🗑️ Event Deleted Successfully from Database.");
-
-    } catch (error) {
-      console.error(error);
-      alert('❌ Delete Failed! Server Error.');
-    }
-  };
-
   const getDocLink = (path) => {
     if (!path) return "#";
     return path.startsWith('http') ? path : `${API_URL}${path}`;
   };
 
-  if (!user) return <div style={{padding:'50px'}}>Loading...</div>;
+  if (!user) return null; // Jab tak check na ho, kuch mat dikhao
 
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'Poppins' }}>
       <div style={{display:'flex', justifyContent:'space-between', marginBottom:'20px'}}>
-        <h2>🛡️ Admin Panel</h2>
-        <button onClick={() => {localStorage.removeItem('user'); navigate('/login')}} style={{background:'#ef4444', color:'white', border:'none', padding:'10px 20px', borderRadius:'5px', cursor:'pointer'}}>Logout</button>
+        <h2 style={{color:'red'}}>🛡️ Super Admin Panel</h2>
+        <button onClick={() => {localStorage.removeItem('user'); navigate('/login')}} style={{background:'#333', color:'white', border:'none', padding:'10px 20px', borderRadius:'5px', cursor:'pointer'}}>Logout</button>
       </div>
 
-      {/* EVENTS SECTION */}
-      <h3>🎉 All Events</h3>
+      {/* EVENTS TABLE */}
+      <h3>🎉 All Events Manager</h3>
       <div style={{overflowX: 'auto', marginBottom:'40px', boxShadow:'0 0 10px rgba(0,0,0,0.1)', borderRadius:'10px'}}>
         <table style={{width:'100%', borderCollapse:'collapse'}}>
             <thead>
-                <tr style={{background:'#f1f5f9', textAlign:'left'}}>
-                    <th style={{padding:'15px'}}>Title</th>
-                    <th style={{padding:'15px'}}>Creator (Student)</th>
+                <tr style={{background:'#fef2f2', textAlign:'left', color:'#991b1b'}}>
+                    <th style={{padding:'15px'}}>Event Title</th>
+                    <th style={{padding:'15px'}}>Created By</th>
                     <th style={{padding:'15px'}}>Budget</th>
                     <th style={{padding:'15px'}}>Action</th>
                 </tr>
@@ -99,14 +111,11 @@ const AdminDashboard = () => {
             <tbody>
                 {events.map(e => (
                     <tr key={e._id} style={{borderBottom:'1px solid #eee'}}>
-                        <td style={{padding:'15px'}}>{e.title}</td>
-                        <td style={{padding:'15px'}}>
-                            {e.user?.name || "Unknown"}<br/>
-                            <span style={{fontSize:'0.8rem', color:'#666'}}>{e.user?.email}</span>
-                        </td>
+                        <td style={{padding:'15px', fontWeight:'bold'}}>{e.title}</td>
+                        <td style={{padding:'15px'}}>{e.user?.name || "Unknown"}<br/><span style={{fontSize:'0.8rem', color:'#666'}}>{e.user?.email}</span></td>
                         <td style={{padding:'15px'}}>₹{e.budget}</td>
                         <td style={{padding:'15px'}}>
-                            <button onClick={() => deleteEvent(e._id)} style={{background:'#ef4444', color:'white', border:'none', padding:'5px 10px', borderRadius:'5px', cursor:'pointer'}}>Delete</button>
+                            <button onClick={() => deleteEvent(e._id)} style={{background:'#ef4444', color:'white', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer', fontWeight:'bold'}}>DELETE 🗑</button>
                         </td>
                     </tr>
                 ))}
@@ -114,9 +123,10 @@ const AdminDashboard = () => {
         </table>
       </div>
 
-      {/* USERS SECTION */}
-      <h3>👤 All Users</h3>
-      <div style={{overflowX: 'auto', boxShadow:'0 0 10px rgba(0,0,0,0.1)', borderRadius:'10px'}}>
+      {/* USERS TABLE */}
+      <h3>👤 User Manager</h3>
+      {/* ... (User table code same as before, no change needed here) ... */}
+       <div style={{overflowX: 'auto', boxShadow:'0 0 10px rgba(0,0,0,0.1)', borderRadius:'10px'}}>
         <table style={{width:'100%', borderCollapse:'collapse'}}>
             <thead>
                 <tr style={{background:'#f1f5f9', textAlign:'left'}}>
