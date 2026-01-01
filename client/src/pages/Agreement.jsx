@@ -5,16 +5,27 @@ import { useParams, useNavigate } from 'react-router-dom';
 const Agreement = () => {
   const { id } = useParams();
   const [event, setEvent] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Load Signature Font
+    // 1. Signature Font
     const link = document.createElement('link');
     link.href = "https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
 
+    // 2. Get User
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    setCurrentUser(storedUser);
+
+    if (!storedUser) {
+        alert("Please login to view agreement");
+        navigate('/login');
+    }
+
+    // 3. Fetch Event
     const fetchEvent = async () => {
       try {
         const res = await axios.get('/api/events');
@@ -35,11 +46,26 @@ const Agreement = () => {
     fetchEvent();
   }, [id, navigate]);
 
-  if (loading) return <div style={{textAlign:'center', padding:'50px', fontSize:'1.2rem'}}>Generating Legal Doc... ⚖️</div>;
-  if (!event) return null;
+  if (loading) return <div style={{textAlign:'center', padding:'50px'}}>Generating Receipt... 🧾</div>;
+  if (!event || !currentUser) return null;
 
-  const sponsorName = event.sponsorName || "Authorized Sponsor";
-  const sponsorEmail = event.sponsorEmail || "Email Not Provided";
+  // 👇 LOGIC: Find MY sponsorship in the list
+  const mySponsorship = event.sponsors?.find(s => s.sponsorId === currentUser._id);
+
+  if (!mySponsorship) {
+      return (
+          <div style={{textAlign:'center', padding:'50px'}}>
+              <h2>❌ No Sponsorship Found</h2>
+              <p>You have not sponsored this event yet.</p>
+              <button onClick={() => navigate(`/event/${id}`)}>Go Back</button>
+          </div>
+      );
+  }
+
+  const sponsorName = mySponsorship.name;
+  const sponsorEmail = mySponsorship.email;
+  const contributionAmount = mySponsorship.amount;
+  const dealDate = mySponsorship.date;
 
   return (
     <div style={{ background: '#525659', minHeight: '100vh', padding: '40px 0' }}>
@@ -60,18 +86,17 @@ const Agreement = () => {
 
         {/* TITLE */}
         <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <h1 style={{ textTransform: 'uppercase', letterSpacing: '1px', fontSize: '2rem', margin: '0', textDecoration:'underline' }}>Sponsorship Agreement</h1>
+          <h1 style={{ textTransform: 'uppercase', letterSpacing: '1px', fontSize: '2rem', margin: '0', textDecoration:'underline' }}>Sponsorship Receipt & Agreement</h1>
           <p style={{ fontStyle: 'italic', color: '#444', marginTop: '5px', fontSize:'1rem' }}>Memorandum of Understanding (MoU)</p>
         </div>
 
         {/* CONTENT BODY */}
         <div style={{ lineHeight: '1.6', fontSize: '1.05rem', textAlign: 'justify' }}>
           <p style={{marginBottom:'20px'}}>
-            This Agreement is made on <strong>{new Date(event.sponsoredAt || Date.now()).toLocaleDateString()}</strong>, by and between:
+            This Agreement is made on <strong>{new Date(dealDate).toLocaleDateString()}</strong>, by and between:
           </p>
 
-          {/* --- PARTIES BOX (SIDE BY SIDE FIX) --- */}
-          {/* Isse wo bada gap chala jayega */}
+          {/* PARTIES */}
           <div style={{ display:'flex', justifyContent:'space-between', gap:'20px', background: '#f8fafc', padding: '20px', border: '1px solid #94a3b8', marginBottom: '20px', textAlign:'left' }}>
             
             {/* SPONSOR */}
@@ -94,38 +119,33 @@ const Agreement = () => {
           <p>
             WHEREAS, the Organizer is hosting an event titled <strong>"{event.title}"</strong> scheduled for <strong>{new Date(event.date).toLocaleDateString()}</strong> at <strong>{event.location}</strong>.
           </p>
-          <p>WHEREAS, the Sponsor desires to sponsor the Event by providing financial support.</p>
+          <p>WHEREAS, the Sponsor has agreed to provide partial/full financial support for the Event.</p>
 
           {/* AMOUNT */}
           <div style={{ textAlign: 'center', margin: '20px 0', padding: '15px', border: '2px solid #000' }}>
-            <span style={{ fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '2px' }}>Total Sponsorship Amount</span><br/>
-            <strong style={{ fontSize: '2.5rem', color: '#000', lineHeight:'1.2' }}>₹ {event.budget}</strong>
+            <span style={{ fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '2px' }}>Confirmed Sponsorship Amount</span><br/>
+            <strong style={{ fontSize: '2.5rem', color: '#000', lineHeight:'1.2' }}>₹ {contributionAmount}</strong>
           </div>
 
           <p style={{marginBottom:'5px'}}><strong>TERMS & CONDITIONS:</strong></p>
           <ol style={{ marginLeft: '20px', marginTop:'0' }}>
-            <li>The Sponsor agrees to pay the full amount within 3 business days of signing this agreement.</li>
-            <li>The Organizer agrees to display the Sponsor's logo/branding on all event banners and social media.</li>
-            <li>This document serves as a binding proof of the sponsorship arrangement.</li>
+            <li>The Sponsor confirms the payment of <strong>₹{contributionAmount}</strong> towards the event budget.</li>
+            <li>The Organizer agrees to acknowledge the Sponsor's contribution in event promotions.</li>
+            <li>This receipt serves as a proof of transaction and partnership validation.</li>
           </ol>
         </div>
 
-        {/* --- SIGNATURE SECTION (Compact & Fixed) --- */}
+        {/* --- SIGNATURES --- */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '60px', alignItems: 'flex-end' }}>
           
-          {/* SPONSOR SIGNATURE */}
+          {/* SPONSOR SIGN */}
           <div style={{ width: '40%', textAlign: 'center', position:'relative' }}>
-            
-            {/* Signature Font (Moved Up slightly) */}
             <div style={{ 
                 fontFamily: '"Dancing Script", cursive', fontSize: '2.2rem', color: '#1e3a8a', 
-                marginBottom: '-10px', // Pull closer to line
-                transform: 'rotate(-5deg)',
-                zIndex: 10
+                marginBottom: '-10px', transform: 'rotate(-5deg)', zIndex: 10
             }}>
                 {sponsorName}
             </div>
-            
             <div style={{ borderBottom: '2px solid #000', marginBottom: '5px' }}></div>
             <p style={{ margin: 0, fontWeight: 'bold', fontSize:'0.9rem' }}>Authorized Signatory</p>
             <p style={{ margin: 0, fontSize: '0.75rem', textTransform: 'uppercase' }}>For {sponsorName}</p>
@@ -133,8 +153,6 @@ const Agreement = () => {
 
           {/* ORGANIZER STAMP */}
           <div style={{ width: '40%', textAlign: 'center' }}>
-             
-             {/* Verified Stamp */}
              <div style={{ 
                 border: '3px solid #16a34a', color: '#16a34a', borderRadius: '50%', 
                 width: '90px', height: '90px', 
@@ -143,9 +161,8 @@ const Agreement = () => {
                 margin: '0 auto 10px auto', transform: 'rotate(-10deg)',
                 boxShadow: 'inset 0 0 5px rgba(22, 163, 74, 0.2)'
              }}>
-                VERIFIED<br/>SPONSOR<br/>DEAL
+                PAYMENT<br/>VERIFIED<br/>RECEIVED
              </div>
-
             <div style={{ borderBottom: '2px solid #000', marginBottom: '5px' }}></div>
             <p style={{ margin: 0, fontWeight: 'bold', fontSize:'0.9rem' }}>Event Coordinator</p>
             <p style={{ margin: 0, fontSize: '0.75rem', textTransform: 'uppercase' }}>CampusSponsor Verified</p>
@@ -154,10 +171,10 @@ const Agreement = () => {
 
       </div>
 
-      {/* BUTTONS (Screen Only) */}
+      {/* BUTTONS */}
       <div className="no-print" style={{ marginTop: '40px', textAlign: 'center', display: 'flex', gap: '20px', justifyContent: 'center' }}>
-        <button onClick={() => window.print()} style={{ padding: '12px 25px', background: '#0f172a', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '5px', fontWeight: 'bold' }}>🖨️ Print / Save PDF</button>
-        <button onClick={() => window.location.href = '/'} style={{ padding: '12px 25px', background: 'transparent', border: '2px solid #fff', color:'white', cursor: 'pointer', borderRadius: '5px', fontWeight: 'bold' }}>Go Back Home</button>
+        <button onClick={() => window.print()} style={{ padding: '12px 25px', background: '#0f172a', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '5px', fontWeight: 'bold' }}>🖨️ Print Receipt</button>
+        <button onClick={() => navigate(`/event/${id}`)} style={{ padding: '12px 25px', background: 'transparent', border: '2px solid #fff', color:'white', cursor: 'pointer', borderRadius: '5px', fontWeight: 'bold' }}>Back to Event</button>
       </div>
 
       <style>{`

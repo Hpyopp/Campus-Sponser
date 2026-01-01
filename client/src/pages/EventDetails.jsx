@@ -31,7 +31,7 @@ const EventDetails = () => {
     return `https://instagram.com/${link.replace('@', '')}`;
   };
 
-  // --- SPONSOR FUNCTION ---
+  // --- SPONSOR FUNCTION (Redirect Added) ---
   const handleSponsor = async () => {
     if (!user) return navigate('/login');
     if (user.role !== 'sponsor') return alert("Only Sponsors can fund events!");
@@ -40,15 +40,17 @@ const EventDetails = () => {
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
       await axios.put(`/api/events/sponsor/${id}`, { amount }, config);
-      alert(`🎉 Success! You sponsored ₹${amount}`);
-      setAmount('');
-      fetchEvent(); 
+      
+      // 👇 CHANGE: Success ke baad seedha Agreement page par
+      alert(`🎉 Success! You sponsored ₹${amount}. Generating Receipt...`);
+      navigate(`/agreement/${id}`); 
+      
     } catch (error) {
       alert(error.response?.data?.message || "Sponsorship Failed");
     }
   };
 
-  // --- CANCEL FUNCTION (Refund specific amount) ---
+  // --- CANCEL FUNCTION ---
   const handleCancel = async () => {
     if(!window.confirm("Are you sure? This will remove your sponsorship and process refund.")) return;
 
@@ -56,7 +58,6 @@ const EventDetails = () => {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
       await axios.put(`/api/events/cancel-sponsor/${id}`, {}, config);
       
-      // WhatsApp Refund Message
       const adminPhone = "919022489860"; 
       const msg = `Hello Admin, I cancelled my sponsorship for Event: ${event.title}. Refund Amount: ₹${mySponsorship?.amount}. Please process.`;
       const waLink = `https://wa.me/${adminPhone}?text=${encodeURIComponent(msg)}`;
@@ -72,7 +73,6 @@ const EventDetails = () => {
   if (loading) return <div style={{textAlign:'center', padding:'50px'}}>Loading Details...</div>;
   if (!event) return <div style={{textAlign:'center', padding:'50px'}}>Event Not Found</div>;
 
-  // Logic
   const raised = event.raisedAmount || 0;
   const budget = event.budget || 0;
   const isFullyFunded = raised >= budget;
@@ -96,7 +96,6 @@ const EventDetails = () => {
          <p style={{margin:0, color:'#0369a1', fontWeight:'bold', fontSize:'0.9rem'}}>TOTAL FUNDS RAISED</p>
          <h2 style={{margin:'5px 0', color:'#0284c7', fontSize:'2.2rem'}}>₹ {raised} <span style={{fontSize:'1.2rem', color:'#64748b'}}>/ ₹ {budget}</span></h2>
          
-         {/* Progress Bar */}
          <div style={{width:'100%', height:'15px', background:'#e2e8f0', borderRadius:'10px', overflow:'hidden', marginTop:'15px', boxShadow:'inset 0 1px 2px rgba(0,0,0,0.1)'}}>
             <div style={{
                 width: `${Math.min((raised / budget) * 100, 100)}%`, 
@@ -141,10 +140,17 @@ const EventDetails = () => {
         {mySponsorship ? (
             <div style={{padding:'25px', background:'#f0fdf4', borderRadius:'15px', border:'1px solid #86efac', display:'inline-block', width:'100%'}}>
                 <h2 style={{color:'#166534', margin:'0 0 10px 0'}}>✅ You Sponsored: ₹{mySponsorship.amount}</h2>
-                <p style={{color:'#64748b', marginBottom:'20px'}}>Want to withdraw your support?</p>
-                <button onClick={handleCancel} style={{padding:'12px 30px', background:'#ef4444', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', fontSize:'1rem'}}>
-                    ❌ Cancel & Refund
-                </button>
+                <div style={{display:'flex', gap:'10px', justifyContent:'center', marginTop:'15px'}}>
+                    {/* VIEW RECEIPT BUTTON */}
+                    <button onClick={() => navigate(`/agreement/${id}`)} style={{padding:'12px 25px', background:'#166534', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold'}}>
+                        📄 View Receipt / Agreement
+                    </button>
+                    
+                    {/* CANCEL BUTTON */}
+                    <button onClick={handleCancel} style={{padding:'12px 25px', background:'#ef4444', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold'}}>
+                        ❌ Cancel & Refund
+                    </button>
+                </div>
             </div>
         ) : (
             // CASE 2: NOT SPONSORED YET
