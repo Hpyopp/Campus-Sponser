@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 const AdminDashboard = () => {
   const [events, setEvents] = useState([]);
   const [users, setUsers] = useState([]);
-  const [refundCount, setRefundCount] = useState(0); // 🆕 Counter
+  const [refundCount, setRefundCount] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -14,17 +14,20 @@ const AdminDashboard = () => {
         const userRes = await axios.get('/api/users/all');
         const eventRes = await axios.get('/api/events');
         
-        // 1. Set Data
-        setUsers(userRes.data);
-        setEvents(eventRes.data);
+        setUsers(userRes.data || []);
+        setEvents(eventRes.data || []);
 
-        // 2. Count Refunds
+        // 👇 SAFE COUNTER LOGIC
         let count = 0;
-        eventRes.data.forEach(ev => {
-            ev.sponsors?.forEach(s => {
-                if(s.status === 'refund_requested') count++;
+        if (Array.isArray(eventRes.data)) {
+            eventRes.data.forEach(ev => {
+                if (ev.sponsors && Array.isArray(ev.sponsors)) {
+                    ev.sponsors.forEach(s => {
+                        if(s.status === 'refund_requested') count++;
+                    });
+                }
             });
-        });
+        }
         setRefundCount(count);
 
       } catch (error) {
@@ -57,12 +60,12 @@ const AdminDashboard = () => {
         </button>
       </div>
 
-      {/* 🆕 REFUND ALERT BOX */}
+      {/* REFUND ALERT */}
       <div style={{ marginBottom: '30px', display:'flex', gap:'20px' }}>
           <div style={{ flex: 1, background: 'white', padding: '25px', borderRadius: '10px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', display:'flex', justifyContent:'space-between', alignItems:'center', borderLeft:'5px solid #f97316' }}>
               <div>
                   <h3 style={{ margin: 0, color: '#1e293b' }}>Refund Requests</h3>
-                  <p style={{ margin: 0, color: '#64748b' }}>Pending Approvals: <strong>{refundCount}</strong></p>
+                  <p style={{ margin: 0, color: '#64748b' }}>Pending Approvals: <strong style={{color:'#c2410c', fontSize:'1.2rem'}}>{refundCount}</strong></p>
               </div>
               <button 
                 onClick={() => navigate('/admin/refunds')}
