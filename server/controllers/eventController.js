@@ -45,47 +45,36 @@ const createEvent = asyncHandler(async (req, res) => {
 // 4. DELETE EVENT
 const deleteEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
-
-  if (!event) {
-    res.status(404);
-    throw new Error('Event not found');
-  }
-
-  // Check user
+  if (!event) { res.status(404); throw new Error('Event not found'); }
   if (event.user.toString() !== req.user.id && req.user.role !== 'admin') {
     res.status(401);
     throw new Error('User not authorized');
   }
-
   await event.deleteOne();
   res.json({ message: 'Event removed' });
 });
 
-// 5. SPONSOR EVENT (Partial Funding Logic)
+// 5. SPONSOR EVENT (Flexible Amount)
 const sponsorEvent = asyncHandler(async (req, res) => {
   const { amount } = req.body;
   const event = await Event.findById(req.params.id);
 
-  if (!event) {
-    res.status(404);
-    throw new Error('Event not found');
-  }
+  if (!event) { res.status(404); throw new Error('Event not found'); }
 
   const payAmount = Number(amount);
   const currentRaised = event.raisedAmount || 0;
 
-  // Validation
-  if (payAmount < 500) {
-    res.status(400);
-    throw new Error('Minimum sponsorship amount is ₹500');
+  // Checks
+  if (payAmount < 500) { 
+    res.status(400); throw new Error('Minimum sponsorship amount is ₹500'); 
   }
   
-  if (currentRaised + payAmount > event.budget) {
-    res.status(400);
-    throw new Error(`Amount exceeds remaining budget! Need only ₹${event.budget - currentRaised}`);
+  if (currentRaised + payAmount > event.budget) { 
+    res.status(400); 
+    throw new Error(`Amount exceeds remaining budget! Need only ₹${event.budget - currentRaised}`); 
   }
 
-  // Add to Array
+  // Add Sponsor to List
   event.sponsors.push({
     sponsorId: req.user.id,
     name: req.user.name,
@@ -100,28 +89,23 @@ const sponsorEvent = asyncHandler(async (req, res) => {
   res.status(200).json(event);
 });
 
-// 6. CANCEL SPONSORSHIP (Refund Logic)
+// 6. CANCEL SPONSORSHIP (Smart Refund Logic)
 const cancelSponsorship = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
-  
-  if (!event) {
-    res.status(404);
-    throw new Error('Event not found');
-  }
+  if (!event) { res.status(404); throw new Error('Event not found'); }
 
-  // Find the specific sponsorship
+  // Find user in sponsor list
   const sponsorIndex = event.sponsors.findIndex(s => s.sponsorId.toString() === req.user.id);
 
   if (sponsorIndex === -1) {
-    res.status(400);
-    throw new Error('You have not sponsored this event');
+    res.status(400); throw new Error('You have not sponsored this event');
   }
 
-  // Deduct Amount
+  // Paise Minus Karo (Refund Amount)
   const amountToRefund = event.sponsors[sponsorIndex].amount;
   event.raisedAmount -= amountToRefund;
 
-  // Remove from Array
+  // List se Hatao
   event.sponsors.splice(sponsorIndex, 1);
   
   await event.save();

@@ -35,13 +35,12 @@ const eventSchema = mongoose.Schema({
     default: ''
   },
 
-  // 👇 NEW CROWDFUNDING LOGIC
+  // 👇 CROWDFUNDING LOGIC (Raised + List)
   raisedAmount: {
     type: Number,
     default: 0
   },
   
-  // List of Multiple Sponsors
   sponsors: [{
     sponsorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     name: String,
