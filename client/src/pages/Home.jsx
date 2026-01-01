@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Link, useNavigate } from 'react-router-dom'; // 👈 useNavigate Import kiya
+import { Link, useNavigate } from 'react-router-dom';
 
 const Home = () => {
   const [events, setEvents] = useState([]);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate(); // 👈 Hook initialize
+  const navigate = useNavigate();
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
@@ -27,7 +27,7 @@ const Home = () => {
         setUser(updatedUser);
       }
     } catch (err) {
-      console.error("Status Check Failed:", err);
+      console.error("Status check failed");
     }
   };
 
@@ -37,26 +37,40 @@ const Home = () => {
       const res = await axios.get('/api/events');
       setEvents(res.data);
     } catch (err) {
-      console.log("Fetch error");
+      console.log("Error fetching events");
     } finally {
       setLoading(false);
     }
   };
 
-  // 👇 UPDATED SPONSOR FUNCTION (REDIRECTS NOW)
   const handleSponsor = async (eventId) => {
     if(!window.confirm("Lock this deal? This action is irreversible. 🔒")) return;
-
     try {
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
         await axios.put(`/api/events/sponsor/${eventId}`, {}, config);
-        
-        // 🚀 Redirect to Agreement Page
         navigate(`/agreement/${eventId}`); 
-        
     } catch (error) {
-        alert(error.response?.data?.message || "Sponsorship Failed");
+        alert(error.response?.data?.message || "Failed");
     }
+  };
+
+  // 👇 PRIVACY HELPER FUNCTION
+  const getSponsorText = (event) => {
+    // Agar event sponsored nahi hai, toh kuch mat dikhao
+    if (!event.isSponsored) return null;
+
+    // Check karo: Kaun dekh raha hai?
+    const isAdmin = user && user.role === 'admin';
+    const isCreator = user && event.user === user._id; // Student jisne banaya
+    const isTheSponsor = user && event.sponsorBy === user._id; // Khud Sponsor
+
+    // Agar inme se koi hai, toh Naam dikhao
+    if (isAdmin || isCreator || isTheSponsor) {
+        return `✅ FUNDED by ${event.sponsorName}`;
+    }
+
+    // Baaki duniya ke liye Privacy maintain karo
+    return "⛔ SOLD OUT (Funded)";
   };
 
   return (
@@ -104,10 +118,17 @@ const Home = () => {
                     <span>📍 {event.location}</span>
                 </div>
               </div>
+              
               <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '15px' }}>
                 {event.isSponsored ? (
-                    <div style={{width:'100%', padding:'10px', background:'#dcfce7', color:'#166534', textAlign:'center', borderRadius:'8px', fontWeight:'bold', border:'1px solid #86efac'}}>
-                        ✅ FUNDED by {event.sponsorName?.split(' ')[0] || 'Sponsor'}
+                    // 👇 PRIVACY LOGIC APPLIED HERE
+                    <div style={{
+                        width:'100%', padding:'10px', textAlign:'center', borderRadius:'8px', fontWeight:'bold',
+                        background: (user && (user.role === 'admin' || event.user === user._id || event.sponsorBy === user._id)) ? '#dcfce7' : '#f1f5f9',
+                        color: (user && (user.role === 'admin' || event.user === user._id || event.sponsorBy === user._id)) ? '#166534' : '#64748b',
+                        border: '1px solid transparent'
+                    }}>
+                        {getSponsorText(event)}
                     </div>
                 ) : (
                     user && user.role === 'sponsor' && user.isVerified ? (
