@@ -8,6 +8,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import CreateEvent from './pages/CreateEvent';
 import Agreement from './pages/Agreement';
 import EventDetails from './pages/EventDetails'; // 👈 Import
+import AdminRefunds from './pages/AdminRefunds';
 
 function App() {
   return (
