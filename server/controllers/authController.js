@@ -2,10 +2,10 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
-// 👇 Tera utils wala sendEmail import kar
+// 👇 Tera utils wala sendEmail import (Agar file hai toh)
 const sendEmail = require('../utils/sendEmail'); 
 
-// --- 1. REGISTER USER (Email + Popup Backup) ---
+// --- 1. REGISTER USER (OTP Generation + Backup Popup) ---
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone, role, companyName, collegeName } = req.body;
 
@@ -20,7 +20,7 @@ const registerUser = asyncHandler(async (req, res) => {
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
-  // OTP Generate
+  // 6-Digit OTP
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
   const user = await User.create({
@@ -32,7 +32,7 @@ const registerUser = asyncHandler(async (req, res) => {
     isVerified: false 
   });
 
-  // 👇 TRY EMAIL (Agar Render block kare, toh server crash nahi hoga)
+  // 👇 EMAIL TRY KARO (Render block kare toh crash nahi hona chahiye)
   try {
     await sendEmail({
       email: user.email,
@@ -40,34 +40,33 @@ const registerUser = asyncHandler(async (req, res) => {
       message: otp
     });
   } catch (error) {
-    console.log("⚠️ Email Failed (Block/Error). Using Popup Mode.");
+    console.log("⚠️ Email Failed (Render Block/Error). Using Popup Mode.");
   }
 
-  console.log(`🔐 OTP FOR [${cleanEmail}]: ${otp}`);
+  console.log(`🔐 OTP GENERATED: ${otp}`);
 
-  // 👇 RESPONSE (Popup ke liye OTP bhejo)
+  // 👇 YE SABSE ZAROORI HAI: debugOtp frontend ko bhejo
   res.status(200).json({ 
     message: 'OTP Generated', 
     email: user.email,
-    debugOtp: otp // Frontend Popup isse dikhayega
+    debugOtp: otp // <--- Ye Green Box me dikhega
   });
 });
 
-// --- 2. UPLOAD DOC (Cloudinary se URL pakdo) ---
+// --- 2. UPLOAD DOC (Cloudinary Real) ---
 const uploadDoc = asyncHandler(async (req, res) => {
-  // Cloudinary middleware (Multer) file ko req.file me dalta hai
+  // Cloudinary middleware file process karke yahan bhejta hai
   if (!req.file || !req.file.path) {
     res.status(400);
-    throw new Error('File upload failed. Cloudinary did not return URL.');
+    throw new Error('Upload Failed. Cloudinary did not return URL.');
   }
 
-  // 👇 Ye Direct Cloudinary URL hai
-  const imageUrl = req.file.path; 
+  const imageUrl = req.file.path; // Asli Cloudinary URL
 
   const user = await User.findById(req.user.id);
   if (user) {
     user.verificationDoc = imageUrl;
-    user.isVerified = false; // Doc upload kiya hai toh wapas verify karna padega admin ko
+    user.isVerified = false; // Re-verify needed
     await user.save();
     
     res.status(200).json({ 
@@ -133,7 +132,7 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 });
 
-// Helpers & Exports
+// Helpers
 const getMe = asyncHandler(async (req, res) => { const user = await User.findById(req.user.id); res.status(200).json(user); });
 const getAllUsers = asyncHandler(async (req, res) => { const users = await User.find().sort({ createdAt: -1 }); res.status(200).json(users); });
 const approveUser = asyncHandler(async (req, res) => { await User.findByIdAndUpdate(req.params.id, { isVerified: true }); res.status(200).json({ message: 'Verified' }); });

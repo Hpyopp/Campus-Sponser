@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const multer = require('multer'); // 👈 Multer install hona chahiye
+const multer = require('multer'); // 👈 Ye package installed hona chahiye
 const { 
   registerUser, loginUser, verifyRegisterOTP, 
   uploadDoc, 
@@ -8,12 +8,11 @@ const {
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 
-// 👇 TERA PURANA CLOUDINARY CONFIG IMPORT KARO
-// (Dhyan de: Agar file ka naam 'cloudinary.js' hai aur wo 'config' folder me hai)
-// Agar 'uploads' folder me hai, toh '../uploads/cloudinary' likhna
+// 👇 TERA CLOUDINARY CONFIG (Path check kar lena)
+// Agar 'server/config/cloudinary.js' hai toh ye sahi hai
 const { storage } = require('../config/cloudinary'); 
 
-// 👇 MULTER KO BATA KI TERA WALA STORAGE USE KARE
+// 👇 MULTER SETUP
 const upload = multer({ storage: storage });
 
 // Routes
@@ -21,7 +20,7 @@ router.post('/', registerUser);
 router.post('/login', loginUser);
 router.post('/verify-otp', verifyRegisterOTP);
 
-// 👇 UPLOAD ROUTE (Tera docImage field aayega)
+// 👇 UPLOAD ROUTE (Future-Proof: Cloudinary)
 router.put('/upload-doc', protect, upload.single('docImage'), uploadDoc);
 
 // Admin Routes
