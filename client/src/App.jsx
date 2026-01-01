@@ -22,9 +22,11 @@ function App() {
           <Route path="/create-event" element={<CreateEvent />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/agreement/:id" element={<Agreement />} />
+          import AdminRefunds from './pages/AdminRefunds'; // 👈 IMPORT THIS
           
           {/* 👇 New Details Page Route */}
           <Route path="/event/:id" element={<EventDetails />} />
+          <Route path="/admin/refunds" element={<AdminRefunds />} /> {/* 👈 ADD THIS LINE */}
         </Routes>
       </div>
     </Router>
