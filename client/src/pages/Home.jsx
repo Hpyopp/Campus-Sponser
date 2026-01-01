@@ -8,15 +8,38 @@ const Home = () => {
   const [events, setEvents] = useState([]); 
   const [loading, setLoading] = useState(false);
 
+  // 1. LOAD USER & AUTO-SYNC
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
+    
     if (!storedUser) {
       navigate('/login');
     } else {
-      setUser(storedUser);
-      fetchEvents();
+      setUser(storedUser); // Pehle jo hai wo dikhao (Fast Load)
+      fetchEvents();       // Events lao
+      
+      // 👇 JADOO: Background me Fresh Status check karo
+      syncUserStatus(storedUser.token, storedUser);
     }
   }, [navigate]);
+
+  // 2. AUTO-SYNC FUNCTION (Chupke se update karega)
+  const syncUserStatus = async (token, currentUser) => {
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const res = await axios.get('/api/users/me', config);
+      
+      // Agar status badal gaya hai, toh update karo
+      if (res.data.isVerified !== currentUser.isVerified || res.data.verificationDoc !== currentUser.verificationDoc) {
+        const updatedUser = { ...currentUser, ...res.data };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        setUser(updatedUser); // Screen auto-update hogi
+        console.log("✅ Status Auto-Synced!");
+      }
+    } catch (error) {
+      console.log("Sync Error (Ignore if logged out):", error.message);
+    }
+  };
 
   const fetchEvents = async () => {
     try {
@@ -32,23 +55,17 @@ const Home = () => {
     navigate('/login');
   };
 
-  // 👇 YAHAN HAI MAIN FIX (AUTO-SYNC LOGIC)
+  // 3. MANUAL CHECK (Button Click)
   const checkStatus = async () => {
     setLoading(true);
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      
-      // 1. Fresh Data Mangwao
       const res = await axios.get('/api/users/me', config);
       
-      // 2. Token ko Fresh Data ke saath Jod do
       const updatedUser = { ...user, ...res.data }; 
-      
-      // 3. Chupchap LocalStorage Update karo
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
 
-      // 4. Result Dikhao
       if (res.data.isVerified) {
         alert("🎉 You are VERIFIED! You can now create events.");
       } else if (res.data.verificationDoc) {
@@ -58,8 +75,7 @@ const Home = () => {
         navigate('/verify');
       }
     } catch (error) {
-      console.error(error);
-      alert("Error syncing status.");
+      alert("Error checking status.");
     } finally {
       setLoading(false);
     }
@@ -95,7 +111,6 @@ const Home = () => {
 
         <div style={{ marginTop: '30px', display: 'flex', gap: '15px', justifyContent: 'center', flexWrap:'wrap' }}>
           
-          {/* CHECK STATUS BUTTON */}
           <button onClick={checkStatus} disabled={loading} style={{ padding: '12px 25px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', display:'flex', alignItems:'center', gap:'8px' }}>
             {loading ? 'Checking...' : '🔄 Check Status'}
           </button>
