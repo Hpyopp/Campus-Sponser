@@ -1,4 +1,4 @@
-// 👇 IMPORTS (Bahut Zaroori)
+// 👇 Imports (Bahut Zaroori)
 const asyncHandler = require('express-async-handler');
 const Event = require('../models/Event');
 const User = require('../models/User');
@@ -22,54 +22,49 @@ const getEventById = asyncHandler(async (req, res) => {
   }
 });
 
-// --- 3. CREATE EVENT ---
+// --- 3. CREATE EVENT (With Contact Info) ---
 const createEvent = asyncHandler(async (req, res) => {
   const { title, description, date, location, budget, contactEmail, instagramLink } = req.body;
 
+  // Validation
   if (!title || !budget || !contactEmail) {
     res.status(400);
     throw new Error('Please add Title, Budget and Contact Email');
   }
 
+  // Create
   const event = await Event.create({
     title, description, date, location, budget,
-    contactEmail, instagramLink,
+    contactEmail, // 👈 Ye ab Schema mein hai, toh save hoga
+    instagramLink,
     user: req.user.id,
   });
+  
+  console.log("✅ Event Created:", event);
   res.status(200).json(event);
 });
 
-// --- 4. DELETE EVENT (CRASH PROOF & ZOMBIE KILLER 🧟‍♂️) ---
+// --- 4. DELETE EVENT (Crash Proof) ---
 const deleteEvent = asyncHandler(async (req, res) => {
-  console.log(`🔥 DELETE REQUEST: Event ID ${req.params.id}`);
-
   const event = await Event.findById(req.params.id);
 
   if (!event) {
     res.status(404);
-    throw new Error('Event not found in Database');
+    throw new Error('Event not found');
   }
 
-  // 👇 SAFETY CHECK: Purane events ke liye jinka user data missing ho sakta hai
-  // Agar event.user null hai, toh usse string mein convert mat karo, null hi rehne do.
+  // Safety Check for old events
   const eventOwnerId = event.user ? event.user.toString() : null;
-
-  // Permissions Check
   const isAdmin = req.user.role && req.user.role.toLowerCase() === 'admin';
   const isOwner = eventOwnerId === req.user.id;
 
-  // Agar banda na Admin hai, na Owner -> Bhagao
   if (!isAdmin && !isOwner) {
-    console.log("⛔ Access Denied: Not Admin or Owner");
     res.status(401);
-    throw new Error('Not Authorized to Delete');
+    throw new Error('Not Authorized');
   }
 
-  // 🔥 DIRECT DELETE
   await Event.findByIdAndDelete(req.params.id);
-  
-  console.log("✅ Event Deleted Successfully!");
-  res.status(200).json({ id: req.params.id, message: "Event Deleted Permanently" });
+  res.status(200).json({ id: req.params.id, message: "Deleted" });
 });
 
 // --- 5. SPONSOR EVENT ---

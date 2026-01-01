@@ -4,7 +4,7 @@ const eventSchema = mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     required: true,
-    ref: 'User', // Ye Student hai jisne event banaya
+    ref: 'User',
   },
   title: {
     type: String,
@@ -27,14 +27,24 @@ const eventSchema = mongoose.Schema({
     required: [true, 'Please add a budget'],
   },
 
-  // 👇 BUSINESS LOGIC (NEW FIELDS)
+  // 👇 YE FIELDS MISSING THE - INKO ADD KARNA ZAROORI HAI
+  contactEmail: {
+    type: String,
+    required: [true, 'Please add contact email'],
+  },
+  instagramLink: {
+    type: String,
+    default: ''
+  },
+
+  // Sponsorship Logic
   isSponsored: {
     type: Boolean,
-    default: false, // Shuru mein koi sponsor nahi
+    default: false,
   },
   sponsorBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // Ye wo Sponsor hai jisne deal lock ki
+    ref: 'User',
     default: null
   },
   sponsorName: {
