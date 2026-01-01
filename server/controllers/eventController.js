@@ -1,10 +1,49 @@
-// ... imports same ...
+// 👇 YE LINES BAHUT ZAROORI HAIN (Inhe mat hatana)
+const asyncHandler = require('express-async-handler');
+const Event = require('../models/Event');
+const User = require('../models/User');
 
-// 👇 FINAL POWERFUL DELETE FUNCTION
+// --- 1. GET ALL EVENTS ---
+const getEvents = asyncHandler(async (req, res) => {
+  const events = await Event.find()
+    .populate('user', 'name email collegeName') 
+    .sort({ createdAt: -1 });
+  res.status(200).json(events);
+});
+
+// --- 2. GET SINGLE EVENT ---
+const getEventById = asyncHandler(async (req, res) => {
+  const event = await Event.findById(req.params.id).populate('user', 'name email collegeName');
+  if (event) {
+    res.status(200).json(event);
+  } else {
+    res.status(404);
+    throw new Error('Event not found');
+  }
+});
+
+// --- 3. CREATE EVENT ---
+const createEvent = asyncHandler(async (req, res) => {
+  const { title, description, date, location, budget, contactEmail, instagramLink } = req.body;
+
+  if (!title || !budget || !contactEmail) {
+    res.status(400);
+    throw new Error('Please add Title, Budget and Contact Email');
+  }
+
+  const event = await Event.create({
+    title, description, date, location, budget,
+    contactEmail, instagramLink,
+    user: req.user.id,
+  });
+  res.status(200).json(event);
+});
+
+// --- 4. DELETE EVENT (Fixed) ---
 const deleteEvent = asyncHandler(async (req, res) => {
   console.log(`🔥 DELETE REQUEST: Event ID ${req.params.id}`);
-  console.log(`👤 User: ${req.user.name} | Role: ${req.user.role}`);
 
+  // Find Event
   const event = await Event.findById(req.params.id);
 
   if (!event) {
@@ -12,8 +51,9 @@ const deleteEvent = asyncHandler(async (req, res) => {
     throw new Error('Event not found in Database');
   }
 
-  // Check Permissions (Case Insensitive: Admin = admin = ADMIN)
-  const isAdmin = req.user.role.toLowerCase() === 'admin';
+  // Permission Check (Admin or Owner)
+  // req.user authMiddleware se aata hai
+  const isAdmin = req.user.role && req.user.role.toLowerCase() === 'admin';
   const isOwner = event.user.toString() === req.user.id;
 
   if (!isAdmin && !isOwner) {
@@ -22,11 +62,34 @@ const deleteEvent = asyncHandler(async (req, res) => {
     throw new Error('Not Authorized to Delete');
   }
 
-  // 🔥 DIRECT DATABASE DELETE COMMAND
+  // Direct Delete
   await Event.findByIdAndDelete(req.params.id);
   
   console.log("✅ Event Deleted Successfully!");
   res.status(200).json({ id: req.params.id, message: "Event Deleted Permanently" });
 });
 
-// ... baaki exports same ...
+// --- 5. SPONSOR EVENT ---
+const sponsorEvent = asyncHandler(async (req, res) => {
+  const event = await Event.findById(req.params.id);
+  if (!event) { res.status(404); throw new Error('Event not found'); }
+  if (event.isSponsored) { res.status(400); throw new Error('Already Sponsored'); }
+  if (req.user.role !== 'sponsor') { res.status(401); throw new Error('Only Sponsors allow'); }
+
+  event.isSponsored = true;
+  event.sponsorBy = req.user.id;
+  event.sponsorName = req.user.companyName || req.user.name;
+  event.sponsorEmail = req.user.email;
+  event.sponsoredAt = Date.now();
+  
+  await event.save();
+  res.status(200).json({ message: 'Deal Locked', event });
+});
+
+module.exports = { 
+  getEvents, 
+  getEventById, 
+  createEvent, 
+  deleteEvent, 
+  sponsorEvent 
+};
