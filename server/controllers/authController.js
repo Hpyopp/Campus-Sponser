@@ -4,7 +4,7 @@ const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail'); 
 
-// --- 1. REGISTER USER (SUPER FAST ⚡) ---
+// --- 1. REGISTER USER (OTP + Backup Popup) ---
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone, role, companyName, collegeName } = req.body;
 
@@ -27,20 +27,15 @@ const registerUser = asyncHandler(async (req, res) => {
     collegeName: (role === 'student' && collegeName) ? collegeName : '',
     otp: otp,
     otpExpires: Date.now() + 10 * 60 * 1000,
+    
+    // 👇 MAIN CHEEZ: Ye FALSE hi rahega jab tak Admin haan na bole
     isVerified: false 
   });
 
-  // 👇 SPEED UP TRICK: 'await' hata diya.
-  // Email background me jayega, server rukega nahi.
-  sendEmail({ 
-    email: user.email, 
-    subject: 'Verify Account', 
-    message: otp 
-  }).catch(err => console.log("Background Email Error:", err.message));
+  // Background Email (No Await)
+  sendEmail({ email: user.email, subject: 'Verify Account', message: otp })
+    .catch(err => console.log("Email error (Background)"));
 
-  console.log(`🔐 FAST OTP: ${otp}`);
-
-  // Turant Response
   res.status(200).json({ 
     message: 'OTP Generated', 
     email: user.email,
@@ -48,7 +43,7 @@ const registerUser = asyncHandler(async (req, res) => {
   });
 });
 
-// --- 2. LOGIN USER (SUPER FAST ⚡) ---
+// --- 2. LOGIN STEP 1 (Send OTP) ---
 const loginUser = asyncHandler(async (req, res) => {
   const { email } = req.body;
   const cleanEmail = email ? email.toLowerCase().trim() : '';
@@ -62,17 +57,13 @@ const loginUser = asyncHandler(async (req, res) => {
   user.otpExpires = Date.now() + 10 * 60 * 1000;
   await user.save();
 
-  // 👇 SPEED UP TRICK: No await here either
-  sendEmail({ 
-    email: user.email, 
-    subject: 'Login OTP', 
-    message: otp 
-  }).catch(err => console.log("Background Email Error:", err.message));
+  sendEmail({ email: user.email, subject: 'Login OTP', message: otp })
+    .catch(err => console.log("Email error (Background)"));
 
   res.status(200).json({ message: 'OTP Sent', debugOtp: otp });
 });
 
-// --- 3. VERIFY LOGIN (OTP Check) ---
+// --- 3. LOGIN STEP 2 (Verify OTP ONLY) ---
 const verifyLogin = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   const cleanEmail = email.toLowerCase().trim();
@@ -86,19 +77,23 @@ const verifyLogin = asyncHandler(async (req, res) => {
     user.otpExpires = undefined;
     await user.save();
 
+    // 🛑 NOTICE: Maine yahan 'isVerified = true' NAHI kiya.
+    // User login kar payega, lekin uska status abhi bhi purana hi rahega.
+
     res.json({
       _id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
       token: generateToken(user._id),
+      isVerified: user.isVerified // Frontend ko batao ki wo verified hai ya nahi
     });
   } else {
     res.status(400); throw new Error('Invalid OTP');
   }
 });
 
-// --- 4. VERIFY REGISTER OTP ---
+// --- 4. VERIFY REGISTER OTP (STOP AUTO VERIFY 🛑) ---
 const verifyRegisterOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   const cleanEmail = email ? email.toLowerCase().trim() : '';
@@ -108,9 +103,14 @@ const verifyRegisterOTP = asyncHandler(async (req, res) => {
   if (!user) { res.status(404); throw new Error('User not found'); }
 
   if (user.otp === inputOtp) {
-    user.isVerified = true;
+    
+    // 👇 STOP! Yahan hum 'isVerified = true' nahi karenge.
+    // Sirf OTP clear karenge taaki wo login ho sake aur Document upload kar sake.
+    
     user.otp = undefined;
     user.otpExpires = undefined;
+    // user.isVerified = true; // <--- YE LINE HATA DI ❌
+    
     await user.save();
 
     res.status(200).json({
@@ -119,30 +119,32 @@ const verifyRegisterOTP = asyncHandler(async (req, res) => {
       email: user.email,
       role: user.role,
       token: generateToken(user._id),
+      isVerified: false // Abhi bhi false hai
     });
   } else {
     res.status(400); throw new Error('Invalid OTP');
   }
 });
 
-// --- 5. UPLOAD DOC ---
+// --- 5. UPLOAD DOC (Admin ke liye pending choro) ---
 const uploadDoc = asyncHandler(async (req, res) => {
   if (!req.file || !req.file.path) {
     res.status(400); throw new Error('Upload Failed');
   }
   const imageUrl = req.file.path; 
   const user = await User.findById(req.user.id);
+  
   if (user) {
     user.verificationDoc = imageUrl;
-    user.isVerified = false; 
+    user.isVerified = false; // Upload hone ke baad bhi False hi rahega (Admin karega True)
     await user.save();
-    res.status(200).json({ message: 'Uploaded', docUrl: imageUrl });
+    res.status(200).json({ message: 'Uploaded Successfully. Wait for Admin Approval.', docUrl: imageUrl });
   } else {
     res.status(404); throw new Error('User not found');
   }
 });
 
-// Helpers & Exports
+// Helpers
 const getMe = asyncHandler(async (req, res) => { const user = await User.findById(req.user.id); res.status(200).json(user); });
 const getAllUsers = asyncHandler(async (req, res) => { const users = await User.find().sort({ createdAt: -1 }); res.status(200).json(users); });
 const approveUser = asyncHandler(async (req, res) => { await User.findByIdAndUpdate(req.params.id, { isVerified: true }); res.status(200).json({ message: 'Verified' }); });
