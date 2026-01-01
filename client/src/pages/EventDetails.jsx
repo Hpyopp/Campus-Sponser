@@ -34,6 +34,7 @@ const EventDetails = () => {
   return (
     <div style={{ maxWidth: '800px', margin: '40px auto', padding: '30px', background: 'white', borderRadius: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontFamily: 'Poppins' }}>
       
+      {/* HEADER */}
       <div style={{borderBottom:'2px solid #f1f5f9', paddingBottom:'20px', marginBottom:'20px'}}>
         <h1 style={{fontSize:'2.5rem', color:'#1e293b', margin:0}}>{event.title}</h1>
         <div style={{display:'flex', justifyContent:'space-between', marginTop:'10px', color:'#64748b'}}>
@@ -42,16 +43,18 @@ const EventDetails = () => {
         </div>
       </div>
 
+      {/* ORGANIZER INFO */}
       <div style={{background:'#f8fafc', padding:'15px', borderRadius:'10px', marginBottom:'30px', border:'1px solid #e2e8f0'}}>
         <h4 style={{margin:'0 0 10px 0', color:'#475569'}}>🎓 Organized By:</h4>
-        {/* 👇 COLLEGE NAME HERE */}
         <p style={{margin:0, fontWeight:'bold', fontSize:'1.1rem'}}>{event.user?.collegeName || "Unknown College"}</p>
         <p style={{margin:'5px 0 0 0', fontSize:'0.9rem'}}>Student Rep: {event.user?.name}</p>
       </div>
 
+      {/* DETAILS */}
       <h3 style={{color:'#334155'}}>📝 Description</h3>
       <p style={{lineHeight:'1.8', color:'#4b5563', fontSize:'1.05rem', marginBottom:'30px'}}>{event.description}</p>
 
+      {/* STATS */}
       <div style={{display:'flex', gap:'20px', flexWrap:'wrap', marginBottom:'40px'}}>
         <div style={{flex:1, background:'#eff6ff', padding:'20px', borderRadius:'15px', textAlign:'center'}}>
             <span style={{display:'block', fontSize:'0.9rem', color:'#1e40af'}}>Sponsorship Needed</span>
@@ -64,15 +67,33 @@ const EventDetails = () => {
         </div>
       </div>
 
-      {event.isSponsored ? (
-         <div style={{padding:'20px', background:'#dcfce7', color:'#166534', textAlign:'center', borderRadius:'15px', fontWeight:'bold', fontSize:'1.2rem'}}>✅ EVENT ALREADY FUNDED</div>
-      ) : (
-         user && user.role === 'sponsor' ? (
-            <button onClick={handleSponsor} style={{width:'100%', padding:'18px', background:'#0f172a', color:'white', border:'none', borderRadius:'15px', fontSize:'1.2rem', fontWeight:'bold', cursor:'pointer', boxShadow:'0 10px 20px rgba(15, 23, 42, 0.2)'}}>🤝 Sponsor This Event Now</button>
-         ) : (
-            <div style={{textAlign:'center', color:'#94a3b8', fontStyle:'italic'}}>Login as a Sponsor to fund this event.</div>
-         )
-      )}
+      {/* 👇 ACTION AREA (LOGIC CHANGED) */}
+      <div style={{borderTop:'1px solid #eee', paddingTop:'20px'}}>
+        
+        {/* CASE 1: Already Funded */}
+        {event.isSponsored ? (
+           <div style={{padding:'20px', background:'#dcfce7', color:'#166534', textAlign:'center', borderRadius:'15px', fontWeight:'bold', fontSize:'1.2rem'}}>
+              ✅ EVENT ALREADY FUNDED
+           </div>
+        ) : (
+           // CASE 2: Not Funded Yet
+           user && user.role === 'sponsor' ? (
+              // Agar Sponsor hai toh BUTTON dikhao
+              <button onClick={handleSponsor} style={{width:'100%', padding:'18px', background:'#0f172a', color:'white', border:'none', borderRadius:'15px', fontSize:'1.2rem', fontWeight:'bold', cursor:'pointer', boxShadow:'0 10px 20px rgba(15, 23, 42, 0.2)'}}>
+                  🤝 Sponsor This Event Now
+              </button>
+           ) : (
+              // Agar Student hai ya Public hai toh bas STATUS dikhao
+              <div style={{textAlign:'center', padding:'15px', background:'#f8fafc', borderRadius:'10px', color:'#64748b', border:'1px dashed #cbd5e1'}}>
+                  {user && user.role === 'student' ? (
+                      <span>🚀 <strong>Your Event is Live!</strong> Waiting for Sponsors to connect.</span>
+                  ) : (
+                      <span>Login as a <strong>Sponsor</strong> to fund this event.</span>
+                  )}
+              </div>
+           )
+        )}
+      </div>
 
       <button onClick={() => navigate('/')} style={{display:'block', margin:'20px auto 0', background:'none', border:'none', textDecoration:'underline', cursor:'pointer', color:'#64748b'}}>Back to Home</button>
     </div>

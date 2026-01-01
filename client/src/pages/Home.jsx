@@ -65,9 +65,9 @@ const Home = () => {
           {events.map((event) => (
             <div 
                 key={event._id} 
-                onClick={() => navigate(`/event/${event._id}`)} // 👈 CARD CLICK LOGIC
+                onClick={() => navigate(`/event/${event._id}`)}
                 style={{ 
-                    cursor: 'pointer', // Hand cursor
+                    cursor: 'pointer',
                     background: 'white', padding: '25px', borderRadius: '15px', 
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', border: '1px solid #f1f5f9',
                     display: 'flex', flexDirection: 'column', justifyContent: 'space-between', transition:'0.2s'
@@ -90,7 +90,8 @@ const Home = () => {
                 {event.isSponsored ? (
                     <div style={{width:'100%', padding:'10px', background:'#dcfce7', color:'#166534', textAlign:'center', borderRadius:'8px', fontWeight:'bold'}}>✅ FUNDED</div>
                 ) : (
-                    <div style={{width:'100%', padding:'10px', background:'#f1f5f9', color:'#1e293b', textAlign:'center', borderRadius:'8px', fontWeight:'bold'}}>👉 View Details to Sponsor</div>
+                    // 👇 Button Text Changed to Neutral "View Details"
+                    <div style={{width:'100%', padding:'10px', background:'#f1f5f9', color:'#1e293b', textAlign:'center', borderRadius:'8px', fontWeight:'bold'}}>📄 View Details</div>
                 )}
               </div>
             </div>
