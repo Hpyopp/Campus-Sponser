@@ -32,23 +32,34 @@ const Home = () => {
     navigate('/login');
   };
 
+  // 👇 YAHAN HAI MAIN FIX (AUTO-SYNC LOGIC)
   const checkStatus = async () => {
     setLoading(true);
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      
+      // 1. Fresh Data Mangwao
       const res = await axios.get('/api/users/me', config);
+      
+      // 2. Token ko Fresh Data ke saath Jod do
       const updatedUser = { ...user, ...res.data }; 
+      
+      // 3. Chupchap LocalStorage Update karo
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
 
-      if (res.data.isVerified) alert("🎉 You are VERIFIED!");
-      else if (res.data.verificationDoc) alert("⏳ Status: PENDING Admin Approval.");
-      else {
+      // 4. Result Dikhao
+      if (res.data.isVerified) {
+        alert("🎉 You are VERIFIED! You can now create events.");
+      } else if (res.data.verificationDoc) {
+        alert("⏳ Status: PENDING Admin Approval.");
+      } else {
         alert("⚠️ Not Verified. Please Upload ID.");
         navigate('/verify');
       }
     } catch (error) {
-      alert("Error checking status.");
+      console.error(error);
+      alert("Error syncing status.");
     } finally {
       setLoading(false);
     }
@@ -83,6 +94,8 @@ const Home = () => {
         </div>
 
         <div style={{ marginTop: '30px', display: 'flex', gap: '15px', justifyContent: 'center', flexWrap:'wrap' }}>
+          
+          {/* CHECK STATUS BUTTON */}
           <button onClick={checkStatus} disabled={loading} style={{ padding: '12px 25px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', display:'flex', alignItems:'center', gap:'8px' }}>
             {loading ? 'Checking...' : '🔄 Check Status'}
           </button>
@@ -93,7 +106,6 @@ const Home = () => {
             </button>
           )}
 
-          {/* 👇 FIX: Button tabhi dikhega jab VERIFIED hoga */}
           {user.role === 'student' && user.isVerified && (
             <button onClick={() => navigate('/create-event')} style={{ padding: '12px 25px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight:'bold' }}>
               ➕ Create Event
@@ -113,7 +125,6 @@ const Home = () => {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginTop: '20px' }}>
           {events.map((event) => (
-            // 👇 FIX: onClick lagaya taaki card click ho sake
             <div 
                 key={event._id} 
                 onClick={() => navigate(`/event/${event._id}`)}
