@@ -11,8 +11,6 @@ const Agreement = () => {
   useEffect(() => {
     const fetchEvent = async () => {
       try {
-        // Hum events list mangwa kar filter kar rahe hain (Simple approach)
-        // Production mein direct single event API honi chahiye, par ye chalega
         const res = await axios.get('/api/events');
         const foundEvent = res.data.find(e => e._id === id);
         
@@ -31,74 +29,111 @@ const Agreement = () => {
     fetchEvent();
   }, [id, navigate]);
 
-  if (loading) return <div style={{textAlign:'center', padding:'50px'}}>Generating Legal Doc... ⚖️</div>;
+  if (loading) return <div style={{textAlign:'center', padding:'50px', fontSize:'1.2rem'}}>Generating Legal Doc... ⚖️</div>;
   if (!event) return null;
 
+  // Fallback agar naam save nahi hua
+  const sponsorName = event.sponsorName || "Authorized Sponsor";
+  const sponsorEmail = event.sponsorEmail || "Email Not Provided";
+
   return (
-    <div style={{ padding: '40px 20px', fontFamily: 'Times New Roman, serif', maxWidth: '800px', margin: '0 auto', background: '#fff', boxShadow: '0 0 20px rgba(0,0,0,0.1)', minHeight: '100vh' }}>
-      
-      {/* HEADER */}
-      <div style={{ textAlign: 'center', borderBottom: '2px solid #000', paddingBottom: '20px', marginBottom: '30px' }}>
-        <h1 style={{ textTransform: 'uppercase', letterSpacing: '2px', fontSize: '2rem' }}>Sponsorship Agreement</h1>
-        <p style={{ fontStyle: 'italic', color: '#555' }}>Official Memorandum of Understanding</p>
-      </div>
-
-      {/* BODY */}
-      <div style={{ lineHeight: '1.8', fontSize: '1.1rem' }}>
-        <p>
-          This Agreement is made on <strong>{new Date().toLocaleDateString()}</strong>, by and between:
-        </p>
-
-        <div style={{ background: '#f8fafc', padding: '15px', border: '1px solid #ddd', margin: '15px 0' }}>
-          <strong>THE SPONSOR:</strong> {event.sponsorName} ({event.sponsorEmail})<br/>
-          <strong>THE ORGANIZER:</strong> Campus Event Student Committee
+    <div style={{ background: '#525659', minHeight: '100vh', padding: '40px 0' }}>
+      <div style={{ 
+          padding: '60px', fontFamily: '"Times New Roman", Times, serif', 
+          maxWidth: '850px', margin: '0 auto', background: '#fff', 
+          boxShadow: '0 0 20px rgba(0,0,0,0.3)', color: '#000' 
+      }}>
+        
+        {/* HEADER */}
+        <div style={{ textAlign: 'center', borderBottom: '3px double #000', paddingBottom: '20px', marginBottom: '40px' }}>
+          <h1 style={{ textTransform: 'uppercase', letterSpacing: '2px', fontSize: '2.5rem', margin: '0' }}>Sponsorship Agreement</h1>
+          <p style={{ fontStyle: 'italic', color: '#444', marginTop: '10px' }}>Memorandum of Understanding (MoU)</p>
         </div>
 
-        <p>
-          WHEREAS, the Organizer is hosting an event titled <strong>"{event.title}"</strong> on <strong>{new Date(event.date).toLocaleDateString()}</strong> at <strong>{event.location}</strong>.
-        </p>
+        {/* BODY */}
+        <div style={{ lineHeight: '1.8', fontSize: '1.15rem', textAlign: 'justify' }}>
+          <p>
+            This Agreement is made on <strong>{new Date(event.sponsoredAt || Date.now()).toLocaleDateString()}</strong>, by and between:
+          </p>
 
-        <p>
-          WHEREAS, the Sponsor desires to sponsor the Event by providing financial support in the amount of:
-        </p>
+          {/* PARTIES BOX */}
+          <div style={{ background: '#f9f9f9', padding: '20px', border: '1px solid #ccc', margin: '20px 0' }}>
+            <div style={{marginBottom: '10px'}}>
+                <strong>THE SPONSOR:</strong><br/> 
+                <span style={{fontSize: '1.2rem', textTransform: 'uppercase'}}>{sponsorName}</span><br/>
+                <span style={{color: '#555', fontSize: '0.9rem'}}>({sponsorEmail})</span>
+            </div>
+            <hr style={{borderTop: '1px dashed #ccc'}}/>
+            <div style={{marginTop: '10px'}}>
+                <strong>THE ORGANIZER:</strong><br/> 
+                <span style={{fontSize: '1.2rem'}}>Campus Event Committee</span><br/>
+                <span style={{color: '#555', fontSize: '0.9rem'}}>(Student Representative for {event.title})</span>
+            </div>
+          </div>
 
-        <h2 style={{ textAlign: 'center', margin: '30px 0', fontSize: '2.5rem', color: '#166534' }}>
-          ₹ {event.budget}
-        </h2>
+          <p>
+            WHEREAS, the Organizer is hosting an event titled <strong>"{event.title}"</strong> scheduled for <strong>{new Date(event.date).toLocaleDateString()}</strong> at <strong>{event.location}</strong>.
+          </p>
 
-        <p>
-          NOW, THEREFORE, the parties agree as follows:
-          <ol>
-            <li>The Sponsor agrees to pay the full amount within 2 business days.</li>
-            <li>The Organizer agrees to display the Sponsor's logo on all marketing materials.</li>
-            <li>This agreement is binding and enforceable by law.</li>
+          <p>
+            WHEREAS, the Sponsor desires to sponsor the Event by providing financial support. The Sponsor agrees to transfer the funds as per the details below:
+          </p>
+
+          {/* AMOUNT */}
+          <div style={{ textAlign: 'center', margin: '30px 0', padding: '15px', border: '2px solid #000', display: 'inline-block', width: '100%' }}>
+            <span style={{ fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Sponsorship Amount</span><br/>
+            <strong style={{ fontSize: '2.5rem', color: '#000' }}>₹ {event.budget}</strong>
+          </div>
+
+          <p>
+            <strong>TERMS & CONDITIONS:</strong>
+          </p>
+          <ol style={{ marginLeft: '20px' }}>
+            <li>The Sponsor agrees to pay the full amount within 3 business days of signing this agreement.</li>
+            <li>The Organizer agrees to display the Sponsor's logo/branding on all event banners and social media.</li>
+            <li>This agreement is legally binding and serves as proof of commitment.</li>
           </ol>
-        </p>
-      </div>
-
-      {/* SIGNATURES */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '60px', paddingTop: '20px', borderTop: '1px dashed #000' }}>
-        <div style={{ textAlign: 'center' }}>
-          <p style={{ fontFamily: 'cursive', fontSize: '1.5rem', color: '#2563eb' }}>{event.sponsorName}</p>
-          <p style={{ borderTop: '1px solid #000', width: '200px', margin: '0 auto' }}>Signature of Sponsor</p>
         </div>
-        <div style={{ textAlign: 'center' }}>
-            <p style={{ fontFamily: 'cursive', fontSize: '1.5rem', color: '#2563eb' }}>CampusSponsor System</p>
-            <p style={{ borderTop: '1px solid #000', width: '200px', margin: '0 auto' }}>Digitally Verified</p>
+
+        {/* SIGNATURES SECTION (As requested) */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '80px', paddingTop: '20px' }}>
+          
+          {/* Sponsor Signature */}
+          <div style={{ width: '45%' }}>
+            <div style={{ borderBottom: '2px solid #000', marginBottom: '10px', height: '40px' }}></div> {/* Empty Line for Manual Sign */}
+            <p style={{ margin: 0, fontWeight: 'bold' }}>Authorized Signatory</p>
+            <p style={{ margin: 0, fontSize: '0.9rem', textTransform: 'uppercase' }}>For {sponsorName}</p>
+          </div>
+
+          {/* Organizer Signature */}
+          <div style={{ width: '45%' }}>
+            <div style={{ borderBottom: '2px solid #000', marginBottom: '10px', height: '40px' }}></div> {/* Empty Line for Manual Sign */}
+            <p style={{ margin: 0, fontWeight: 'bold' }}>Event Coordinator</p>
+            <p style={{ margin: 0, fontSize: '0.9rem', textTransform: 'uppercase' }}>CampusSponsor System Verified</p>
+          </div>
+
         </div>
-      </div>
 
-      {/* FOOTER ACTIONS */}
-      <div style={{ marginTop: '50px', textAlign: 'center', display: 'flex', gap: '20px', justifyContent: 'center' }}>
-        <button onClick={() => window.print()} style={{ padding: '12px 25px', background: '#334155', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '5px', fontWeight: 'bold' }}>
-          🖨️ Print Agreement
-        </button>
-        <button onClick={() => navigate('/')} style={{ padding: '12px 25px', background: 'transparent', border: '2px solid #334155', cursor: 'pointer', borderRadius: '5px', fontWeight: 'bold' }}>
-          Go to Home
-        </button>
-      </div>
+        {/* FOOTER ACTIONS (Print karte waqt ye buttons chhup jayenge) */}
+        <div className="no-print" style={{ marginTop: '60px', textAlign: 'center', display: 'flex', gap: '20px', justifyContent: 'center' }}>
+          <button onClick={() => window.print()} style={{ padding: '12px 25px', background: '#0f172a', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '5px', fontWeight: 'bold' }}>
+            🖨️ Print / Save PDF
+          </button>
+          <button onClick={() => navigate('/')} style={{ padding: '12px 25px', background: 'transparent', border: '2px solid #0f172a', cursor: 'pointer', borderRadius: '5px', fontWeight: 'bold' }}>
+            Go Back Home
+          </button>
+        </div>
 
-      <p style={{textAlign:'center', marginTop:'40px', fontSize:'0.8rem', color:'#aaa'}}>Generated by CampusSponsor ID: {event._id}</p>
+        {/* Print CSS to hide buttons */}
+        <style>{`
+          @media print {
+            .no-print { display: none !important; }
+            body { background: white; }
+            div { box-shadow: none !important; margin: 0 !important; width: 100% !important; }
+          }
+        `}</style>
+
+      </div>
     </div>
   );
 };
