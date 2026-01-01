@@ -1,4 +1,4 @@
-// 👇 YE 3 LINES BAHUT ZAROORI HAIN - INHE MAT HATANA
+// 👇 YE 3 LINES BAHUT ZAROORI HAIN (Inke bina server crash hoga)
 const asyncHandler = require('express-async-handler');
 const Event = require('../models/Event');
 const User = require('../models/User');
@@ -57,7 +57,7 @@ const deleteEvent = asyncHandler(async (req, res) => {
   const isOwner = event.user.toString() === req.user.id;
 
   if (!isAdmin && !isOwner) {
-    console.log("⛔ Access Denied");
+    console.log("⛔ Access Denied: User is not Admin or Owner");
     res.status(401);
     throw new Error('Not Authorized to Delete');
   }

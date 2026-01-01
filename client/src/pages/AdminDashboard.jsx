@@ -12,16 +12,13 @@ const AdminDashboard = () => {
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
     
-    // 🔒 SECURITY GATEKEEPER
+    // 🔒 SECURITY CHECK
     if (!storedUser) {
       navigate('/login');
-    } 
-    // Check agar user ka role 'admin' nahi hai (Case ignore karke check karo)
-    else if (storedUser.role.toLowerCase() !== 'admin') {
-      alert("⛔ SECURITY ALERT: Only Admins are allowed here!");
+    } else if (storedUser.role.toLowerCase() !== 'admin') {
+      alert("⛔ Only Admins are allowed here!");
       navigate('/'); 
-    } 
-    else {
+    } else {
       setUser(storedUser);
       fetchUsers(storedUser.token);
       fetchEvents();
@@ -42,29 +39,27 @@ const AdminDashboard = () => {
     } catch (error) { console.error(error); }
   };
 
-  // 👇 ROBUST DELETE FUNCTION
+  // 👇 REAL DELETE FUNCTION (No Fake Updates)
   const deleteEvent = async (id) => {
-    if(!window.confirm("⚠️ Are you sure? This will delete the event PERMANENTLY.")) return;
+    if(!window.confirm("⚠️ DELETE PERMANENTLY? This cannot be undone.")) return;
 
     try {
-      // Server ko bolo delete karne ko
+      // 1. Server ko call karo
       await axios.delete(`/api/events/${id}`, { 
         headers: { Authorization: `Bearer ${user.token}` } 
       });
 
-      // ✅ Delete Success -> List Update Karo
+      // 2. SUCCESS: Ab UI se hatao
       alert("✅ Event Deleted Successfully!");
-      
-      // List se hatao
       setEvents(events.filter(e => e._id !== id));
 
     } catch (error) {
+      // 3. FAILURE: Error dikhao
       console.error("Delete Error:", error);
       alert(`❌ Delete Failed: ${error.response?.data?.message || "Server Error"}`);
     }
   };
 
-  // User Delete Logic
   const deleteUser = async (id) => {
     if(!window.confirm("Delete User?")) return;
     try {
@@ -122,7 +117,7 @@ const AdminDashboard = () => {
         </table>
       </div>
 
-      {/* USERS TABLE */}
+      {/* USERS TABLE (No Change in Logic, Just Style) */}
       <h3>👤 User Management</h3>
       <div style={{overflowX: 'auto', boxShadow:'0 4px 10px rgba(0,0,0,0.1)', borderRadius:'10px'}}>
         <table style={{width:'100%', borderCollapse:'collapse'}}>
