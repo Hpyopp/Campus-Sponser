@@ -6,7 +6,8 @@ import Login from './pages/Login';
 import VerifyKYC from './pages/VerifyKYC';
 import AdminDashboard from './pages/AdminDashboard';
 import CreateEvent from './pages/CreateEvent';
-import Agreement from './pages/Agreement'; // 👈 IMPORT KIYA
+import Agreement from './pages/Agreement';
+import EventDetails from './pages/EventDetails'; // 👈 Import
 
 function App() {
   return (
@@ -20,9 +21,10 @@ function App() {
           <Route path="/verify" element={<VerifyKYC />} />
           <Route path="/create-event" element={<CreateEvent />} />
           <Route path="/admin" element={<AdminDashboard />} />
-          
-          {/* 👇 NEW ROUTE */}
           <Route path="/agreement/:id" element={<Agreement />} />
+          
+          {/* 👇 New Details Page Route */}
+          <Route path="/event/:id" element={<EventDetails />} />
         </Routes>
       </div>
     </Router>

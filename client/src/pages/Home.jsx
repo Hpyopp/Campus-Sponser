@@ -10,10 +10,7 @@ const Home = () => {
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
-    if (storedUser) {
-      setUser(storedUser);
-      fetchLatestStatus(storedUser);
-    }
+    if (storedUser) { setUser(storedUser); fetchLatestStatus(storedUser); }
     fetchEvents();
   }, []);
 
@@ -26,9 +23,7 @@ const Home = () => {
         localStorage.setItem('user', JSON.stringify(updatedUser));
         setUser(updatedUser);
       }
-    } catch (err) {
-      console.error("Status check failed");
-    }
+    } catch (err) { console.error("Status Check Failed"); }
   };
 
   const fetchEvents = async () => {
@@ -36,47 +31,13 @@ const Home = () => {
       setLoading(true);
       const res = await axios.get('/api/events');
       setEvents(res.data);
-    } catch (err) {
-      console.log("Error fetching events");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSponsor = async (eventId) => {
-    if(!window.confirm("Lock this deal? This action is irreversible. 🔒")) return;
-    try {
-        const config = { headers: { Authorization: `Bearer ${user.token}` } };
-        await axios.put(`/api/events/sponsor/${eventId}`, {}, config);
-        navigate(`/agreement/${eventId}`); 
-    } catch (error) {
-        alert(error.response?.data?.message || "Failed");
-    }
-  };
-
-  // 👇 PRIVACY HELPER FUNCTION
-  const getSponsorText = (event) => {
-    // Agar event sponsored nahi hai, toh kuch mat dikhao
-    if (!event.isSponsored) return null;
-
-    // Check karo: Kaun dekh raha hai?
-    const isAdmin = user && user.role === 'admin';
-    const isCreator = user && event.user === user._id; // Student jisne banaya
-    const isTheSponsor = user && event.sponsorBy === user._id; // Khud Sponsor
-
-    // Agar inme se koi hai, toh Naam dikhao
-    if (isAdmin || isCreator || isTheSponsor) {
-        return `✅ FUNDED by ${event.sponsorName}`;
-    }
-
-    // Baaki duniya ke liye Privacy maintain karo
-    return "⛔ SOLD OUT (Funded)";
+    } catch (err) { console.log("Fetch error"); } 
+    finally { setLoading(false); }
   };
 
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'Poppins' }}>
       
-      {/* HEADER */}
       <div style={{ textAlign: 'center', margin: '40px 0' }}>
         <h1 style={{ fontSize: '3rem', color: '#1e293b', marginBottom: '10px' }}>🚀 CampusSponsor</h1>
         <p style={{ fontSize: '1.2rem', color: '#64748b' }}>Connect Student Events with Top Sponsors</p>
@@ -84,8 +45,7 @@ const Home = () => {
         {user && !user.isVerified && (
           <div style={{ margin: '30px auto', maxWidth: '600px', padding: '20px', background: '#fff7ed', border: '2px dashed #f97316', borderRadius: '15px' }}>
             <h3 style={{ color: '#c2410c', margin: '0' }}>⚠️ KYC Pending</h3>
-            <p style={{ color: '#9a3412', marginBottom: '15px' }}>Upload proof to activate account.</p>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop:'15px' }}>
                 <Link to="/verify" style={{ padding: '10px 20px', background: '#f97316', color: 'white', textDecoration: 'none', borderRadius: '8px' }}>📂 Upload Proof</Link>
                 <button onClick={() => fetchLatestStatus(user)} style={{ padding: '10px 20px', background: 'white', border: '2px solid #f97316', color: '#f97316', borderRadius: '8px', cursor:'pointer' }}>Check Status ⚡</button>
             </div>
@@ -97,14 +57,22 @@ const Home = () => {
         )}
       </div>
 
-      {/* EVENTS GRID */}
       <h2 style={{ color: '#334155', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px', marginBottom: '20px' }}>🔥 Trending Events</h2>
       
       {loading ? <p style={{textAlign:'center'}}>Loading...</p> : 
        events.length === 0 ? <p style={{textAlign:'center'}}>No events found.</p> : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '25px' }}>
           {events.map((event) => (
-            <div key={event._id} style={{ background: 'white', padding: '25px', borderRadius: '15px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div 
+                key={event._id} 
+                onClick={() => navigate(`/event/${event._id}`)} // 👈 CARD CLICK LOGIC
+                style={{ 
+                    cursor: 'pointer', // Hand cursor
+                    background: 'white', padding: '25px', borderRadius: '15px', 
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', border: '1px solid #f1f5f9',
+                    display: 'flex', flexDirection: 'column', justifyContent: 'space-between', transition:'0.2s'
+                }}
+            >
               <div>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'15px'}}>
                     <h3 style={{ margin: '0', color: '#1e293b', fontSize:'1.3rem', wordBreak: 'break-word', maxWidth:'65%' }}>{event.title}</h3>
@@ -118,24 +86,11 @@ const Home = () => {
                     <span>📍 {event.location}</span>
                 </div>
               </div>
-              
               <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '15px' }}>
                 {event.isSponsored ? (
-                    // 👇 PRIVACY LOGIC APPLIED HERE
-                    <div style={{
-                        width:'100%', padding:'10px', textAlign:'center', borderRadius:'8px', fontWeight:'bold',
-                        background: (user && (user.role === 'admin' || event.user === user._id || event.sponsorBy === user._id)) ? '#dcfce7' : '#f1f5f9',
-                        color: (user && (user.role === 'admin' || event.user === user._id || event.sponsorBy === user._id)) ? '#166534' : '#64748b',
-                        border: '1px solid transparent'
-                    }}>
-                        {getSponsorText(event)}
-                    </div>
+                    <div style={{width:'100%', padding:'10px', background:'#dcfce7', color:'#166534', textAlign:'center', borderRadius:'8px', fontWeight:'bold'}}>✅ FUNDED</div>
                 ) : (
-                    user && user.role === 'sponsor' && user.isVerified ? (
-                        <button onClick={() => handleSponsor(event._id)} style={{width: '100%', padding: '12px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem'}}>🤝 Sponsor Now</button>
-                    ) : (
-                        <div style={{width:'100%', padding:'10px', background:'#f1f5f9', color:'#94a3b8', textAlign:'center', borderRadius:'8px', fontSize:'0.9rem'}}>Waiting for Sponsors...</div>
-                    )
+                    <div style={{width:'100%', padding:'10px', background:'#f1f5f9', color:'#1e293b', textAlign:'center', borderRadius:'8px', fontWeight:'bold'}}>👉 View Details to Sponsor</div>
                 )}
               </div>
             </div>
