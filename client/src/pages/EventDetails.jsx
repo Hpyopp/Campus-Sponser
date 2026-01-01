@@ -31,9 +31,15 @@ const EventDetails = () => {
     return `https://instagram.com/${link.replace('@', '')}`;
   };
 
-  // --- SPONSOR FUNCTION (Redirect Added) ---
+  // --- SPONSOR FUNCTION ---
   const handleSponsor = async () => {
     if (!user) return navigate('/login');
+    
+    // 👇 UI SECURITY CHECK
+    if (!user.isVerified) {
+        return alert("⛔ Account Verification Pending!\n\nYou cannot sponsor events until the Admin approves your documents.");
+    }
+
     if (user.role !== 'sponsor') return alert("Only Sponsors can fund events!");
     if (!amount || amount < 500) return alert("Minimum amount is ₹500");
 
@@ -41,7 +47,6 @@ const EventDetails = () => {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
       await axios.put(`/api/events/sponsor/${id}`, { amount }, config);
       
-      // 👇 CHANGE: Success ke baad seedha Agreement page par
       alert(`🎉 Success! You sponsored ₹${amount}. Generating Receipt...`);
       navigate(`/agreement/${id}`); 
       
@@ -141,14 +146,11 @@ const EventDetails = () => {
             <div style={{padding:'25px', background:'#f0fdf4', borderRadius:'15px', border:'1px solid #86efac', display:'inline-block', width:'100%'}}>
                 <h2 style={{color:'#166534', margin:'0 0 10px 0'}}>✅ You Sponsored: ₹{mySponsorship.amount}</h2>
                 <div style={{display:'flex', gap:'10px', justifyContent:'center', marginTop:'15px'}}>
-                    {/* VIEW RECEIPT BUTTON */}
                     <button onClick={() => navigate(`/agreement/${id}`)} style={{padding:'12px 25px', background:'#166534', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold'}}>
-                        📄 View Receipt / Agreement
+                        📄 View Receipt
                     </button>
-                    
-                    {/* CANCEL BUTTON */}
                     <button onClick={handleCancel} style={{padding:'12px 25px', background:'#ef4444', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold'}}>
-                        ❌ Cancel & Refund
+                        ❌ Cancel
                     </button>
                 </div>
             </div>
@@ -163,21 +165,33 @@ const EventDetails = () => {
                     // CASE 3: OPEN FOR FUNDING
                     <div style={{maxWidth:'400px', margin:'0 auto'}}>
                         {user && user.role === 'sponsor' ? (
-                            <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
-                                <label style={{fontWeight:'bold', color:'#334155'}}>Enter Sponsorship Amount</label>
-                                <input 
-                                    type="number" 
-                                    placeholder={`Min ₹500 - Max ₹${remainingBudget}`}
-                                    value={amount}
-                                    onChange={(e) => setAmount(e.target.value)}
-                                    min="500"
-                                    max={remainingBudget}
-                                    style={{padding:'15px', fontSize:'1.1rem', textAlign:'center', border:'2px solid #3b82f6', borderRadius:'10px', outline:'none'}}
-                                />
-                                <button onClick={handleSponsor} style={{padding:'15px', background:'#2563eb', color:'white', border:'none', borderRadius:'10px', fontSize:'1.1rem', fontWeight:'bold', cursor:'pointer', boxShadow:'0 4px 15px rgba(37, 99, 235, 0.3)'}}>
-                                    🤝 Sponsor Now
-                                </button>
-                            </div>
+                            
+                            // 👇 UI CHECK: Verified hai ya nahi?
+                            user.isVerified ? (
+                                <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
+                                    <label style={{fontWeight:'bold', color:'#334155'}}>Enter Sponsorship Amount</label>
+                                    <input 
+                                        type="number" 
+                                        placeholder={`Min ₹500 - Max ₹${remainingBudget}`}
+                                        value={amount}
+                                        onChange={(e) => setAmount(e.target.value)}
+                                        min="500"
+                                        max={remainingBudget}
+                                        style={{padding:'15px', fontSize:'1.1rem', textAlign:'center', border:'2px solid #3b82f6', borderRadius:'10px', outline:'none'}}
+                                    />
+                                    <button onClick={handleSponsor} style={{padding:'15px', background:'#2563eb', color:'white', border:'none', borderRadius:'10px', fontSize:'1.1rem', fontWeight:'bold', cursor:'pointer', boxShadow:'0 4px 15px rgba(37, 99, 235, 0.3)'}}>
+                                        🤝 Sponsor Now
+                                    </button>
+                                </div>
+                            ) : (
+                                // 🛑 BLOCKED FOR UNVERIFIED
+                                <div style={{padding:'20px', background:'#fff7ed', border:'1px solid #f97316', borderRadius:'10px', color:'#c2410c'}}>
+                                    <h3>⏳ Verification Pending</h3>
+                                    <p>You can sponsor events once your ID is approved by the Admin.</p>
+                                    <button onClick={() => navigate('/')} style={{padding:'8px 15px', marginTop:'10px', background:'#f97316', color:'white', border:'none', borderRadius:'5px', cursor:'pointer'}}>Check Status</button>
+                                </div>
+                            )
+                        
                         ) : (
                             <div style={{padding:'20px', background:'#f1f5f9', borderRadius:'10px', color:'#64748b'}}>
                                 Login as a <strong>Sponsor</strong> to fund this event.

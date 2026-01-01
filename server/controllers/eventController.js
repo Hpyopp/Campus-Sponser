@@ -23,6 +23,12 @@ const getEventById = asyncHandler(async (req, res) => {
 const createEvent = asyncHandler(async (req, res) => {
   const { title, description, date, location, budget, contactEmail, instagramLink } = req.body;
 
+  // 👇 SECURITY CHECK: Only Verified Students
+  if (!req.user.isVerified) {
+    res.status(403);
+    throw new Error('Action Restricted: Your account is not verified yet.');
+  }
+
   if (!title || !description || !date || !location || !budget || !contactEmail) {
     res.status(400);
     throw new Error('Please fill all fields');
@@ -54,11 +60,17 @@ const deleteEvent = asyncHandler(async (req, res) => {
   res.json({ message: 'Event removed' });
 });
 
-// 5. SPONSOR EVENT (Flexible Amount)
+// 5. SPONSOR EVENT (Flexible Amount + Security Check 🔒)
 const sponsorEvent = asyncHandler(async (req, res) => {
   const { amount } = req.body;
-  const event = await Event.findById(req.params.id);
+  
+  // 👇 MAIN SECURITY FIX: Unverified users CANNOT sponsor
+  if (!req.user.isVerified) {
+    res.status(403);
+    throw new Error('⛔ Access Denied! Your account must be verified by Admin to sponsor events.');
+  }
 
+  const event = await Event.findById(req.params.id);
   if (!event) { res.status(404); throw new Error('Event not found'); }
 
   const payAmount = Number(amount);
@@ -89,23 +101,19 @@ const sponsorEvent = asyncHandler(async (req, res) => {
   res.status(200).json(event);
 });
 
-// 6. CANCEL SPONSORSHIP (Smart Refund Logic)
+// 6. CANCEL SPONSORSHIP
 const cancelSponsorship = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
   if (!event) { res.status(404); throw new Error('Event not found'); }
 
-  // Find user in sponsor list
   const sponsorIndex = event.sponsors.findIndex(s => s.sponsorId.toString() === req.user.id);
 
   if (sponsorIndex === -1) {
     res.status(400); throw new Error('You have not sponsored this event');
   }
 
-  // Paise Minus Karo (Refund Amount)
   const amountToRefund = event.sponsors[sponsorIndex].amount;
   event.raisedAmount -= amountToRefund;
-
-  // List se Hatao
   event.sponsors.splice(sponsorIndex, 1);
   
   await event.save();
