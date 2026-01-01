@@ -31,178 +31,96 @@ const EventDetails = () => {
     return `https://instagram.com/${link.replace('@', '')}`;
   };
 
-  // --- SPONSOR FUNCTION ---
+  // --- SPONSOR ---
   const handleSponsor = async () => {
     if (!user) return navigate('/login');
-    
-    // 👇 UI SECURITY CHECK
-    if (!user.isVerified) {
-        return alert("⛔ Account Verification Pending!\n\nYou cannot sponsor events until the Admin approves your documents.");
-    }
-
+    if (!user.isVerified) return alert("⛔ Verification Pending! You cannot sponsor yet.");
     if (user.role !== 'sponsor') return alert("Only Sponsors can fund events!");
-    if (!amount || amount < 500) return alert("Minimum amount is ₹500");
+    if (!amount || amount < 500) return alert("Min amount ₹500");
 
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
       await axios.put(`/api/events/sponsor/${id}`, { amount }, config);
-      
-      alert(`🎉 Success! You sponsored ₹${amount}. Generating Receipt...`);
-      navigate(`/agreement/${id}`); 
-      
+      alert("🎉 Sponsored Successfully! Redirecting to Receipt...");
+      navigate(`/agreement/${id}`);
     } catch (error) {
-      alert(error.response?.data?.message || "Sponsorship Failed");
+      alert(error.response?.data?.message || "Failed");
     }
   };
 
-  // --- CANCEL FUNCTION ---
-  const handleCancel = async () => {
-    if(!window.confirm("Are you sure? This will remove your sponsorship and process refund.")) return;
+  // --- REQUEST REFUND ---
+  const handleRequestRefund = async () => {
+    if(!window.confirm("Request Refund from Admin?")) return;
 
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      await axios.put(`/api/events/cancel-sponsor/${id}`, {}, config);
+      await axios.put(`/api/events/request-refund/${id}`, {}, config);
       
+      // WhatsApp Redirect
       const adminPhone = "919022489860"; 
-      const msg = `Hello Admin, I cancelled my sponsorship for Event: ${event.title}. Refund Amount: ₹${mySponsorship?.amount}. Please process.`;
+      const msg = `Hello Admin, I have requested a refund for Event: ${event.title}. Name: ${user.name}. Please approve from Admin Panel.`;
       const waLink = `https://wa.me/${adminPhone}?text=${encodeURIComponent(msg)}`;
       
-      alert("⚠️ Sponsorship Cancelled. Redirecting to WhatsApp for Refund...");
+      alert("✅ Request Sent! Notify Admin on WhatsApp...");
       window.open(waLink, '_blank');
       fetchEvent();
-    } catch (error) {
-      alert("Error cancelling deal");
-    }
+    } catch (error) { alert("Error sending request"); }
   };
 
-  if (loading) return <div style={{textAlign:'center', padding:'50px'}}>Loading Details...</div>;
-  if (!event) return <div style={{textAlign:'center', padding:'50px'}}>Event Not Found</div>;
+  if (loading) return <div style={{textAlign:'center', padding:'50px'}}>Loading...</div>;
+  if (!event) return <div style={{textAlign:'center', padding:'50px'}}>Not Found</div>;
 
+  const mySponsorship = event.sponsors?.find(s => s.sponsorId === user?._id);
   const raised = event.raisedAmount || 0;
   const budget = event.budget || 0;
-  const isFullyFunded = raised >= budget;
   const remainingBudget = budget - raised;
-  const mySponsorship = event.sponsors?.find(s => s.sponsorId === user?._id);
 
   return (
-    <div style={{ maxWidth: '850px', margin: '40px auto', padding: '30px', background: 'white', borderRadius: '15px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontFamily: 'Poppins' }}>
+    <div style={{ maxWidth: '850px', margin: '40px auto', padding: '30px', background: 'white', borderRadius: '15px', fontFamily: 'Poppins', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
       
-      {/* HEADER */}
-      <div style={{borderBottom:'2px solid #f1f5f9', paddingBottom:'20px', marginBottom:'20px'}}>
-        <h1 style={{fontSize:'2.5rem', color:'#1e293b', margin:0}}>{event.title}</h1>
-        <div style={{display:'flex', gap:'20px', marginTop:'10px', color:'#64748b'}}>
-            <span>📍 {event.location}</span>
-            <span>📅 {new Date(event.date).toDateString()}</span>
-        </div>
+      <h1 style={{color:'#1e293b'}}>{event.title}</h1>
+      <p style={{color:'#64748b'}}>📍 {event.location} | 📅 {new Date(event.date).toDateString()}</p>
+
+      {/* FUNDS */}
+      <div style={{background:'#f0f9ff', padding:'20px', borderRadius:'10px', marginTop:'20px', textAlign:'center', border:'1px solid #bae6fd'}}>
+         <h2 style={{color:'#0284c7', margin:0}}>₹ {raised} <span style={{fontSize:'1rem', color:'#64748b'}}>/ ₹ {budget}</span></h2>
       </div>
 
-      {/* FUNDS PROGRESS */}
-      <div style={{background:'#f0f9ff', padding:'25px', borderRadius:'15px', border:'1px solid #bae6fd', marginBottom:'30px', textAlign:'center'}}>
-         <p style={{margin:0, color:'#0369a1', fontWeight:'bold', fontSize:'0.9rem'}}>TOTAL FUNDS RAISED</p>
-         <h2 style={{margin:'5px 0', color:'#0284c7', fontSize:'2.2rem'}}>₹ {raised} <span style={{fontSize:'1.2rem', color:'#64748b'}}>/ ₹ {budget}</span></h2>
-         
-         <div style={{width:'100%', height:'15px', background:'#e2e8f0', borderRadius:'10px', overflow:'hidden', marginTop:'15px', boxShadow:'inset 0 1px 2px rgba(0,0,0,0.1)'}}>
-            <div style={{
-                width: `${Math.min((raised / budget) * 100, 100)}%`, 
-                height:'100%', 
-                background: isFullyFunded ? '#22c55e' : '#3b82f6',
-                transition: 'width 0.6s ease-in-out'
-            }}></div>
-         </div>
-         
-         <p style={{marginTop:'10px', fontWeight:'bold', color: isFullyFunded ? '#166534' : '#c2410c'}}>
-            {isFullyFunded ? '🎉 GOAL REACHED! Event Fully Funded.' : `🔥 Need ₹${remainingBudget} more to reach goal`}
-         </p>
+      <div style={{marginTop:'30px'}}>
+         <h3>📝 Description</h3>
+         <p style={{color:'#475569', lineHeight:'1.6'}}>{event.description}</p>
       </div>
 
-      {/* ORGANIZER */}
-      <div style={{background:'#f8fafc', padding:'15px', borderRadius:'10px', marginBottom:'30px', border:'1px solid #e2e8f0'}}>
-        <h4 style={{margin:'0 0 5px 0', color:'#475569'}}>Organized By:</h4>
-        <div style={{fontSize:'1.1rem', fontWeight:'bold'}}>{event.user?.collegeName || "Unknown College"}</div>
-        <div style={{fontSize:'0.9rem', color:'#64748b'}}>Rep: {event.user?.name}</div>
-      </div>
-
-      <div style={{marginBottom:'40px'}}>
-         <h3 style={{color:'#334155'}}>📝 Description</h3>
-         <p style={{lineHeight:'1.7', color:'#4b5563', fontSize:'1.05rem'}}>{event.description}</p>
-      </div>
-
-      {/* CONTACT */}
-      <div style={{textAlign:'center', padding:'20px', background:'#fdf4ff', borderRadius:'10px', marginBottom:'40px'}}>
-         <span style={{fontWeight:'bold', color:'#86198f'}}>Contact Organizer: </span>
-         <a href={`mailto:${event.contactEmail}`} style={{color:'#c026d3', fontWeight:'bold'}}>{event.contactEmail}</a>
-         {event.instagramLink && (
-             <div style={{marginTop:'10px'}}>
-                 <a href={getInstaUrl(event.instagramLink)} target="_blank" rel="noreferrer" style={{color:'#be185d', fontWeight:'bold', textDecoration:'underline'}}>📸 Instagram Profile</a>
-             </div>
-         )}
-      </div>
-
-      {/* --- ACTION ZONE --- */}
-      <div style={{borderTop:'2px dashed #e2e8f0', paddingTop:'30px', textAlign:'center'}}>
-        
-        {/* CASE 1: USER IS A SPONSOR */}
+      {/* ACTION ZONE */}
+      <div style={{borderTop:'2px dashed #e2e8f0', marginTop:'30px', paddingTop:'30px', textAlign:'center'}}>
         {mySponsorship ? (
-            <div style={{padding:'25px', background:'#f0fdf4', borderRadius:'15px', border:'1px solid #86efac', display:'inline-block', width:'100%'}}>
-                <h2 style={{color:'#166534', margin:'0 0 10px 0'}}>✅ You Sponsored: ₹{mySponsorship.amount}</h2>
-                <div style={{display:'flex', gap:'10px', justifyContent:'center', marginTop:'15px'}}>
-                    <button onClick={() => navigate(`/agreement/${id}`)} style={{padding:'12px 25px', background:'#166534', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold'}}>
-                        📄 View Receipt
-                    </button>
-                    <button onClick={handleCancel} style={{padding:'12px 25px', background:'#ef4444', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold'}}>
-                        ❌ Cancel
-                    </button>
-                </div>
-            </div>
-        ) : (
-            // CASE 2: NOT SPONSORED YET
-            <div>
-                {isFullyFunded ? (
-                    <div style={{padding:'20px', background:'#dcfce7', color:'#166534', borderRadius:'15px', fontWeight:'bold', fontSize:'1.2rem'}}>
-                       🚫 Budget Full. No more sponsors needed.
+            <div style={{background:'#f8fafc', padding:'25px', borderRadius:'15px', border:'1px solid #cbd5e1'}}>
+                <h3 style={{color:'#166534', margin:'0 0 10px 0'}}>✅ You Sponsored: ₹{mySponsorship.amount}</h3>
+                
+                {mySponsorship.status === 'refund_requested' ? (
+                    <div style={{padding:'15px', background:'#fff7ed', color:'#c2410c', border:'1px solid #fdba74', borderRadius:'8px', fontWeight:'bold', marginTop:'15px'}}>
+                        ⏳ Refund Request Pending (Waiting for Admin)
                     </div>
                 ) : (
-                    // CASE 3: OPEN FOR FUNDING
-                    <div style={{maxWidth:'400px', margin:'0 auto'}}>
-                        {user && user.role === 'sponsor' ? (
-                            
-                            // 👇 UI CHECK: Verified hai ya nahi?
-                            user.isVerified ? (
-                                <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
-                                    <label style={{fontWeight:'bold', color:'#334155'}}>Enter Sponsorship Amount</label>
-                                    <input 
-                                        type="number" 
-                                        placeholder={`Min ₹500 - Max ₹${remainingBudget}`}
-                                        value={amount}
-                                        onChange={(e) => setAmount(e.target.value)}
-                                        min="500"
-                                        max={remainingBudget}
-                                        style={{padding:'15px', fontSize:'1.1rem', textAlign:'center', border:'2px solid #3b82f6', borderRadius:'10px', outline:'none'}}
-                                    />
-                                    <button onClick={handleSponsor} style={{padding:'15px', background:'#2563eb', color:'white', border:'none', borderRadius:'10px', fontSize:'1.1rem', fontWeight:'bold', cursor:'pointer', boxShadow:'0 4px 15px rgba(37, 99, 235, 0.3)'}}>
-                                        🤝 Sponsor Now
-                                    </button>
-                                </div>
-                            ) : (
-                                // 🛑 BLOCKED FOR UNVERIFIED
-                                <div style={{padding:'20px', background:'#fff7ed', border:'1px solid #f97316', borderRadius:'10px', color:'#c2410c'}}>
-                                    <h3>⏳ Verification Pending</h3>
-                                    <p>You can sponsor events once your ID is approved by the Admin.</p>
-                                    <button onClick={() => navigate('/')} style={{padding:'8px 15px', marginTop:'10px', background:'#f97316', color:'white', border:'none', borderRadius:'5px', cursor:'pointer'}}>Check Status</button>
-                                </div>
-                            )
-                        
-                        ) : (
-                            <div style={{padding:'20px', background:'#f1f5f9', borderRadius:'10px', color:'#64748b'}}>
-                                Login as a <strong>Sponsor</strong> to fund this event.
-                            </div>
-                        )}
+                    <div style={{display:'flex', gap:'15px', justifyContent:'center', marginTop:'15px'}}>
+                        <button onClick={() => navigate(`/agreement/${id}`)} style={{padding:'10px 20px', background:'#166534', color:'white', border:'none', borderRadius:'5px', cursor:'pointer'}}>📄 Receipt</button>
+                        <button onClick={handleRequestRefund} style={{padding:'10px 20px', background:'#ef4444', color:'white', border:'none', borderRadius:'5px', cursor:'pointer'}}>❌ Request Refund</button>
                     </div>
                 )}
             </div>
+        ) : (
+            <div style={{maxWidth:'400px', margin:'0 auto'}}>
+                {user && user.role === 'sponsor' ? (
+                    user.isVerified ? (
+                        <div style={{display:'flex', gap:'10px'}}>
+                            <input type="number" placeholder="Amount" value={amount} onChange={e=>setAmount(e.target.value)} style={{padding:'12px', flex:1, borderRadius:'5px', border:'1px solid #ccc'}} />
+                            <button onClick={handleSponsor} style={{padding:'12px 25px', background:'#2563eb', color:'white', border:'none', borderRadius:'5px', cursor:'pointer'}}>Sponsor Now</button>
+                        </div>
+                    ) : ( <div style={{padding:'15px', background:'#fff7ed', color:'#c2410c', borderRadius:'5px', border:'1px solid #fdba74'}}>⚠️ Verification Pending</div> )
+                ) : ( <p style={{color:'#64748b'}}>Login as Sponsor to fund.</p> )}
+            </div>
         )}
       </div>
-
     </div>
   );
 };

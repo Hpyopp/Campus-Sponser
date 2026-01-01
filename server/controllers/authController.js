@@ -1,152 +1,93 @@
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
 const asyncHandler = require('express-async-handler');
-const User = require('../models/User');
-const sendEmail = require('../utils/sendEmail'); 
+const Event = require('../models/Event');
 
-// --- 1. REGISTER USER (OTP + Backup Popup) ---
-const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, password, phone, role, companyName, collegeName } = req.body;
+// 1. GET ALL
+const getEvents = asyncHandler(async (req, res) => { const events = await Event.find().sort({ createdAt: -1 }); res.json(events); });
+// 2. GET ONE
+const getEventById = asyncHandler(async (req, res) => { const event = await Event.findById(req.params.id).populate('user', 'name email collegeName'); if(event) res.json(event); else {res.status(404); throw new Error('Not found');} });
+// 3. CREATE
+const createEvent = asyncHandler(async (req, res) => { const {title, description, date, location, budget, contactEmail, instagramLink} = req.body; if(!req.user.isVerified){res.status(403); throw new Error('Not Verified');} const event = await Event.create({user: req.user.id, title, description, date, location, budget, contactEmail, instagramLink}); res.status(201).json(event); });
+// 4. DELETE
+const deleteEvent = asyncHandler(async (req, res) => { const event = await Event.findById(req.params.id); if(!event){res.status(404); throw new Error('Not found');} if(event.user.toString() !== req.user.id && req.user.role !== 'admin'){res.status(401); throw new Error('Not Authorized');} await event.deleteOne(); res.json({message:'Removed'}); });
 
-  if (!name || !email || !password || !phone) {
-    res.status(400); throw new Error('Please add all fields');
-  }
+// 5. SPONSOR EVENT
+const sponsorEvent = asyncHandler(async (req, res) => {
+  const { amount } = req.body;
+  
+  // Security Check
+  if (!req.user.isVerified) { res.status(403); throw new Error('Account Not Verified'); }
 
-  const cleanEmail = email.toLowerCase().trim();
-  const userExists = await User.findOne({ email: cleanEmail });
-  if (userExists) { res.status(400); throw new Error('User already exists'); }
+  const event = await Event.findById(req.params.id);
+  if (!event) { res.status(404); throw new Error('Event not found'); }
 
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(password, salt);
+  const payAmount = Number(amount);
+  const currentRaised = event.raisedAmount || 0;
 
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  if (payAmount < 500) { res.status(400); throw new Error('Minimum ₹500 required'); }
+  if (currentRaised + payAmount > event.budget) { res.status(400); throw new Error('Amount exceeds remaining budget'); }
 
-  const user = await User.create({
-    name, email: cleanEmail, password: hashedPassword, phone, role: role || 'student',
-    companyName: (role === 'sponsor' && companyName) ? companyName : '',
-    collegeName: (role === 'student' && collegeName) ? collegeName : '',
-    otp: otp,
-    otpExpires: Date.now() + 10 * 60 * 1000,
-    isVerified: false 
+  event.sponsors.push({
+    sponsorId: req.user.id,
+    name: req.user.name,
+    email: req.user.email,
+    amount: payAmount,
+    status: 'confirmed'
   });
 
-  // Background Email
-  sendEmail({ email: user.email, subject: 'Verify Account', message: otp })
-    .catch(err => console.log("Email error (Background)"));
-
-  res.status(200).json({ 
-    message: 'OTP Generated', 
-    email: user.email,
-    debugOtp: otp 
-  });
+  event.raisedAmount = currentRaised + payAmount;
+  await event.save();
+  res.status(200).json(event);
 });
 
-// --- 2. LOGIN STEP 1 (Send OTP) ---
-const loginUser = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-  const cleanEmail = email ? email.toLowerCase().trim() : '';
+// 6. REQUEST REFUND (User Side - No Money Deduction)
+const requestRefund = asyncHandler(async (req, res) => {
+  const event = await Event.findById(req.params.id);
+  if (!event) { res.status(404); throw new Error('Event not found'); }
+
+  const idx = event.sponsors.findIndex(s => s.sponsorId.toString() === req.user.id);
+  if (idx === -1) { res.status(400); throw new Error('Not a sponsor'); }
+
+  event.sponsors[idx].status = 'refund_requested';
+  await event.save();
+  res.status(200).json({ message: 'Refund Requested' });
+});
+
+// --- ADMIN ACTIONS ---
+
+// 7. APPROVE REFUND (Money Deducted Here)
+const approveRefund = asyncHandler(async (req, res) => {
+  const { eventId, sponsorId } = req.body;
+  const event = await Event.findById(eventId);
+  if (!event) { res.status(404); throw new Error('Event not found'); }
+
+  const idx = event.sponsors.findIndex(s => s.sponsorId.toString() === sponsorId);
+  if (idx === -1) { res.status(400); throw new Error('Sponsor not found'); }
+
+  // Deduct Money
+  const amount = event.sponsors[idx].amount;
+  event.raisedAmount -= amount;
   
-  const user = await User.findOne({ email: cleanEmail });
-  if (!user) { res.status(404); throw new Error('User not found'); }
+  // Remove User
+  event.sponsors.splice(idx, 1);
 
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  
-  user.otp = otp;
-  user.otpExpires = Date.now() + 10 * 60 * 1000;
-  await user.save();
-
-  sendEmail({ email: user.email, subject: 'Login OTP', message: otp })
-    .catch(err => console.log("Email error (Background)"));
-
-  res.status(200).json({ message: 'OTP Sent', debugOtp: otp });
+  await event.save();
+  res.status(200).json({ message: 'Refund Approved' });
 });
 
-// --- 3. LOGIN STEP 2 (Verify OTP) ---
-const verifyLogin = asyncHandler(async (req, res) => {
-  const { email, otp } = req.body;
-  const cleanEmail = email.toLowerCase().trim();
-  const inputOtp = otp.toString().replace(/\s/g, ''); 
+// 8. REJECT REFUND (Reset Status)
+const rejectRefund = asyncHandler(async (req, res) => {
+  const { eventId, sponsorId } = req.body;
+  const event = await Event.findById(eventId);
+  if (!event) { res.status(404); throw new Error('Event not found'); }
 
-  const user = await User.findOne({ email: cleanEmail });
-  if (!user) { res.status(404); throw new Error('User not found'); }
+  const idx = event.sponsors.findIndex(s => s.sponsorId.toString() === sponsorId);
+  if (idx === -1) { res.status(400); throw new Error('Sponsor not found'); }
 
-  if (user.otp === inputOtp && user.otpExpires > Date.now()) {
-    user.otp = undefined;
-    user.otpExpires = undefined;
-    await user.save();
+  // Reset Status
+  event.sponsors[idx].status = 'confirmed';
 
-    res.json({
-      _id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      token: generateToken(user._id),
-      isVerified: user.isVerified
-    });
-  } else {
-    res.status(400); throw new Error('Invalid OTP');
-  }
+  await event.save();
+  res.status(200).json({ message: 'Refund Rejected' });
 });
 
-// --- 4. VERIFY REGISTER OTP ---
-const verifyRegisterOTP = asyncHandler(async (req, res) => {
-  const { email, otp } = req.body;
-  const cleanEmail = email ? email.toLowerCase().trim() : '';
-  const inputOtp = otp ? otp.toString().replace(/\s/g, '') : ''; 
-
-  const user = await User.findOne({ email: cleanEmail });
-  if (!user) { res.status(404); throw new Error('User not found'); }
-
-  if (user.otp === inputOtp) {
-    user.otp = undefined;
-    user.otpExpires = undefined;
-    await user.save();
-
-    res.status(200).json({
-      _id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      token: generateToken(user._id),
-      isVerified: false 
-    });
-  } else {
-    res.status(400); throw new Error('Invalid OTP');
-  }
-});
-
-// --- 5. UPLOAD DOC ---
-const uploadDoc = asyncHandler(async (req, res) => {
-  if (!req.file || !req.file.path) {
-    res.status(400); throw new Error('Upload Failed');
-  }
-  const imageUrl = req.file.path; 
-  const user = await User.findById(req.user.id);
-  
-  if (user) {
-    user.verificationDoc = imageUrl;
-    user.isVerified = false; 
-    await user.save();
-    res.status(200).json({ message: 'Uploaded Successfully', docUrl: imageUrl });
-  } else {
-    res.status(404); throw new Error('User not found');
-  }
-});
-
-// --- 6. GET CURRENT USER (Important for Check Status Button) ---
-const getMe = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id);
-  res.status(200).json(user);
-});
-
-// --- Helpers ---
-const getAllUsers = asyncHandler(async (req, res) => { const users = await User.find().sort({ createdAt: -1 }); res.status(200).json(users); });
-const approveUser = asyncHandler(async (req, res) => { await User.findByIdAndUpdate(req.params.id, { isVerified: true }); res.status(200).json({ message: 'Verified' }); });
-const unverifyUser = asyncHandler(async (req, res) => { await User.findByIdAndUpdate(req.params.id, { isVerified: false }); res.status(200).json({ message: 'Revoked' }); });
-const deleteUser = asyncHandler(async (req, res) => { await User.findByIdAndDelete(req.params.id); res.status(200).json({ message: 'Deleted' }); });
-const generateToken = (id) => { return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' }); };
-
-module.exports = { 
-  registerUser, loginUser, verifyLogin, verifyRegisterOTP, uploadDoc, getMe, 
-  getAllUsers, approveUser, unverifyUser, deleteUser 
-};
+module.exports = { getEvents, getEventById, createEvent, deleteEvent, sponsorEvent, requestRefund, approveRefund, rejectRefund };
