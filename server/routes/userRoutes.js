@@ -1,27 +1,32 @@
 const express = require('express');
 const router = express.Router();
-const multer = require('multer'); // 👈 Ye package installed hona chahiye
+const multer = require('multer'); 
 const { 
-  registerUser, loginUser, verifyRegisterOTP, 
+  registerUser, 
+  loginUser, 
+  verifyLogin,      // 👈 NEW IMPORT
+  verifyRegisterOTP, 
   uploadDoc, 
   getMe, getAllUsers, approveUser, unverifyUser, deleteUser
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 
-// 👇 TERA CLOUDINARY CONFIG (Path check kar lena)
-// Agar 'server/config/cloudinary.js' hai toh ye sahi hai
 const { storage } = require('../config/cloudinary'); 
-
-// 👇 MULTER SETUP
 const upload = multer({ storage: storage });
 
 // Routes
+
+// 1. REGISTER
 router.post('/', registerUser);
-router.post('/login', loginUser);
 router.post('/verify-otp', verifyRegisterOTP);
 
-// 👇 UPLOAD ROUTE (Future-Proof: Cloudinary)
-router.put('/upload-doc', protect, upload.single('docImage'), uploadDoc);
+// 2. LOGIN (OTP Based)
+router.post('/login', loginUser);       // Step 1: Send OTP
+router.post('/login/verify', verifyLogin); // Step 2: Verify OTP 👈 (Frontend ye call kar raha tha)
+
+// 3. UPLOAD (Matched with VerifyKYC.jsx)
+// Route: /verify | Field Name: 'document' | Method: POST
+router.post('/verify', protect, upload.single('document'), uploadDoc); 
 
 // Admin Routes
 router.get('/me', protect, getMe);

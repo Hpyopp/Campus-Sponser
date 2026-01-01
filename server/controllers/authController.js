@@ -2,10 +2,9 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
-// 👇 Tera utils wala sendEmail import (Agar file hai toh)
 const sendEmail = require('../utils/sendEmail'); 
 
-// --- 1. REGISTER USER (OTP Generation + Backup Popup) ---
+// --- 1. REGISTER USER (OTP + Backup Popup) ---
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone, role, companyName, collegeName } = req.body;
 
@@ -20,7 +19,6 @@ const registerUser = asyncHandler(async (req, res) => {
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
-  // 6-Digit OTP
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
   const user = await User.create({
@@ -32,54 +30,79 @@ const registerUser = asyncHandler(async (req, res) => {
     isVerified: false 
   });
 
-  // 👇 EMAIL TRY KARO (Render block kare toh crash nahi hona chahiye)
   try {
-    await sendEmail({
-      email: user.email,
-      subject: 'Verify Your Account',
-      message: otp
-    });
-  } catch (error) {
-    console.log("⚠️ Email Failed (Render Block/Error). Using Popup Mode.");
-  }
+    await sendEmail({ email: user.email, subject: 'Verify Account', message: otp });
+  } catch (err) { console.log("Email failed, using popup."); }
 
-  console.log(`🔐 OTP GENERATED: ${otp}`);
-
-  // 👇 YE SABSE ZAROORI HAI: debugOtp frontend ko bhejo
   res.status(200).json({ 
     message: 'OTP Generated', 
     email: user.email,
-    debugOtp: otp // <--- Ye Green Box me dikhega
+    debugOtp: otp // Register wala Green Box
   });
 });
 
-// --- 2. UPLOAD DOC (Cloudinary Real) ---
-const uploadDoc = asyncHandler(async (req, res) => {
-  // Cloudinary middleware file process karke yahan bhejta hai
-  if (!req.file || !req.file.path) {
-    res.status(400);
-    throw new Error('Upload Failed. Cloudinary did not return URL.');
-  }
+// --- 2. LOGIN USER (STEP 1: SEND OTP) ---
+// 🛑 YE CHANGE HAI: Ab ye Password nahi mangega, sirf Email se OTP dega
+const loginUser = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) { res.status(400); throw new Error('Please enter email'); }
 
-  const imageUrl = req.file.path; // Asli Cloudinary URL
+  const cleanEmail = email.toLowerCase().trim();
+  const user = await User.findOne({ email: cleanEmail });
 
-  const user = await User.findById(req.user.id);
-  if (user) {
-    user.verificationDoc = imageUrl;
-    user.isVerified = false; // Re-verify needed
-    await user.save();
+  if (!user) { res.status(404); throw new Error('User not found. Please Register.'); }
+
+  // Generate Login OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  // Save OTP to DB
+  user.otp = otp;
+  user.otpExpires = Date.now() + 10 * 60 * 1000;
+  await user.save();
+
+  // Try Email
+  try {
+    await sendEmail({ email: user.email, subject: 'Login OTP', message: otp });
+  } catch (err) { console.log("Email failed, using popup."); }
+
+  // Send Debug OTP for Green Box
+  res.status(200).json({
+    message: 'OTP Sent',
+    debugOtp: otp // Login wala Green Box yahan se aayega
+  });
+});
+
+// --- 3. VERIFY LOGIN (STEP 2: CHECK OTP) ---
+// 🛑 YE NAYA FUNCTION HAI
+const verifyLogin = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+  const cleanEmail = email.toLowerCase().trim();
+  const inputOtp = otp.toString().replace(/\s/g, ''); 
+
+  const user = await User.findOne({ email: cleanEmail });
+  if (!user) { res.status(404); throw new Error('User not found'); }
+
+  // Check Match
+  if (user.otp === inputOtp && user.otpExpires > Date.now()) {
     
-    res.status(200).json({ 
-      message: 'Document Uploaded Successfully!', 
-      docUrl: imageUrl 
+    // Clear OTP
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+
+    res.json({
+      _id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      token: generateToken(user._id),
     });
   } else {
-    res.status(404);
-    throw new Error('User not found');
+    res.status(400); throw new Error('Invalid or Expired OTP');
   }
 });
 
-// --- 3. VERIFY OTP ---
+// --- 4. VERIFY REGISTER (For New Accounts) ---
 const verifyRegisterOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   const cleanEmail = email ? email.toLowerCase().trim() : '';
@@ -88,11 +111,7 @@ const verifyRegisterOTP = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email: cleanEmail });
   if (!user) { res.status(404); throw new Error('User not found'); }
 
-  const dbOtp = user.otp ? user.otp.toString().replace(/\s/g, '') : '';
-
-  if (user.isVerified) { res.status(200).json({ message: 'Already verified' }); return; }
-
-  if (dbOtp === inputOtp && user.otpExpires > Date.now()) {
+  if (user.otp === inputOtp && user.otpExpires > Date.now()) {
     user.isVerified = true;
     user.otp = undefined;
     user.otpExpires = undefined;
@@ -110,25 +129,20 @@ const verifyRegisterOTP = asyncHandler(async (req, res) => {
   }
 });
 
-// --- 4. LOGIN USER ---
-const loginUser = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
-  const cleanEmail = email ? email.toLowerCase().trim() : '';
-  const user = await User.findOne({ email: cleanEmail });
-
-  if (user && (await bcrypt.compare(password, user.password))) {
-    if (!user.isVerified) {
-       res.status(401); throw new Error('Account Pending. Please Verify OTP.');
-    }
-    res.json({
-      _id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      token: generateToken(user._id),
-    });
+// --- 5. UPLOAD DOC (Fixed for 'document' field) ---
+const uploadDoc = asyncHandler(async (req, res) => {
+  if (!req.file || !req.file.path) {
+    res.status(400); throw new Error('Upload Failed');
+  }
+  const imageUrl = req.file.path; 
+  const user = await User.findById(req.user.id);
+  if (user) {
+    user.verificationDoc = imageUrl;
+    user.isVerified = false; 
+    await user.save();
+    res.status(200).json({ message: 'Uploaded', docUrl: imageUrl });
   } else {
-    res.status(400); throw new Error('Invalid credentials');
+    res.status(404); throw new Error('User not found');
   }
 });
 
@@ -140,4 +154,4 @@ const unverifyUser = asyncHandler(async (req, res) => { await User.findByIdAndUp
 const deleteUser = asyncHandler(async (req, res) => { await User.findByIdAndDelete(req.params.id); res.status(200).json({ message: 'Deleted' }); });
 const generateToken = (id) => { return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' }); };
 
-module.exports = { registerUser, verifyRegisterOTP, loginUser, uploadDoc, getMe, getAllUsers, approveUser, unverifyUser, deleteUser };
+module.exports = { registerUser, loginUser, verifyLogin, verifyRegisterOTP, uploadDoc, getMe, getAllUsers, approveUser, unverifyUser, deleteUser };
