@@ -27,12 +27,10 @@ const registerUser = asyncHandler(async (req, res) => {
     collegeName: (role === 'student' && collegeName) ? collegeName : '',
     otp: otp,
     otpExpires: Date.now() + 10 * 60 * 1000,
-    
-    // 👇 MAIN CHEEZ: Ye FALSE hi rahega jab tak Admin haan na bole
     isVerified: false 
   });
 
-  // Background Email (No Await)
+  // Background Email
   sendEmail({ email: user.email, subject: 'Verify Account', message: otp })
     .catch(err => console.log("Email error (Background)"));
 
@@ -63,7 +61,7 @@ const loginUser = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'OTP Sent', debugOtp: otp });
 });
 
-// --- 3. LOGIN STEP 2 (Verify OTP ONLY) ---
+// --- 3. LOGIN STEP 2 (Verify OTP) ---
 const verifyLogin = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   const cleanEmail = email.toLowerCase().trim();
@@ -77,23 +75,20 @@ const verifyLogin = asyncHandler(async (req, res) => {
     user.otpExpires = undefined;
     await user.save();
 
-    // 🛑 NOTICE: Maine yahan 'isVerified = true' NAHI kiya.
-    // User login kar payega, lekin uska status abhi bhi purana hi rahega.
-
     res.json({
       _id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
       token: generateToken(user._id),
-      isVerified: user.isVerified // Frontend ko batao ki wo verified hai ya nahi
+      isVerified: user.isVerified
     });
   } else {
     res.status(400); throw new Error('Invalid OTP');
   }
 });
 
-// --- 4. VERIFY REGISTER OTP (STOP AUTO VERIFY 🛑) ---
+// --- 4. VERIFY REGISTER OTP ---
 const verifyRegisterOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   const cleanEmail = email ? email.toLowerCase().trim() : '';
@@ -103,14 +98,8 @@ const verifyRegisterOTP = asyncHandler(async (req, res) => {
   if (!user) { res.status(404); throw new Error('User not found'); }
 
   if (user.otp === inputOtp) {
-    
-    // 👇 STOP! Yahan hum 'isVerified = true' nahi karenge.
-    // Sirf OTP clear karenge taaki wo login ho sake aur Document upload kar sake.
-    
     user.otp = undefined;
     user.otpExpires = undefined;
-    // user.isVerified = true; // <--- YE LINE HATA DI ❌
-    
     await user.save();
 
     res.status(200).json({
@@ -119,14 +108,14 @@ const verifyRegisterOTP = asyncHandler(async (req, res) => {
       email: user.email,
       role: user.role,
       token: generateToken(user._id),
-      isVerified: false // Abhi bhi false hai
+      isVerified: false 
     });
   } else {
     res.status(400); throw new Error('Invalid OTP');
   }
 });
 
-// --- 5. UPLOAD DOC (Admin ke liye pending choro) ---
+// --- 5. UPLOAD DOC ---
 const uploadDoc = asyncHandler(async (req, res) => {
   if (!req.file || !req.file.path) {
     res.status(400); throw new Error('Upload Failed');
@@ -136,20 +125,28 @@ const uploadDoc = asyncHandler(async (req, res) => {
   
   if (user) {
     user.verificationDoc = imageUrl;
-    user.isVerified = false; // Upload hone ke baad bhi False hi rahega (Admin karega True)
+    user.isVerified = false; 
     await user.save();
-    res.status(200).json({ message: 'Uploaded Successfully. Wait for Admin Approval.', docUrl: imageUrl });
+    res.status(200).json({ message: 'Uploaded Successfully', docUrl: imageUrl });
   } else {
     res.status(404); throw new Error('User not found');
   }
 });
 
-// Helpers
-const getMe = asyncHandler(async (req, res) => { const user = await User.findById(req.user.id); res.status(200).json(user); });
+// --- 6. GET CURRENT USER (Important for Check Status Button) ---
+const getMe = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user.id);
+  res.status(200).json(user);
+});
+
+// --- Helpers ---
 const getAllUsers = asyncHandler(async (req, res) => { const users = await User.find().sort({ createdAt: -1 }); res.status(200).json(users); });
 const approveUser = asyncHandler(async (req, res) => { await User.findByIdAndUpdate(req.params.id, { isVerified: true }); res.status(200).json({ message: 'Verified' }); });
 const unverifyUser = asyncHandler(async (req, res) => { await User.findByIdAndUpdate(req.params.id, { isVerified: false }); res.status(200).json({ message: 'Revoked' }); });
 const deleteUser = asyncHandler(async (req, res) => { await User.findByIdAndDelete(req.params.id); res.status(200).json({ message: 'Deleted' }); });
 const generateToken = (id) => { return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' }); };
 
-module.exports = { registerUser, loginUser, verifyLogin, verifyRegisterOTP, uploadDoc, getMe, getAllUsers, approveUser, unverifyUser, deleteUser };
+module.exports = { 
+  registerUser, loginUser, verifyLogin, verifyRegisterOTP, uploadDoc, getMe, 
+  getAllUsers, approveUser, unverifyUser, deleteUser 
+};
