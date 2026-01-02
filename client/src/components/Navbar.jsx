@@ -1,71 +1,73 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user'));
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')));
+
+  // 👇 Ye Hook Navbar ko Auto-Update karega jab background mein status badlega
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setUser(JSON.parse(localStorage.getItem('user')));
+    };
+
+    // Listen for custom signal from App.jsx
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('user');
+    setUser(null);
     navigate('/login');
   };
 
   return (
-    <nav style={{ 
-      display: 'flex', 
-      justifyContent: 'space-between', 
-      alignItems: 'center', 
-      padding: '15px 20px', // Thoda padding kam kiya mobile ke liye
-      background: 'white', 
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-      flexWrap: 'wrap', // 👈 YE HAI MAGIC (Items ko niche girne dega)
-      gap: '10px'       // Logo aur Buttons ke beech gap
-    }}>
-      {/* --- LOGO --- */}
-      <Link to="/" style={{ 
-        fontSize: '1.5rem', 
-        fontWeight: 'bold', 
-        textDecoration: 'none', 
-        color: '#333',
-        flexShrink: 0 // Logo ko dabne mat do
-      }}>
-        🚀 CampuSponsor
-      </Link>
+    <nav style={{ background: 'white', padding: '15px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', fontFamily: 'Poppins' }}>
+      
+      {/* LEFT SIDE - LOGO & STATUS */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <Link to="/" style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1e293b', textDecoration: 'none' }}>
+          🚀 CampuSponsor
+        </Link>
 
-      {/* --- MENU ITEMS --- */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '15px', 
-        alignItems: 'center',
-        flexWrap: 'wrap' // Buttons ko bhi adjust hone do
-      }}>
-        <Link to="/" style={{ textDecoration: 'none', color: '#555', fontSize: '0.9rem' }}>Home</Link>
-        
-        {/* Admin Button */}
-        {user && user.role === 'admin' && (
-          <Link to="/admin" style={{ color: 'red', fontWeight: 'bold', textDecoration: 'none', fontSize: '0.9rem' }}>
-            🛡️ Admin
-          </Link>
+        {/* 👇 STATUS INDICATOR BADGE */}
+        {user && (
+            user.isVerified ? (
+                <span style={{ background: '#dcfce7', color: '#166534', padding: '5px 12px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'5px' }}>
+                    ✅ Verified
+                </span>
+            ) : (
+                <Link to="/verify" style={{ textDecoration:'none', background: '#fff7ed', color: '#c2410c', padding: '5px 12px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'5px', border:'1px solid #fdba74', cursor:'pointer' }}>
+                    ⚠️ Unverified (Upload ID)
+                </Link>
+            )
         )}
+      </div>
 
+      {/* RIGHT SIDE - LINKS */}
+      <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+        <Link to="/" style={{ color: '#475569', textDecoration: 'none', fontWeight: '500' }}>Home</Link>
+        
         {user ? (
           <>
-            <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{user.name.split(' ')[0]} 👋</span>
-            <button onClick={handleLogout} style={{ 
-              background: '#e74c3c', color: 'white', border: 'none', padding: '8px 12px', 
-              borderRadius: '5px', cursor: 'pointer', fontSize: '0.9rem' 
-            }}>
+            {user.role === 'admin' && (
+              <Link to="/admin" style={{ color: '#b91c1c', textDecoration: 'none', fontWeight: 'bold' }}>Admin Panel</Link>
+            )}
+            <span style={{ color: '#475569' }}>Hi, {user.name.split(' ')[0]}</span>
+            <button onClick={handleLogout} style={{ padding: '8px 15px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
               Logout
             </button>
           </>
         ) : (
           <>
-            <Link to="/login" style={{ textDecoration: 'none', color: '#555', fontSize: '0.9rem' }}>Login</Link>
-            <Link to="/register" style={{ 
-              background: '#2563eb', color: 'white', padding: '8px 12px', 
-              borderRadius: '5px', textDecoration: 'none', fontSize: '0.9rem' 
-            }}>
+            <Link to="/login" style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 'bold' }}>Login</Link>
+            <Link to="/register" style={{ padding: '8px 15px', background: '#2563eb', color: 'white', textDecoration: 'none', borderRadius: '5px', fontWeight: 'bold' }}>
               Register
-            </Link>
+            </button>
           </>
         )}
       </div>

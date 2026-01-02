@@ -12,7 +12,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminRefunds from './pages/AdminRefunds';
 import Verify from './pages/Verify';
 
-// 👇 COMPONENT TO HANDLE BACKGROUND CHECKS
+// 👇 SILENT BACKGROUND SYNC COMPONENT
 const UserSync = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -20,36 +20,27 @@ const UserSync = () => {
   useEffect(() => {
     const checkStatus = async () => {
       const storedUser = JSON.parse(localStorage.getItem('user'));
-      
-      // Agar user login nahi hai, toh check mat karo
       if (!storedUser || !storedUser.token) return;
 
       try {
         const config = { headers: { Authorization: `Bearer ${storedUser.token}` } };
-        // Server se latest data mango
         const res = await axios.get('/api/users/me', config);
         const serverUser = res.data;
 
-        // 👇 LOGIC: Agar Local aur Server ka status alag hai, toh update karo
+        // 👇 Agar Status ya Role badla hai
         if (serverUser.isVerified !== storedUser.isVerified || serverUser.role !== storedUser.role) {
             
-            // LocalStorage Update
+            // 1. Chupchap LocalStorage Update karo
             const updatedUser = { ...storedUser, isVerified: serverUser.isVerified, role: serverUser.role };
             localStorage.setItem('user', JSON.stringify(updatedUser));
 
-            // Alert User
-            if (serverUser.isVerified) {
-                alert("🎉 Good News! Admin verified your account.");
-            } else {
-                alert("⚠️ Alert: Your verification was revoked by Admin.");
-            }
+            // 2. Pure App ko signal bhejo ki data badal gaya hai (Taaki Navbar update ho)
+            window.dispatchEvent(new Event("storage"));
             
-            // Refresh UI
-            window.location.reload(); 
+            // ❌ KOI ALERT NAHI, KOI RELOAD NAHI. SHANT.
         }
 
       } catch (error) {
-        // Agar Token expire ho gaya (401), toh logout karo
         if (error.response && error.response.status === 401) {
             localStorage.clear();
             navigate('/login');
@@ -57,11 +48,8 @@ const UserSync = () => {
       }
     };
 
-    // ⚡ Har 5 Second mein check karo (Polling)
-    const interval = setInterval(checkStatus, 5000);
-    
-    // Page load hote hi ek baar turant check karo
-    checkStatus();
+    const interval = setInterval(checkStatus, 5000); // Har 5 sec check
+    checkStatus(); // First load check
 
     return () => clearInterval(interval);
   }, [navigate, location]);
@@ -72,7 +60,7 @@ const UserSync = () => {
 function App() {
   return (
     <Router>
-      <UserSync /> {/* 👈 Ye line magic karegi */}
+      <UserSync />
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />
