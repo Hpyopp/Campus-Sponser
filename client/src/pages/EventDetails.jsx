@@ -42,17 +42,22 @@ const EventDetails = () => {
   };
 
   const handleRequestRefund = async () => {
-    if(!window.confirm("Are you sure you want to cancel pledge & refund?")) return;
+    if(!window.confirm("Cancel pledge & request refund?")) return;
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
       await axios.put(`/api/events/request-refund/${id}`, {}, config);
-      alert("Refund Requested. Please inform Admin.");
+      alert("Refund Requested.");
       fetchEvent();
     } catch (error) { alert("Error"); }
   };
 
   if (loading) return <div style={{textAlign:'center', padding:'50px'}}>Loading...</div>;
   if (!event) return <div style={{textAlign:'center', padding:'50px'}}>Not Found</div>;
+
+  // 👇 CHECK: Kya current user hi is Event ka Malik (Organizer) hai?
+  const isOrganizer = user && event.user && (user._id === event.user._id);
+  const isAdmin = user && user.role === 'admin';
+  const showDashboard = isOrganizer || isAdmin;
 
   const mySponsorship = event.sponsors?.find(s => s.sponsorId === user?._id);
   const raised = event.raisedAmount || 0;
@@ -74,44 +79,48 @@ const EventDetails = () => {
 
       <div style={{borderTop:'2px dashed #e2e8f0', marginTop:'30px', paddingTop:'30px', textAlign:'center'}}>
         
-        {/* 👇 1. ADMIN VIEW (Show List of Sponsors) */}
-        {user && user.role === 'admin' ? (
+        {/* 👇 1. ORGANIZER & ADMIN DASHBOARD VIEW */}
+        {showDashboard ? (
             <div style={{textAlign:'left'}}>
-                <h3 style={{color:'#b91c1c', borderBottom:'2px solid #b91c1c', paddingBottom:'10px', marginBottom:'20px'}}>
-                    👮 Admin View: Event Sponsors
+                <h3 style={{color: isOrganizer ? '#2563eb' : '#b91c1c', borderBottom:'2px solid #e2e8f0', paddingBottom:'10px', marginBottom:'20px'}}>
+                    {isOrganizer ? "📋 Organizer Dashboard: Sponsors" : "👮 Admin View: Event Sponsors"}
                 </h3>
                 
                 {event.sponsors && event.sponsors.length > 0 ? (
                     <div style={{display:'grid', gap:'15px'}}>
                         {event.sponsors.map((s, index) => (
-                            <div key={index} style={{background:'#fff7ed', padding:'20px', borderRadius:'10px', border:'1px solid #ffedd5', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                            <div key={index} style={{background:'#fff7ed', padding:'20px', borderRadius:'10px', border:'1px solid #ffedd5', display:'flex', flexDirection:'column', gap:'10px'}}>
                                 
-                                {/* Sponsor Details */}
-                                <div>
-                                    <div style={{color:'#d97706', fontWeight:'bold', fontSize:'1.1rem'}}>🏢 {s.companyName || "Individual"}</div>
-                                    <div style={{fontWeight:'bold', color:'#334155'}}>{s.name} <span style={{fontWeight:'normal', fontSize:'0.8rem'}}>({s.email})</span></div>
-                                    
-                                    {/* Amount */}
-                                    <div style={{color:'#16a34a', fontWeight:'bold', marginTop:'5px'}}>Pledged: ₹{s.amount}</div>
-                                    
-                                    {/* Note */}
-                                    {s.comment ? (
-                                        <div style={{marginTop:'5px', fontStyle:'italic', color:'#666', background:'white', padding:'5px', borderRadius:'5px', border:'1px dashed #ccc', display:'inline-block'}}>
-                                            📝 "{s.comment}"
-                                        </div>
-                                    ) : <div style={{color:'#ccc', fontSize:'0.8rem', marginTop:'5px'}}>No notes added</div>}
+                                <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
+                                    <div>
+                                        <div style={{color:'#d97706', fontWeight:'bold', fontSize:'1.1rem'}}>🏢 {s.companyName || "Individual"}</div>
+                                        <div style={{fontWeight:'bold', color:'#334155'}}>{s.name}</div> 
+                                        <div style={{fontSize:'0.9rem', color:'#64748b'}}>{s.email}</div>
+                                    </div>
+                                    <div style={{textAlign:'right'}}>
+                                        <div style={{color:'#16a34a', fontWeight:'bold', fontSize:'1.2rem'}}>₹{s.amount}</div>
+                                        <div style={{fontSize:'0.8rem', color:'#666'}}>{new Date(s.date).toLocaleDateString()}</div>
+                                    </div>
                                 </div>
 
-                                {/* Action Button */}
-                                <div>
+                                {/* Note Section */}
+                                <div style={{background:'white', padding:'10px', borderRadius:'5px', border:'1px dashed #ccc'}}>
+                                    <strong>📝 Note from Sponsor:</strong><br/>
+                                    <em style={{color:'#555'}}>"{s.comment || 'No requirements mentioned'}"</em>
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div style={{display:'flex', justifyContent:'flex-end', gap:'10px', marginTop:'5px'}}>
                                     <button 
                                         onClick={() => navigate(`/agreement/${id}?sponsorId=${s.sponsorId}`)}
-                                        style={{padding:'10px 15px', background:'#2563eb', color:'white', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold'}}
+                                        style={{padding:'8px 15px', background:'#2563eb', color:'white', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold', fontSize:'0.9rem'}}
                                     >
                                         📄 View Agreement
                                     </button>
                                     {s.status === 'refund_requested' && (
-                                        <div style={{color:'red', fontWeight:'bold', fontSize:'0.8rem', marginTop:'5px', textAlign:'center'}}>Refund Requested</div>
+                                        <span style={{padding:'8px 15px', background:'#fee2e2', color:'#dc2626', borderRadius:'5px', fontWeight:'bold', border:'1px solid #fecaca'}}>
+                                            ⚠️ Refund Requested
+                                        </span>
                                     )}
                                 </div>
                             </div>
@@ -124,7 +133,7 @@ const EventDetails = () => {
                 )}
             </div>
         ) : (
-            // 👇 2. NORMAL SPONSOR/STUDENT VIEW (Existing Logic)
+            // 👇 2. NORMAL SPONSOR/STUDENT VIEW
             <>
                 {mySponsorship ? (
                     <div style={{background:'#f8fafc', padding:'25px', borderRadius:'10px', border:'1px solid #cbd5e1'}}>

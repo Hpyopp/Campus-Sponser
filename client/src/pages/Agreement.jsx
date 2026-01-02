@@ -24,25 +24,32 @@ const Agreement = () => {
 
   if (!event || !currentUser) return null;
 
+  // 👇 LOGIC UPDATE: Organizer bhi ID parameter se Sponsor dhund sakta hai
   const queryParams = new URLSearchParams(location.search);
   const paramSponsorId = queryParams.get('sponsorId');
-  const targetSponsorId = (currentUser.role === 'admin' && paramSponsorId) ? paramSponsorId : currentUser._id;
+  
+  // Permission Check: Admin OR Event Creator OR Sponsor Himself
+  const isOrganizer = event.user._id === currentUser._id;
+  const isAdmin = currentUser.role === 'admin';
+  
+  let targetSponsorId = currentUser._id; // Default: Khud ka dhundo
+  
+  // Agar Admin ya Organizer hai, toh URL wale sponsor ko dikhao
+  if ((isAdmin || isOrganizer) && paramSponsorId) {
+      targetSponsorId = paramSponsorId;
+  }
+
   const mySponsorship = event.sponsors?.find(s => s.sponsorId === targetSponsorId);
 
   if (!mySponsorship) return <div style={{textAlign:'center', padding:'50px'}}><h2>❌ Record Not Found</h2><button onClick={() => navigate(-1)}>Go Back</button></div>;
 
-  // 👇 PRIVACY LOGIC (Secret Comment & Company Name)
-  const isOrganizer = currentUser._id === event.user._id;
-  const isAdmin = currentUser.role === 'admin';
   const isSponsor = currentUser._id === mySponsorship.sponsorId;
-
-  // Sirf ye 3 log comment dekh sakte hain
   const canViewComment = isOrganizer || isAdmin || isSponsor;
 
   return (
     <div style={{ background: '#525659', minHeight: '100vh', padding: '40px 0' }}>
       
-      {isAdmin && <div className="no-print" style={{textAlign:'center', color:'white', marginBottom:'15px', background:'#f97316', padding:'10px'}}>👮 ADMIN VIEW MODE</div>}
+      {(isAdmin || isOrganizer) && <div className="no-print" style={{textAlign:'center', color:'white', marginBottom:'15px', background:'#f97316', padding:'10px'}}>👮 OFFICIAL VIEW MODE (Organizer/Admin)</div>}
 
       <div className="print-area" style={{ padding: '60px', fontFamily: '"Times New Roman", Times, serif', maxWidth: '800px', margin: '0 auto', background: '#fff', boxShadow: '0 0 20px rgba(0,0,0,0.3)', minHeight: '1000px', position:'relative' }}>
         
@@ -58,12 +65,9 @@ const Agreement = () => {
             
             <div style={{width:'48%'}}>
                 <strong style={{textDecoration:'underline', color:'#666'}}>THE SPONSOR:</strong><br/>
-                {/* 👇 Organizer ko Company Name dikhega */}
-                {isOrganizer || isAdmin ? (
-                    <>
-                        <span style={{color:'#d97706', fontWeight:'bold', fontSize:'1.1rem'}}>🏢 {mySponsorship.companyName || "Individual Sponsor"}</span><br/>
-                        <span style={{fontSize:'0.9rem'}}>Rep: {mySponsorship.name}</span>
-                    </>
+                {/* Agar Organizer/Admin hai toh Company Name dikhao */}
+                {(isOrganizer || isAdmin) ? (
+                    <span style={{color:'#d97706', fontWeight:'bold', fontSize:'1.1rem'}}>🏢 {mySponsorship.companyName || "Individual Sponsor"}</span>
                 ) : (
                     <span>{mySponsorship.name}</span>
                 )}
@@ -84,12 +88,10 @@ const Agreement = () => {
             <strong style={{ fontSize: '2.5rem' }}>₹ {mySponsorship.amount}</strong>
           </div>
 
-          {/* 👇 SECRET COMMENT BOX (Privacy Protected) */}
+          {/* SECRET COMMENT BOX */}
           {canViewComment && mySponsorship.comment && (
               <div style={{ textAlign:'center', marginBottom:'30px', padding:'15px', background:'#fffbeb', border:'1px dashed #f59e0b', color:'#92400e', fontSize:'0.9rem', borderRadius:'8px' }}>
-                  <strong>
-                      {isOrganizer ? "🔒 Message from Company:" : "📝 Your Private Note:"}
-                  </strong><br/>
+                  <strong>{isOrganizer ? "🔒 Message from Company:" : "📝 Your Private Note:"}</strong><br/>
                   <em>"{mySponsorship.comment}"</em>
               </div>
           )}
