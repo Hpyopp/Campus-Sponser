@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { Toaster } from 'react-hot-toast'; // 👈 IMPORT TOASTER
+
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -12,7 +14,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminRefunds from './pages/AdminRefunds';
 import Verify from './pages/Verify';
 
-// 👇 SILENT BACKGROUND SYNC COMPONENT
+// 👇 SILENT BACKGROUND SYNC COMPONENT (Jaisa tune diya tha, Same hai)
 const UserSync = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -34,10 +36,8 @@ const UserSync = () => {
             const updatedUser = { ...storedUser, isVerified: serverUser.isVerified, role: serverUser.role };
             localStorage.setItem('user', JSON.stringify(updatedUser));
 
-            // 2. Pure App ko signal bhejo ki data badal gaya hai (Taaki Navbar update ho)
+            // 2. Pure App ko signal bhejo ki data badal gaya hai
             window.dispatchEvent(new Event("storage"));
-            
-            // ❌ KOI ALERT NAHI, KOI RELOAD NAHI. SHANT.
         }
 
       } catch (error) {
@@ -62,6 +62,10 @@ function App() {
     <Router>
       <UserSync />
       <Navbar />
+      
+      {/* 👇 YE LINE ADD KI HAI (Notifications dikhane ke liye) */}
+      <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
+
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />

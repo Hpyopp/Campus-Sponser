@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
+import toast from 'react-hot-toast'; // 👈 IMPORT TOAST
 
 const Login = () => {
   const [view, setView] = useState('login'); // 'login', 'forgot', 'reset'
@@ -22,13 +23,15 @@ const Login = () => {
       localStorage.setItem('user', JSON.stringify(res.data));
       window.dispatchEvent(new Event("storage"));
       
-      alert("✅ Login Successful!");
+      // 👇 ALERT REMOVED, TOAST ADDED
+      toast.success("✅ Login Successful!");
       
       if (!res.data.isVerified) { navigate('/verify'); } 
       else { navigate('/'); }
       
     } catch (error) {
-      alert(error.response?.data?.message || "Invalid Credentials");
+      // 👇 ERROR TOAST
+      toast.error(error.response?.data?.message || "Invalid Credentials");
     } finally { setLoading(false); }
   };
 
@@ -42,9 +45,12 @@ const Login = () => {
       // 👇 Capture OTP immediately
       setDeveloperOtp(res.data.debugOtp);
       
+      // 👇 Success Message
+      toast.success("OTP Generated!");
+      
       setView('reset'); 
     } catch (error) {
-      alert(error.response?.data?.message || "User not found");
+      toast.error(error.response?.data?.message || "User not found");
     } finally { setLoading(false); }
   };
 
@@ -54,11 +60,14 @@ const Login = () => {
     setLoading(true);
     try {
       await axios.post('/api/users/reset-password', resetData);
-      alert("🎉 Password Changed! Please Login.");
+      
+      // 👇 ALERT REMOVED, TOAST ADDED
+      toast.success("🎉 Password Changed! Please Login.");
+      
       setView('login');
       setDeveloperOtp(null);
     } catch (error) {
-      alert(error.response?.data?.message || "Invalid OTP");
+      toast.error(error.response?.data?.message || "Invalid OTP");
     } finally { setLoading(false); }
   };
 
@@ -100,7 +109,7 @@ const Login = () => {
           <>
             <h2 style={{ textAlign: 'center', color: '#1e293b' }}>🔓 Enter OTP</h2>
             
-            {/* 👇 GREEN BOX WITH OTP */}
+            {/* 👇 GREEN BOX WITH OTP (As it is rakha hai) */}
             {developerOtp && (
                 <div style={{background: '#dcfce7', border: '2px dashed #16a34a', padding: '15px', borderRadius: '8px', textAlign: 'center', marginBottom: '20px', animation: 'fadeIn 0.5s'}}>
                     <span style={{color: '#166534', fontSize: '0.9rem', display: 'block', marginBottom: '5px'}}>Developer Code:</span>
