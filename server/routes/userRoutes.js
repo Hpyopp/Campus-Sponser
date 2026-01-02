@@ -9,15 +9,19 @@ const {
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 
+// Auth Routes
 router.post('/', registerUser);
-router.post('/login', loginUser); // 👈 Ab ye Password wala login hai
-router.post('/verify-login', verifyLogin); // Keeping route but logic changed
-router.post('/verify-otp', verifyRegisterOTP); // For Registration
+router.post('/login', loginUser); 
+router.post('/verify-otp', verifyRegisterOTP); 
 
-// 👇 NEW ROUTES FOR FORGOT PASSWORD
+// Forgot Password Routes
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 
+// Placeholders (Compatibility)
+router.post('/verify-login', verifyLogin);
+
+// Protected Routes
 router.get('/me', protect, getMe);
 router.post('/upload-doc', protect, upload.single('doc'), uploadDoc);
 

@@ -6,10 +6,14 @@ const Login = () => {
   const [view, setView] = useState('login'); // 'login', 'forgot', 'reset'
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [resetData, setResetData] = useState({ email: '', otp: '', newPassword: '' });
+  
+  // State for Green Box OTP
+  const [developerOtp, setDeveloperOtp] = useState(null);
+  
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // --- 1. HANDLE LOGIN (Email + Password) ---
+  // 1. HANDLE LOGIN
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -17,38 +21,46 @@ const Login = () => {
       const res = await axios.post('/api/users/login', formData);
       localStorage.setItem('user', JSON.stringify(res.data));
       window.dispatchEvent(new Event("storage"));
+      
       alert("✅ Login Successful!");
       
-      // Verification check & Redirect
-      if (!res.data.isVerified) { navigate('/verify'); } 
-      else { navigate('/'); }
+      if (!res.data.isVerified) { 
+          navigate('/verify'); 
+      } else { 
+          navigate('/'); 
+      }
       
     } catch (error) {
       alert(error.response?.data?.message || "Invalid Credentials");
     } finally { setLoading(false); }
   };
 
-  // --- 2. SEND OTP (Forgot Password) ---
+  // 2. FORGOT PASSWORD (Get OTP in Green Box)
   const handleForgot = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post('/api/users/forgot-password', { email: resetData.email });
-      alert("📨 OTP sent to your email!");
-      setView('reset'); // Go to Reset View
+      const res = await axios.post('/api/users/forgot-password', { email: resetData.email });
+      
+      // Capture OTP from response
+      setDeveloperOtp(res.data.debugOtp);
+      
+      alert("📨 OTP Generated! Check screen.");
+      setView('reset'); 
     } catch (error) {
       alert(error.response?.data?.message || "User not found");
     } finally { setLoading(false); }
   };
 
-  // --- 3. RESET PASSWORD (OTP + New Pass) ---
+  // 3. RESET PASSWORD
   const handleReset = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
       await axios.post('/api/users/reset-password', resetData);
       alert("🎉 Password Changed! Please Login.");
-      setView('login'); // Back to Login
+      setView('login');
+      setDeveloperOtp(null); // Clear OTP
     } catch (error) {
       alert(error.response?.data?.message || "Invalid OTP");
     } finally { setLoading(false); }
@@ -58,7 +70,7 @@ const Login = () => {
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f8fafc', fontFamily: 'Poppins' }}>
       <div style={{ background: 'white', padding: '40px', borderRadius: '15px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', width: '100%', maxWidth: '400px' }}>
         
-        {/* === VIEW 1: LOGIN (Email + Password) === */}
+        {/* === VIEW 1: LOGIN === */}
         {view === 'login' && (
           <>
             <h2 style={{ textAlign: 'center', color: '#1e293b', marginBottom: '20px' }}>👋 Welcome Back</h2>
@@ -80,27 +92,38 @@ const Login = () => {
           </>
         )}
 
-        {/* === VIEW 2: FORGOT PASSWORD (Enter Email) === */}
+        {/* === VIEW 2: FORGOT (Enter Email) === */}
         {view === 'forgot' && (
           <>
             <h2 style={{ textAlign: 'center', color: '#1e293b' }}>🔐 Reset Password</h2>
-            <p style={{textAlign:'center', color:'#666', fontSize:'0.9rem', marginBottom:'20px'}}>Enter email to receive Developer Code (OTP)</p>
+            <p style={{textAlign:'center', color:'#666', fontSize:'0.9rem', marginBottom:'20px'}}>Enter email to receive Developer Code</p>
             <form onSubmit={handleForgot} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <input type="email" placeholder="Enter your Email" value={resetData.email} onChange={e=>setResetData({...resetData, email:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
               <button type="submit" disabled={loading} style={{ padding: '12px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-                {loading ? 'Sending...' : 'Send OTP'}
+                {loading ? 'Sending...' : 'Get OTP'}
               </button>
             </form>
             <button onClick={() => setView('login')} style={{width:'100%', marginTop:'15px', background:'none', border:'none', color:'#64748b', cursor:'pointer'}}>Cancel</button>
           </>
         )}
 
-        {/* === VIEW 3: SET NEW PASSWORD (OTP + New Pass) === */}
+        {/* === VIEW 3: RESET (Enter OTP + New Pass) === */}
         {view === 'reset' && (
           <>
-            <h2 style={{ textAlign: 'center', color: '#1e293b' }}>✨ New Password</h2>
+            <h2 style={{ textAlign: 'center', color: '#1e293b' }}>🔓 Enter OTP</h2>
+            
+            {/* 👇 GREEN BOX WITH OTP */}
+            {developerOtp && (
+                <div style={{background: '#dcfce7', border: '1px dashed #16a34a', padding: '15px', borderRadius: '8px', textAlign: 'center', marginBottom: '20px'}}>
+                    <span style={{color: '#166534', fontSize: '0.9rem', display: 'block', marginBottom: '5px'}}>Developer Code:</span>
+                    <strong style={{color: '#16a34a', fontSize: '1.8rem', letterSpacing: '2px'}}>{developerOtp}</strong>
+                </div>
+            )}
+
+            <p style={{textAlign:'center', color:'#666', fontSize:'0.8rem', marginBottom:'15px'}}>OTP sent to <strong>{resetData.email}</strong></p>
+
             <form onSubmit={handleReset} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <input type="text" placeholder="Enter OTP (Developer Code)" value={resetData.otp} onChange={e=>setResetData({...resetData, otp:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc', letterSpacing:'2px' }} />
+              <input type="text" placeholder="Enter OTP" value={resetData.otp} onChange={e=>setResetData({...resetData, otp:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc', letterSpacing:'2px', textAlign:'center', fontSize:'1.1rem' }} />
               <input type="password" placeholder="New Password" value={resetData.newPassword} onChange={e=>setResetData({...resetData, newPassword:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
               <button type="submit" disabled={loading} style={{ padding: '12px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
                 {loading ? 'Updating...' : 'Change Password'}
