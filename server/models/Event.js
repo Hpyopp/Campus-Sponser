@@ -10,19 +10,20 @@ const eventSchema = mongoose.Schema({
   contactEmail: { type: String, required: true },
   instagramLink: { type: String, default: '' },
   
-  // 👇 NEW: College Permission Letter (Photo/PDF)
-  permissionLetter: { type: String, required: true }, 
-
-  // 👇 NEW: Approval Status (Default False)
+  permissionLetter: { type: String, required: true },
   isApproved: { type: Boolean, default: false },
 
-  // Crowdfunding
   raisedAmount: { type: Number, default: 0 },
+  
   sponsors: [{
     sponsorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    name: String, email: String, amount: Number,
+    name: String,
+    email: String,
+    amount: Number,
     date: { type: Date, default: Date.now },
-    status: { type: String, default: 'confirmed' }
+    status: { type: String, default: 'confirmed' },
+    // 👇 NEW FIELD: Sponsor ka Note/Comment
+    comment: { type: String, default: '' } 
   }]
 }, { timestamps: true });
 

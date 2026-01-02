@@ -7,6 +7,7 @@ const EventDetails = () => {
   const [event, setEvent] = useState(null);
   const [user, setUser] = useState(null);
   const [amount, setAmount] = useState('');
+  const [comment, setComment] = useState(''); // 👈 New State for Comment
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -26,26 +27,30 @@ const EventDetails = () => {
 
   const handleSponsor = async () => {
     if (!user) return navigate('/login');
-    
-    // 🔒 STRICT CHECK
-    if (!user.isVerified) {
-        return alert("⛔ Action Blocked!\nYour account is not verified by Admin yet. Please wait for approval.");
-    }
-
+    if (!user.isVerified) return alert("⛔ Your account is not verified yet.");
     if (user.role !== 'sponsor') return alert("Only Sponsors can fund events!");
-    if (!amount || amount < 500) return alert("Minimum amount is ₹500");
+    if (!amount || amount < 500) return alert("Min amount ₹500");
 
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      await axios.put(`/api/events/sponsor/${id}`, { amount }, config);
-      alert("🎉 Success! Receipt Generated.");
+      // 👇 Sending Comment along with Amount
+      await axios.put(`/api/events/sponsor/${id}`, { amount, comment }, config);
+      alert("✅ Sponsorship Pledge Recorded! Redirecting to Agreement...");
       navigate(`/agreement/${id}`);
     } catch (error) {
       alert(error.response?.data?.message || "Failed");
     }
   };
 
-  const handleRequestRefund = async () => { if(!window.confirm("Request Refund?")) return; try { const config = { headers: { Authorization: `Bearer ${user.token}` } }; await axios.put(`/api/events/request-refund/${id}`, {}, config); const adminPhone = "919022489860"; const msg = `Hello Admin, I requested refund for: ${event.title}.`; window.open(`https://wa.me/${adminPhone}?text=${encodeURIComponent(msg)}`, '_blank'); fetchEvent(); } catch (error) { alert("Error"); } };
+  const handleRequestRefund = async () => {
+    if(!window.confirm("Request Refund?")) return;
+    try {
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      await axios.put(`/api/events/request-refund/${id}`, {}, config);
+      alert("Refund Requested. Notify Admin.");
+      fetchEvent();
+    } catch (error) { alert("Error"); }
+  };
 
   if (loading) return <div style={{textAlign:'center', padding:'50px'}}>Loading...</div>;
   if (!event) return <div style={{textAlign:'center', padding:'50px'}}>Not Found</div>;
@@ -72,24 +77,34 @@ const EventDetails = () => {
       <div style={{borderTop:'2px dashed #e2e8f0', marginTop:'30px', paddingTop:'30px', textAlign:'center'}}>
         {mySponsorship ? (
             <div style={{background:'#f8fafc', padding:'20px', borderRadius:'10px'}}>
-                <h3 style={{color:'#166534'}}>✅ You Sponsored: ₹{mySponsorship.amount}</h3>
-                {mySponsorship.status === 'refund_requested' ? <span style={{color:'orange', fontWeight:'bold'}}>Refund Pending...</span> : 
-                <div><button onClick={() => navigate(`/agreement/${id}`)} style={{marginRight:'10px'}}>Receipt</button><button onClick={handleRequestRefund} style={{color:'red'}}>Refund</button></div>}
+                <h3 style={{color:'#166534'}}>✅ Pledged: ₹{mySponsorship.amount}</h3>
+                <p style={{fontStyle:'italic', color:'#666'}}>"{mySponsorship.comment || 'No additional terms'}"</p>
+                {mySponsorship.status === 'refund_requested' ? <span style={{color:'orange'}}>Refund Pending...</span> : 
+                <div>
+                    <button onClick={() => navigate(`/agreement/${id}`)} style={{marginRight:'10px', padding:'8px 15px', cursor:'pointer'}}>View Agreement</button>
+                    <button onClick={handleRequestRefund} style={{color:'red', padding:'8px 15px', cursor:'pointer'}}>Request Refund</button>
+                </div>}
             </div>
         ) : (
-            <div style={{maxWidth:'400px', margin:'0 auto'}}>
+            <div style={{maxWidth:'450px', margin:'0 auto'}}>
                 {user && user.role === 'sponsor' ? (
-                    // CHECK VERIFICATION
                     user.isVerified ? (
-                        <div style={{display:'flex', gap:'10px'}}>
-                            <input type="number" placeholder="Amount" value={amount} onChange={e=>setAmount(e.target.value)} style={{padding:'10px', flex:1}} />
-                            <button onClick={handleSponsor} style={{padding:'10px 20px', background:'#2563eb', color:'white', border:'none', borderRadius:'5px', cursor:'pointer'}}>Sponsor Now</button>
+                        <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
+                            <div style={{display:'flex', gap:'10px'}}>
+                                <input type="number" placeholder="Amount (Min ₹500)" value={amount} onChange={e=>setAmount(e.target.value)} style={{padding:'12px', flex:1, border:'1px solid #ccc', borderRadius:'5px'}} />
+                                <button onClick={handleSponsor} style={{padding:'12px 25px', background:'#2563eb', color:'white', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold'}}>Pledge Now</button>
+                            </div>
+                            {/* 👇 NEW COMMENT BOX */}
+                            <textarea 
+                                placeholder="Add terms or comments (e.g. 'Put my logo on banner')" 
+                                value={comment} 
+                                onChange={e=>setComment(e.target.value)} 
+                                style={{padding:'10px', borderRadius:'5px', border:'1px solid #ccc', width:'100%', minHeight:'60px', fontFamily:'inherit'}}
+                            />
                         </div>
                     ) : (
-                        // BLOCKED
                         <div style={{padding:'15px', background:'#fff7ed', color:'#c2410c', border:'1px solid #fdba74', borderRadius:'8px'}}>
-                            ⚠️ <strong>Account Pending Verification</strong><br/>
-                            Wait for Admin to approve your ID proof.
+                            ⚠️ <strong>Verification Pending</strong><br/>Upload ID to sponsor events.
                         </div>
                     )
                 ) : (
