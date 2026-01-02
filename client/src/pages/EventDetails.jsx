@@ -54,7 +54,7 @@ const EventDetails = () => {
   if (loading) return <div style={{textAlign:'center', padding:'50px'}}>Loading...</div>;
   if (!event) return <div style={{textAlign:'center', padding:'50px'}}>Not Found</div>;
 
-  // Roles Check
+  // Check Roles
   const isOrganizer = user && event.user && (user._id === event.user._id);
   const isAdmin = user && user.role === 'admin';
   const showDashboard = isOrganizer || isAdmin;
@@ -62,6 +62,9 @@ const EventDetails = () => {
   const mySponsorship = event.sponsors?.find(s => s.sponsorId === user?._id);
   const raised = event.raisedAmount || 0;
   const budget = event.budget || 0;
+  
+  // 👇 CALCULATION: Remaining Amount
+  const remaining = Math.max(0, budget - raised); 
 
   return (
     <div style={{ maxWidth: '900px', margin: '40px auto', padding: '30px', background: 'white', borderRadius: '15px', fontFamily: 'Poppins', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
@@ -70,15 +73,21 @@ const EventDetails = () => {
       <h1 style={{color:'#1e293b', marginBottom:'5px'}}>{event.title}</h1>
       <p style={{color:'#64748b', margin:0}}>📍 {event.location} | 📅 {new Date(event.date).toLocaleDateString()}</p>
 
-      {/* PROGRESS BAR */}
+      {/* 👇 UPDATED PROGRESS BAR SECTION */}
       <div style={{background:'#f0f9ff', padding:'20px', borderRadius:'10px', marginTop:'20px', textAlign:'center', border:'1px solid #bae6fd'}}>
-         <div style={{display:'flex', justifyContent:'space-between', marginBottom:'5px', fontSize:'0.9rem', color:'#0369a1', fontWeight:'bold'}}>
-             <span>Raised: ₹{raised}</span>
-             <span>Goal: ₹{budget}</span>
+         
+         <div style={{display:'flex', justifyContent:'space-between', marginBottom:'10px', fontSize:'0.95rem', fontWeight:'bold'}}>
+             <span style={{color:'#16a34a'}}>💰 Raised: ₹{raised}</span>
+             {/* 👇 Remaining Amount Display */}
+             <span style={{color:'#dc2626'}}>📉 Needed: ₹{remaining}</span>
+             <span style={{color:'#0369a1'}}>🎯 Goal: ₹{budget}</span>
          </div>
-         <div style={{width:'100%', height:'10px', background:'#e0f2fe', borderRadius:'5px', overflow:'hidden'}}>
-             <div style={{width: `${Math.min((raised/budget)*100, 100)}%`, height:'100%', background:'#0ea5e9', transition:'width 0.5s ease'}}></div>
+
+         <div style={{width:'100%', height:'12px', background:'#e0f2fe', borderRadius:'10px', overflow:'hidden'}}>
+             <div style={{width: `${Math.min((raised/budget)*100, 100)}%`, height:'100%', background: remaining === 0 ? '#16a34a' : '#0ea5e9', transition:'width 0.5s ease'}}></div>
          </div>
+         
+         {remaining === 0 && <div style={{color:'#16a34a', fontWeight:'bold', marginTop:'5px', fontSize:'0.9rem'}}>🎉 Fully Funded!</div>}
       </div>
 
       <div style={{marginTop:'30px'}}>
@@ -88,13 +97,12 @@ const EventDetails = () => {
 
       <div style={{borderTop:'2px dashed #e2e8f0', marginTop:'30px', paddingTop:'30px', textAlign:'center'}}>
         
-        {/* 👇 1. ORGANIZER & ADMIN DASHBOARD VIEW */}
+        {/* 1. ORGANIZER/ADMIN VIEW */}
         {showDashboard ? (
             <div style={{textAlign:'left'}}>
                 <h3 style={{color: isOrganizer ? '#2563eb' : '#b91c1c', borderBottom:'2px solid #e2e8f0', paddingBottom:'10px', marginBottom:'20px'}}>
                     {isOrganizer ? "📋 Organizer Dashboard: Sponsors" : "👮 Admin View: Event Sponsors"}
                 </h3>
-                
                 {event.sponsors && event.sponsors.length > 0 ? (
                     <div style={{display:'grid', gap:'15px'}}>
                         {event.sponsors.map((s, index) => (
@@ -111,26 +119,28 @@ const EventDetails = () => {
                                     </div>
                                 </div>
                                 <div style={{background:'white', padding:'10px', borderRadius:'5px', border:'1px dashed #ccc'}}>
-                                    <strong>📝 Note:</strong> <em style={{color:'#555'}}>"{s.comment || 'No note'}"</em>
+                                    <strong>📝 Note from Sponsor:</strong><br/>
+                                    <em style={{color:'#555'}}>"{s.comment || 'No requirements mentioned'}"</em>
                                 </div>
-                                <div style={{display:'flex', justifyContent:'flex-end', gap:'10px'}}>
+                                <div style={{display:'flex', justifyContent:'flex-end', gap:'10px', marginTop:'5px'}}>
                                     <button onClick={() => navigate(`/agreement/${id}?sponsorId=${s.sponsorId}`)} style={{padding:'8px 15px', background:'#2563eb', color:'white', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold'}}>📄 View Agreement</button>
+                                    {s.status === 'refund_requested' && <span style={{padding:'8px 15px', background:'#fee2e2', color:'#dc2626', borderRadius:'5px', fontWeight:'bold', border:'1px solid #fecaca'}}>⚠️ Refund Requested</span>}
                                 </div>
                             </div>
                         ))}
                     </div>
                 ) : (
-                    <div style={{padding:'20px', background:'#f1f5f9', borderRadius:'10px', textAlign:'center', color:'#64748b'}}>No sponsors yet.</div>
+                    <div style={{padding:'20px', background:'#f1f5f9', borderRadius:'10px', textAlign:'center', color:'#64748b'}}>No sponsors have pledged yet.</div>
                 )}
             </div>
         ) : (
-            // 👇 2. NORMAL SPONSOR VIEW
+            // 2. SPONSOR VIEW
             <>
                 {mySponsorship ? (
                     <div style={{background:'#f8fafc', padding:'25px', borderRadius:'10px', border:'1px solid #cbd5e1'}}>
                         
-                        {/* 🔥 NEW: DEAL TRACKER UI */}
-                        <div style={{display:'flex', justifyContent:'space-between', marginBottom:'20px', position:'relative'}}>
+                        {/* TRACKER UI */}
+                        <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', position:'relative'}}>
                             <div style={{position:'absolute', top:'15px', left:'10%', right:'10%', height:'2px', background:'#cbd5e1', zIndex:0}}></div>
                             
                             <div style={{zIndex:1, textAlign:'center'}}>
@@ -147,6 +157,11 @@ const EventDetails = () => {
                                 <div style={{width:'30px', height:'30px', background:'#cbd5e1', color:'white', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto'}}>3</div>
                                 <span style={{fontSize:'0.8rem', fontWeight:'bold'}}>Completed</span>
                             </div>
+                        </div>
+
+                        {/* 👇 ADDED: Time Estimation Message */}
+                        <div style={{textAlign:'center', background:'#ecfdf5', color:'#065f46', padding:'8px', borderRadius:'6px', fontSize:'0.85rem', marginBottom:'20px', border:'1px solid #a7f3d0'}}>
+                            ⏱️ <strong>Note:</strong> Admin typically verifies payments & completes the deal within <strong>24 Hours</strong>.
                         </div>
 
                         <h3 style={{color:'#166534', marginTop:0}}>✅ Pledged: ₹{mySponsorship.amount}</h3>
