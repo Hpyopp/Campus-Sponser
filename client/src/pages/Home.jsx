@@ -7,18 +7,26 @@ const Home = () => {
   const [events, setEvents] = useState([]);
   const [filteredEvents, setFilteredEvents] = useState([]);
   const [search, setSearch] = useState('');
-  const [sortType, setSortType] = useState('newest'); // 'newest', 'low-budget', 'high-budget'
+  const [sortType, setSortType] = useState('newest');
   const [loading, setLoading] = useState(true);
+  
+  // 👇 Fake Stats (Real feel dene ke liye)
+  const [stats, setStats] = useState({ totalMoney: 0, activeEvents: 0 });
+
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
         const res = await axios.get('/api/events');
-        // Sirf Approved/Live events hi dikhao
         const approved = res.data.filter(e => e.isApproved);
         setEvents(approved);
         setFilteredEvents(approved);
+
+        // Calculate Stats
+        const total = approved.reduce((acc, curr) => acc + (curr.raisedAmount || 0), 0);
+        setStats({ totalMoney: total, activeEvents: approved.length });
+
       } catch (error) {
         toast.error("Could not load events");
       } finally { setLoading(false); }
@@ -26,123 +34,156 @@ const Home = () => {
     fetchEvents();
   }, []);
 
-  // 👇 SEARCH & SORT LOGIC (Real-time)
   useEffect(() => {
       let result = [...events];
-
-      // 1. Search Filter (Title or College Name)
       if(search) {
           result = result.filter(e => 
               e.title.toLowerCase().includes(search.toLowerCase()) || 
               (e.user?.collegeName && e.user.collegeName.toLowerCase().includes(search.toLowerCase()))
           );
       }
-
-      // 2. Sorting Logic
-      if(sortType === 'low-budget') {
-          result.sort((a,b) => a.budget - b.budget);
-      } else if (sortType === 'high-budget') {
-          result.sort((a,b) => b.budget - a.budget);
-      } else {
-          // Newest first (Default)
-          result.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-      }
-
+      if(sortType === 'low-budget') { result.sort((a,b) => a.budget - b.budget); }
+      else if (sortType === 'high-budget') { result.sort((a,b) => b.budget - a.budget); }
+      else { result.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)); }
       setFilteredEvents(result);
   }, [search, sortType, events]);
 
   return (
-    <div style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'Poppins', minHeight:'80vh' }}>
+    <div style={{ fontFamily: 'Poppins', minHeight:'80vh' }}>
       
-      {/* HERO SECTION */}
-      <div style={{ textAlign: 'center', marginBottom: '50px' }}>
-        <h1 style={{ fontSize: '3rem', color: '#1e293b', marginBottom: '10px', fontWeight:'800' }}>🚀 Fund the Future</h1>
-        <p style={{ color: '#64748b', fontSize: '1.2rem' }}>Connect with Top Campus Events & Sponsors instantly.</p>
+      {/* 1. HERO SECTION (Gradient Background) */}
+      <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', color: 'white', padding: '80px 20px', textAlign: 'center' }}>
+        <h1 style={{ fontSize: '3.5rem', marginBottom: '15px', fontWeight:'800', letterSpacing:'-1px' }}>
+            🚀 Fund the <span style={{color:'#3b82f6'}}>Future</span>
+        </h1>
+        <p style={{ color: '#94a3b8', fontSize: '1.3rem', maxWidth:'600px', margin:'0 auto' }}>
+            India's #1 Marketplace for Campus Events. <br/>Connect with top sponsors in minutes.
+        </p>
         
-        {/* 👇 SEARCH & FILTER BAR */}
-        <div style={{ marginTop: '30px', display:'flex', justifyContent:'center', gap:'15px', flexWrap:'wrap' }}>
-            <input 
-                type="text" 
-                placeholder="🔍 Search Event or College..." 
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{ padding: '15px 25px', width: '350px', borderRadius: '30px', border: '1px solid #cbd5e1', outline: 'none', fontSize:'1rem', boxShadow:'0 4px 10px rgba(0,0,0,0.05)' }}
-            />
-            
-            <select 
-                value={sortType} 
-                onChange={(e) => setSortType(e.target.value)}
-                style={{ padding: '15px 25px', borderRadius: '30px', border: '1px solid #cbd5e1', outline: 'none', cursor:'pointer', background:'white', fontSize:'1rem' }}
-            >
-                <option value="newest">🔥 Newest First</option>
-                <option value="low-budget">💰 Budget: Low to High</option>
-                <option value="high-budget">💎 Budget: High to Low</option>
-            </select>
+        {/* STATS COUNTER */}
+        <div style={{ display:'flex', justifyContent:'center', gap:'40px', marginTop:'40px' }}>
+            <div>
+                <div style={{fontSize:'2.5rem', fontWeight:'bold', color:'#3b82f6'}}>₹{stats.totalMoney.toLocaleString()}+</div>
+                <div style={{color:'#cbd5e1', fontSize:'0.9rem', textTransform:'uppercase', letterSpacing:'1px'}}>Funds Raised</div>
+            </div>
+            <div style={{borderLeft:'1px solid #334155'}}></div>
+            <div>
+                <div style={{fontSize:'2.5rem', fontWeight:'bold', color:'#16a34a'}}>{stats.activeEvents}+</div>
+                <div style={{color:'#cbd5e1', fontSize:'0.9rem', textTransform:'uppercase', letterSpacing:'1px'}}>Live Events</div>
+            </div>
         </div>
       </div>
 
-      {loading ? (
-        <div style={{ textAlign: 'center', marginTop: '50px', color:'#64748b' }}>Loading Opportunities...</div>
-      ) : (
-        <>
-          <h3 style={{color:'#334155', borderLeft:'5px solid #2563eb', paddingLeft:'15px', marginBottom:'25px', fontSize:'1.5rem'}}>
-              {search ? `Found ${filteredEvents.length} Results` : '🔥 Trending Events'}
-          </h3>
+      {/* 2. HOW IT WORKS (New Section) */}
+      <div style={{ padding: '60px 20px', background: 'white', textAlign: 'center' }}>
+          <h2 style={{color:'#1e293b', marginBottom:'40px', fontSize:'2rem'}}>How It Works?</h2>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(250px, 1fr))', gap:'30px', maxWidth:'1000px', margin:'0 auto' }}>
+              
+              {/* Step 1 */}
+              <div style={{padding:'20px'}}>
+                  <div style={{width:'60px', height:'60px', background:'#eff6ff', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.8rem', margin:'0 auto 15px auto'}}>📝</div>
+                  <h3 style={{margin:'0 0 10px 0'}}>1. List Event</h3>
+                  <p style={{color:'#64748b'}}>Students create an event profile with budget, details, and permission letters.</p>
+              </div>
 
-          {filteredEvents.length === 0 ? (
-             <div style={{textAlign:'center', padding:'50px', background:'#f8fafc', borderRadius:'15px', border:'2px dashed #e2e8f0', marginTop:'20px'}}>
-                 <div style={{fontSize:'3rem'}}>😕</div>
-                 <h3>No Events Found</h3>
-                 <p style={{color:'#64748b'}}>Try adjusting your search filters.</p>
-             </div>
-          ) : (
-             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '30px' }}>
-                {filteredEvents.map((event) => {
-                  const raised = event.raisedAmount || 0;
-                  const progress = Math.min((raised / event.budget) * 100, 100);
+              {/* Step 2 */}
+              <div style={{padding:'20px'}}>
+                  <div style={{width:'60px', height:'60px', background:'#f0fdf4', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.8rem', margin:'0 auto 15px auto'}}>✅</div>
+                  <h3 style={{margin:'0 0 10px 0'}}>2. Get Verified</h3>
+                  <p style={{color:'#64748b'}}>Our Admin team verifies the college ID and documents within 24 hours.</p>
+              </div>
 
-                  return (
-                    <div key={event._id} style={{ background: 'white', borderRadius: '15px', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.05)', transition: 'transform 0.2s', border: '1px solid #f1f5f9', display:'flex', flexDirection:'column' }}>
-                      
-                      <div style={{ padding: '25px', flex: 1 }}>
-                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'start', marginBottom:'10px'}}>
-                            <h2 style={{ margin: 0, fontSize: '1.3rem', color: '#1e293b', fontWeight:'700', lineHeight:'1.4' }}>{event.title}</h2>
-                            {progress >= 100 && <span style={{background:'#dcfce7', color:'#166534', fontSize:'0.7rem', padding:'4px 8px', borderRadius:'20px', fontWeight:'bold', whiteSpace:'nowrap', marginLeft:'10px'}}>FUNDED</span>}
-                        </div>
-                        
-                        <p style={{ color: '#64748b', fontSize: '0.9rem', display:'flex', alignItems:'center', gap:'5px', margin:'5px 0' }}>
-                            🏫 <span style={{fontWeight:'600'}}>{event.user?.collegeName || "College Event"}</span>
-                        </p>
-                        <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin:'0' }}>
-                            📍 {event.location} • 📅 {new Date(event.date).toLocaleDateString()}
-                        </p>
-                        
-                        <div style={{ marginTop: '25px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '8px' }}>
-                            <span style={{ color: '#16a34a' }}>Raised: ₹{raised}</span>
-                            <span style={{ color: '#2563eb' }}>Goal: ₹{event.budget}</span>
-                          </div>
-                          <div style={{ width: '100%', height: '8px', background: '#e2e8f0', borderRadius: '10px', overflow: 'hidden' }}>
-                            <div style={{ width: `${progress}%`, height: '100%', background: progress >= 100 ? '#16a34a' : 'linear-gradient(90deg, #3b82f6, #2563eb)', borderRadius:'10px' }}></div>
-                          </div>
-                        </div>
+              {/* Step 3 */}
+              <div style={{padding:'20px'}}>
+                  <div style={{width:'60px', height:'60px', background:'#fff7ed', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.8rem', margin:'0 auto 15px auto'}}>🤝</div>
+                  <h3 style={{margin:'0 0 10px 0'}}>3. Get Funded</h3>
+                  <p style={{color:'#64748b'}}>Sponsors browse, pledge funds, and sign the official agreement instantly.</p>
+              </div>
+
+          </div>
+      </div>
+
+      {/* 3. SEARCH & EVENTS SECTION */}
+      <div style={{ padding: '40px 20px', maxWidth: '1200px', margin: '0 auto' }}>
+        
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'20px', marginBottom:'30px' }}>
+            <h2 style={{margin:0, color:'#1e293b', fontSize:'2rem'}}>🔥 Trending Opportunities</h2>
+            
+            {/* SEARCH BAR */}
+            <div style={{ display:'flex', gap:'10px' }}>
+                <input 
+                    type="text" 
+                    placeholder="🔍 Search events..." 
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    style={{ padding: '12px 20px', width: '250px', borderRadius: '30px', border: '1px solid #cbd5e1', outline: 'none' }}
+                />
+                <select 
+                    value={sortType} 
+                    onChange={(e) => setSortType(e.target.value)}
+                    style={{ padding: '12px', borderRadius: '30px', border: '1px solid #cbd5e1', outline: 'none', cursor:'pointer', background:'white' }}
+                >
+                    <option value="newest">Newest</option>
+                    <option value="low-budget">Budget: Low</option>
+                    <option value="high-budget">Budget: High</option>
+                </select>
+            </div>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: 'center', marginTop: '50px', color:'#64748b' }}>Loading Opportunities...</div>
+        ) : filteredEvents.length === 0 ? (
+           <div style={{textAlign:'center', padding:'50px', background:'#f8fafc', borderRadius:'15px', border:'2px dashed #e2e8f0'}}>
+               <div style={{fontSize:'3rem'}}>😕</div>
+               <h3>No Events Found</h3>
+           </div>
+        ) : (
+           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '30px' }}>
+              {filteredEvents.map((event) => {
+                const raised = event.raisedAmount || 0;
+                const progress = Math.min((raised / event.budget) * 100, 100);
+
+                return (
+                  <div key={event._id} style={{ background: 'white', borderRadius: '15px', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9', display:'flex', flexDirection:'column', transition:'0.3s' }}>
+                    
+                    <div style={{ padding: '25px', flex: 1 }}>
+                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'start', marginBottom:'10px'}}>
+                          <h2 style={{ margin: 0, fontSize: '1.3rem', color: '#1e293b', fontWeight:'700', lineHeight:'1.4' }}>{event.title}</h2>
+                          {progress >= 100 && <span style={{background:'#dcfce7', color:'#166534', fontSize:'0.7rem', padding:'4px 8px', borderRadius:'20px', fontWeight:'bold', marginLeft:'10px', whiteSpace:'nowrap'}}>FUNDED</span>}
                       </div>
-
-                      <div style={{padding:'20px', background:'#f8fafc', borderTop:'1px solid #f1f5f9'}}>
-                        <button 
-                            onClick={() => navigate(`/event/${event._id}`)} 
-                            style={{ width: '100%', padding: '12px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', letterSpacing:'0.5px', transition:'0.3s' }}
-                        >
-                            View Details ➔
-                        </button>
+                      
+                      <p style={{ color: '#64748b', fontSize: '0.9rem', display:'flex', alignItems:'center', gap:'5px', margin:'5px 0' }}>
+                          🏫 <span style={{fontWeight:'600'}}>{event.user?.collegeName || "College Event"}</span>
+                      </p>
+                      <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin:'0' }}>
+                          📍 {event.location} • 📅 {new Date(event.date).toLocaleDateString()}
+                      </p>
+                      
+                      <div style={{ marginTop: '25px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '8px' }}>
+                          <span style={{ color: '#16a34a' }}>Raised: ₹{raised}</span>
+                          <span style={{ color: '#2563eb' }}>Goal: ₹{event.budget}</span>
+                        </div>
+                        <div style={{ width: '100%', height: '8px', background: '#e2e8f0', borderRadius: '10px', overflow: 'hidden' }}>
+                          <div style={{ width: `${progress}%`, height: '100%', background: progress >= 100 ? '#16a34a' : 'linear-gradient(90deg, #3b82f6, #2563eb)', borderRadius:'10px' }}></div>
+                        </div>
                       </div>
                     </div>
-                  );
-                })}
-             </div>
-          )}
-        </>
-      )}
+
+                    <div style={{padding:'20px', background:'#f8fafc', borderTop:'1px solid #f1f5f9'}}>
+                      <button 
+                          onClick={() => navigate(`/event/${event._id}`)} 
+                          style={{ width: '100%', padding: '12px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', letterSpacing:'0.5px' }}
+                      >
+                          View Details ➔
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+           </div>
+        )}
+      </div>
     </div>
   );
 };
