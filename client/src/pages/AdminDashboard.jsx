@@ -7,7 +7,7 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [refundCount, setRefundCount] = useState(0);
   
-  // 👇 MODAL STATE
+  // MODAL STATE
   const [showModal, setShowModal] = useState(false);
   const [selectedViewers, setSelectedViewers] = useState([]);
 
@@ -42,7 +42,6 @@ const AdminDashboard = () => {
     } catch (error) { console.error(error); }
   };
 
-  // 👇 CLICK HANDLER: Show Viewer List
   const handleViewViewers = (viewers) => {
       setSelectedViewers(viewers || []);
       setShowModal(true);
@@ -55,7 +54,7 @@ const AdminDashboard = () => {
   return (
     <div style={{ padding: '30px', background: '#f8fafc', minHeight: '100vh', fontFamily: 'Poppins', position:'relative' }}>
       
-      {/* HEADER & STATS (Same layout) */}
+      {/* HEADER & STATS */}
       <div style={{ background: '#1e293b', color:'white', padding: '20px', borderRadius: '15px', marginBottom: '30px', display:'flex', justifyContent:'space-between', alignItems:'center', boxShadow:'0 4px 20px rgba(0,0,0,0.2)' }}>
         <div><h2 style={{ margin: 0 }}>🛡️ Command Center</h2><p style={{ margin: 0, opacity: 0.8, fontSize:'0.9rem' }}>Welcome back, Admin</p></div>
         <button onClick={() => { localStorage.clear(); navigate('/login'); }} style={{background:'#ef4444', color:'white', padding:'10px 25px', borderRadius:'8px', border:'none', cursor:'pointer', fontWeight:'bold'}}>Logout</button>
@@ -75,29 +74,50 @@ const AdminDashboard = () => {
       <div style={{ background: 'white', borderRadius: '15px', overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr style={{ background: '#f8fafc', textAlign: 'left', borderBottom:'2px solid #e2e8f0' }}><th style={{padding:'15px', color:'#475569'}}>User Details</th><th style={{padding:'15px', color:'#475569'}}>Role</th><th style={{padding:'15px', color:'#475569'}}>ID</th><th style={{padding:'15px', color:'#475569'}}>Status</th><th style={{padding:'15px', color:'#475569'}}>Action</th></tr></thead>
-          <tbody>{users.map(u => (<tr key={u._id} style={{ borderBottom: '1px solid #f1f5f9' }}><td style={{padding:'15px'}}><strong>{u.name}</strong><br/><span style={{fontSize:'0.8rem', color:'#666'}}>{u.email}</span></td><td style={{padding:'15px'}}><span style={{background: u.role==='sponsor'?'#f0f9ff':'#fdf4ff', color: u.role==='sponsor'?'#0369a1':'#a21caf', padding:'4px 8px', borderRadius:'4px', fontSize:'0.85rem', fontWeight:'bold'}}>{u.role}</span></td><td style={{padding:'15px'}}>{u.verificationDoc ? <a href={u.verificationDoc} target="_blank" rel="noreferrer" style={{color:'blue', fontWeight:'bold'}}>View ID</a> : <span style={{color:'#ccc'}}>Pending</span>}</td><td style={{padding:'15px'}}>{u.isVerified ? <span style={{color:'#16a34a', fontWeight:'bold'}}>Verified</span> : <span style={{color:'#d97706', fontWeight:'bold'}}>Pending</span>}</td><td style={{padding:'15px'}}>{!u.isVerified ? <button onClick={() => handleVerifyUser(u._id, true)} style={{background:'#16a34a', color:'white', padding:'6px 12px', border:'none', borderRadius:'4px', cursor:'pointer', marginRight:'5px'}}>Approve</button> : <button onClick={() => handleVerifyUser(u._id, false)} style={{background:'#f59e0b', color:'white', padding:'6px 12px', border:'none', borderRadius:'4px', cursor:'pointer', marginRight:'5px'}}>Revoke</button>}<button onClick={() => handleDelete(u._id, 'users')} style={{background:'#ef4444', color:'white', padding:'6px 12px', border:'none', borderRadius:'4px', cursor:'pointer'}}>Del</button></td></tr>))}</tbody>
+          <tbody>{users.map(u => (<tr key={u._id} style={{ borderBottom: '1px solid #f1f5f9' }}><td style={{padding:'15px'}}><strong>{u.name}</strong><br/><span style={{fontSize:'0.8rem', color:'#666'}}>{u.email}</span></td><td style={{padding:'15px'}}><span style={{background: u.role==='sponsor'?'#f0f9ff':'#fdf4ff', color: u.role==='sponsor'?'#0369a1':'#a21caf', padding:'4px 8px', borderRadius:'4px', fontSize:'0.85rem', fontWeight:'bold'}}>{u.role}</span></td><td style={{padding:'15px'}}>{u.verificationDoc ? <a href={u.verificationDoc} target="_blank" rel="noreferrer" style={{color:'blue', fontWeight:'bold', textDecoration:'underline'}}>📄 View ID</a> : <span style={{color:'#ccc'}}>Pending</span>}</td><td style={{padding:'15px'}}>{u.isVerified ? <span style={{color:'#16a34a', fontWeight:'bold'}}>Verified</span> : <span style={{color:'#d97706', fontWeight:'bold'}}>Pending</span>}</td><td style={{padding:'15px'}}>{!u.isVerified ? <button onClick={() => handleVerifyUser(u._id, true)} style={{background:'#16a34a', color:'white', padding:'6px 12px', border:'none', borderRadius:'4px', cursor:'pointer', marginRight:'5px'}}>Approve</button> : <button onClick={() => handleVerifyUser(u._id, false)} style={{background:'#f59e0b', color:'white', padding:'6px 12px', border:'none', borderRadius:'4px', cursor:'pointer', marginRight:'5px'}}>Revoke</button>}<button onClick={() => handleDelete(u._id, 'users')} style={{background:'#ef4444', color:'white', padding:'6px 12px', border:'none', borderRadius:'4px', cursor:'pointer'}}>Del</button></td></tr>))}</tbody>
         </table>
       </div>
 
-      {/* EVENTS TABLE with CLICKABLE VIEW COUNT */}
+      {/* EVENTS TABLE WITH NOTICE & VIEW COUNT */}
       <h3 style={{ color: '#1e293b', borderLeft:'5px solid #ec4899', paddingLeft:'10px', marginTop:'40px' }}>🎉 Event Requests</h3>
       <div style={{ background: 'white', borderRadius: '15px', overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ background: '#f8fafc', textAlign: 'left', borderBottom:'2px solid #e2e8f0' }}><th style={{padding:'15px', color:'#475569'}}>Event</th><th style={{padding:'15px', color:'#475569'}}>Budget</th><th style={{padding:'15px', color:'#475569'}}>Unique Views</th><th style={{padding:'15px', color:'#475569'}}>Status</th><th style={{padding:'15px', color:'#475569'}}>Action</th></tr></thead>
+          <thead>
+              <tr style={{ background: '#f8fafc', textAlign: 'left', borderBottom:'2px solid #e2e8f0' }}>
+                  <th style={{padding:'15px', color:'#475569'}}>Event</th>
+                  <th style={{padding:'15px', color:'#475569'}}>Budget</th>
+                  {/* 👇 ADDED BACK: Notice Column */}
+                  <th style={{padding:'15px', color:'#475569'}}>Notice</th>
+                  <th style={{padding:'15px', color:'#475569'}}>Views</th>
+                  <th style={{padding:'15px', color:'#475569'}}>Status</th>
+                  <th style={{padding:'15px', color:'#475569'}}>Action</th>
+              </tr>
+          </thead>
           <tbody>
             {events.map(ev => (
               <tr key={ev._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                 <td style={{padding:'15px'}}><strong>{ev.title}</strong><br/><span style={{fontSize:'0.85rem', color:'#64748b'}}>By: {ev.user?.name}</span></td>
                 <td style={{padding:'15px'}}>₹{ev.budget}</td>
                 
-                {/* 👇 CLICK HERE TO SEE LIST */}
+                {/* 👇 NOTICE LINK */}
+                <td style={{padding:'15px'}}>
+                    {ev.permissionLetter ? (
+                        <a href={ev.permissionLetter} target="_blank" rel="noreferrer" style={{color:'#ec4899', fontWeight:'bold', textDecoration:'underline', display:'flex', alignItems:'center', gap:'5px'}}>
+                            📄 Open
+                        </a>
+                    ) : (
+                        <span style={{color:'#94a3b8', fontStyle:'italic'}}>No File</span>
+                    )}
+                </td>
+
+                {/* VIEW COUNT */}
                 <td style={{padding:'15px'}}>
                     <span 
                         onClick={() => handleViewViewers(ev.views)}
                         style={{background:'#f1f5f9', padding:'5px 10px', borderRadius:'15px', cursor:'pointer', fontSize:'0.85rem', fontWeight:'bold', border:'1px solid #cbd5e1', color:'#2563eb'}}
                         title="Click to see who viewed"
                     >
-                        👁️ {ev.views ? ev.views.length : 0} Users
+                        👁️ {ev.views ? ev.views.length : 0}
                     </span>
                 </td>
                 
@@ -109,7 +129,7 @@ const AdminDashboard = () => {
         </table>
       </div>
 
-      {/* 👇 MODAL: VIEWERS LIST */}
+      {/* VIEWERS MODAL */}
       {showModal && (
           <div style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.5)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:1000}}>
               <div style={{background:'white', padding:'30px', borderRadius:'15px', width:'90%', maxWidth:'400px', boxShadow:'0 10px 30px rgba(0,0,0,0.2)'}}>
