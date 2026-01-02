@@ -19,10 +19,11 @@ const eventSchema = mongoose.Schema({
     sponsorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     name: String,
     email: String,
+    // 👇 NEW: Company ka naam yahan save hoga
+    companyName: { type: String, default: '' }, 
     amount: Number,
     date: { type: Date, default: Date.now },
     status: { type: String, default: 'confirmed' },
-    // 👇 NEW FIELD: Sponsor ka Note/Comment
     comment: { type: String, default: '' } 
   }]
 }, { timestamps: true });

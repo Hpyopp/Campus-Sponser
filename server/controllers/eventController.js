@@ -1,10 +1,9 @@
 const asyncHandler = require('express-async-handler');
 const Event = require('../models/Event');
 
-// ... (Baaki functions: getEvents, getEventById, createEvent, deleteEvent SAME AS BEFORE) ...
-// Main sirf wo parts de raha hu jo change hue hain taaki file choti rahe. 
-// Lekin agar tujhe full file chahiye toh bata dena. 
-// Filhal neeche wale functions ko apne existing file me replace kar le.
+// ... (Baaki functions same: getEvents, getEventById, createEvent, deleteEvent) ...
+// Main sirf wo functions likh raha hu jo zaroori hain. Baaki purane waise hi rakhna.
+// Agar tujhe full file chahiye toh bata dena.
 
 const getEvents = asyncHandler(async (req, res) => { const events = await Event.find().sort({ createdAt: -1 }); res.json(events); });
 const getEventById = asyncHandler(async (req, res) => { const event = await Event.findById(req.params.id).populate('user', 'name email collegeName'); if(event) res.json(event); else {res.status(404); throw new Error('Not found');} });
@@ -13,7 +12,7 @@ const deleteEvent = asyncHandler(async (req, res) => { const event = await Event
 
 // 👇 UPDATED SPONSOR FUNCTION
 const sponsorEvent = asyncHandler(async (req, res) => {
-  const { amount, comment } = req.body; // 👈 Comment receive kiya
+  const { amount, comment } = req.body;
   
   if (!req.user.isVerified) { res.status(403); throw new Error('Account Not Verified'); }
 
@@ -31,9 +30,11 @@ const sponsorEvent = asyncHandler(async (req, res) => {
     sponsorId: req.user.id,
     name: req.user.name,
     email: req.user.email,
+    // 👇 Save Company Name from User Profile (agar user ne register karte waqt diya tha)
+    companyName: req.user.companyName || 'Individual Sponsor', 
     amount: payAmount,
     status: 'confirmed',
-    comment: comment || '' // 👈 Save kiya
+    comment: comment || ''
   });
 
   event.raisedAmount = currentRaised + payAmount;
@@ -41,7 +42,7 @@ const sponsorEvent = asyncHandler(async (req, res) => {
   res.status(200).json(event);
 });
 
-// ... (Refund functions SAME AS BEFORE) ...
+// ... (Baaki Refund functions same) ...
 const requestRefund = asyncHandler(async (req, res) => { const event = await Event.findById(req.params.id); if (!event) { res.status(404); throw new Error('Not found'); } const idx = event.sponsors.findIndex(s => s.sponsorId.toString() === req.user.id); if (idx === -1) { res.status(400); throw new Error('Not a sponsor'); } event.sponsors[idx].status = 'refund_requested'; await event.save(); res.status(200).json({ message: 'Requested' }); });
 const approveRefund = asyncHandler(async (req, res) => { const { eventId, sponsorId } = req.body; const event = await Event.findById(eventId); if (!event) { res.status(404); throw new Error('Not found'); } const idx = event.sponsors.findIndex(s => s.sponsorId.toString() === sponsorId); if (idx === -1) { res.status(400); throw new Error('Sponsor not found'); } event.raisedAmount -= event.sponsors[idx].amount; event.sponsors.splice(idx, 1); await event.save(); res.status(200).json({ message: 'Refund Approved' }); });
 const rejectRefund = asyncHandler(async (req, res) => { const { eventId, sponsorId } = req.body; const event = await Event.findById(eventId); if (!event) { res.status(404); throw new Error('Not found'); } const idx = event.sponsors.findIndex(s => s.sponsorId.toString() === sponsorId); if (idx === -1) { res.status(400); throw new Error('Sponsor not found'); } event.sponsors[idx].status = 'confirmed'; await event.save(); res.status(200).json({ message: 'Rejected' }); });
