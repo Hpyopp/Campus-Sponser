@@ -10,7 +10,9 @@ const Agreement = () => {
   const location = useLocation();
 
   useEffect(() => {
+    // Fonts load
     const link = document.createElement('link'); link.href = "https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap"; link.rel = "stylesheet"; document.head.appendChild(link);
+    
     const storedUser = JSON.parse(localStorage.getItem('user'));
     setCurrentUser(storedUser);
     if (!storedUser) { navigate('/login'); return; }
@@ -46,6 +48,7 @@ const Agreement = () => {
 
       <div className="print-area" style={{ padding: '60px', fontFamily: '"Times New Roman", Times, serif', maxWidth: '800px', margin: '0 auto', background: '#fff', boxShadow: '0 0 20px rgba(0,0,0,0.3)', minHeight: '1000px', position:'relative' }}>
         
+        {/* HEADER */}
         <div style={{ textAlign: 'center', marginBottom: '40px', borderBottom: '2px solid #000', paddingBottom: '20px' }}>
             <h1 style={{ textTransform: 'uppercase', fontSize: '2rem', margin: '0' }}>Sponsorship Agreement</h1>
             <p style={{ fontStyle: 'italic', margin: '5px 0', fontSize:'1.1rem' }}>Memorandum of Understanding (MoU)</p>
@@ -88,7 +91,6 @@ const Agreement = () => {
           <ol style={{ marginLeft: '20px' }}>
             <li style={{ marginBottom: '10px' }}>The Organizer agrees to provide branding and promotion as discussed mutually.</li>
             
-            {/* 👇 3 DAY WARNING LOGIC */}
             <li style={{ marginBottom: '10px' }}>
                 {mySponsorship.status === 'verified' 
                     ? "✅ Payment verified. All financial obligations are met." 
@@ -100,31 +102,50 @@ const Agreement = () => {
           </ol>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '80px', alignItems: 'flex-end' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontFamily: '"Dancing Script", cursive', fontSize: '2rem', color: '#1e3a8a', marginBottom: '-10px' }}>{mySponsorship.name}</div>
-            <div style={{ borderTop: '1px solid #000', width:'200px', paddingTop:'5px' }}>Authorized Signature</div>
+        {/* 👇 FIXED ALIGNMENT SECTION */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '100px', alignItems: 'flex-end' }}>
+          
+          {/* LEFT: SPONSOR SIGNATURE */}
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', width:'200px' }}>
+            <div style={{ fontFamily: '"Dancing Script", cursive', fontSize: '2rem', color: '#1e3a8a', marginBottom: '5px' }}>{mySponsorship.name}</div>
+            <div style={{ borderTop: '1px solid #000', width:'100%', paddingTop:'5px', textAlign:'center' }}>Authorized Signature</div>
           </div>
 
-          <div style={{ textAlign: 'center' }}>
+          {/* RIGHT: STAMP & VERIFICATION */}
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', width:'200px', position:'relative' }}>
              
-             {/* 👇 "OFFICIAL DEAL DONE" STAMP */}
-             {mySponsorship.status === 'verified' ? (
-                 <div style={{ border: '5px double #16a34a', color: '#16a34a', borderRadius: '50%', width: '130px', height: '130px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.9rem', textAlign: 'center', margin: '0 auto 10px auto', transform: 'rotate(-15deg)', background:'rgba(22, 163, 74, 0.05)', boxShadow:'0 0 10px rgba(22, 163, 74, 0.2)' }}>
-                    OFFICIAL<br/>DEAL<br/>DONE
-                 </div>
-             ) : mySponsorship.status === 'refund_requested' ? (
-                 <div style={{ border: '4px double #dc2626', color: '#dc2626', borderRadius: '5px', width: '140px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.9rem', textAlign: 'center', margin: '0 auto 10px auto', transform: 'rotate(-10deg)', background:'rgba(220, 38, 38, 0.05)' }}>
-                    REFUND<br/>REQUESTED
-                 </div>
-             ) : (
-                 <div style={{ border: '4px double #2563eb', color: '#2563eb', borderRadius: '50%', width: '130px', height: '130px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem', textAlign: 'center', margin: '0 auto 10px auto', transform: 'rotate(-15deg)', background:'rgba(37, 99, 235, 0.05)' }}>
-                    PLEDGE<br/>RECORDED<br/><span style={{fontSize:'0.6rem'}}>(Pending Verification)</span>
-                 </div>
-             )}
+             {/* Stamp Container with Height to accommodate rotation */}
+             <div style={{ height:'140px', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:'-20px' }}>
+                
+                {/* 1. GREEN STAMP (Deal Done) */}
+                {mySponsorship.status === 'verified' && (
+                     <div style={{ border: '5px double #16a34a', color: '#16a34a', borderRadius: '50%', width: '130px', height: '130px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection:'column', fontWeight: 'bold', fontSize: '0.9rem', textAlign: 'center', transform: 'rotate(-15deg)', background:'rgba(22, 163, 74, 0.05)', boxShadow:'0 0 10px rgba(22, 163, 74, 0.2)', zIndex:10 }}>
+                        <span>OFFICIAL</span>
+                        <span style={{fontSize:'1.2rem', lineHeight:'1'}}>DEAL</span>
+                        <span>SEALED</span>
+                     </div>
+                )}
 
-            <div style={{ borderTop: '1px solid #000', width:'200px', paddingTop:'5px' }}>Platform Verified</div>
+                {/* 2. RED STAMP (Refund) */}
+                {mySponsorship.status === 'refund_requested' && (
+                     <div style={{ border: '4px double #dc2626', color: '#dc2626', borderRadius: '8px', width: '140px', height: '70px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection:'column', fontWeight: 'bold', fontSize: '1rem', textAlign: 'center', transform: 'rotate(-10deg)', background:'rgba(220, 38, 38, 0.05)', zIndex:10 }}>
+                        REFUND<br/>REQUESTED
+                     </div>
+                )}
+
+                {/* 3. BLUE STAMP (Pending) */}
+                {mySponsorship.status !== 'verified' && mySponsorship.status !== 'refund_requested' && (
+                     <div style={{ border: '4px double #2563eb', color: '#2563eb', borderRadius: '50%', width: '130px', height: '130px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection:'column', fontWeight: 'bold', fontSize: '0.8rem', textAlign: 'center', transform: 'rotate(-15deg)', background:'rgba(37, 99, 235, 0.05)', zIndex:10 }}>
+                        <span>PLEDGE</span>
+                        <span style={{fontSize:'1.1rem', lineHeight:'1'}}>RECORDED</span>
+                        <span style={{fontSize:'0.6rem', marginTop:'2px'}}>(Pending Verification)</span>
+                     </div>
+                )}
+             </div>
+
+            <div style={{ borderTop: '1px solid #000', width:'100%', paddingTop:'5px', textAlign:'center', position:'relative', zIndex:20, background:'rgba(255,255,255,0.8)' }}>Platform Verified</div>
           </div>
+
         </div>
       </div>
 
