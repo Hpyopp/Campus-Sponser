@@ -1,33 +1,21 @@
 const express = require('express');
 const router = express.Router();
-
-// 👇 Imports wahi hone chahiye jo Controller me export kiye hain
 const { 
-    registerUser, 
-    loginUser, 
-    verifyLogin, 
-    verifyRegisterOTP, 
-    uploadDoc, // 👈 Ye ab Defined hai
-    getMe, 
-    getAllUsers, 
-    approveUser, 
-    unverifyUser, 
-    deleteUser 
+    registerUser, loginUser, verifyLogin, verifyRegisterOTP, 
+    uploadDoc, getMe, getAllUsers, approveUser, unverifyUser, deleteUser 
 } = require('../controllers/userController');
 
 const { protect } = require('../middleware/authMiddleware');
-const upload = require('../middleware/uploadMiddleware'); // Multer
+const upload = require('../middleware/uploadMiddleware');
 
-// Public Routes
 router.post('/', registerUser);
 router.post('/login', loginUser);
 router.post('/verify-login', verifyLogin);
 router.post('/verify-otp', verifyRegisterOTP);
 
-// Protected Routes (Logged in Users)
+// 👇 SYNC ROUTE (Iske bina auto-update nahi hoga)
 router.get('/me', protect, getMe);
 
-// 👇 THE UPLOAD ROUTE (Sabke liye open - Students & Sponsors)
 router.post('/upload-doc', protect, upload.single('doc'), uploadDoc);
 
 // Admin Routes
