@@ -13,8 +13,8 @@ const eventSchema = mongoose.Schema({
   isApproved: { type: Boolean, default: false },
   raisedAmount: { type: Number, default: 0 },
   
-  // 👇 NEW: View Counter
-  views: { type: Number, default: 0 }, 
+  // 👇 CHANGED: Views ab ek Array hai jo User IDs store karega
+  views: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], 
 
   sponsors: [{
     sponsorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
