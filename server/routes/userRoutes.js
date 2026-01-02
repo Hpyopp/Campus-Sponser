@@ -9,23 +9,23 @@ const {
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 
-// Auth Routes
+// Auth
 router.post('/', registerUser);
 router.post('/login', loginUser); 
 router.post('/verify-otp', verifyRegisterOTP); 
 
-// Forgot Password Routes
+// Password Reset
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 
-// Placeholders (Compatibility)
+// Placeholders
 router.post('/verify-login', verifyLogin);
 
-// Protected Routes
+// Protected
 router.get('/me', protect, getMe);
 router.post('/upload-doc', protect, upload.single('doc'), uploadDoc);
 
-// Admin Routes
+// Admin
 router.get('/all', protect, getAllUsers);
 router.put('/approve/:id', protect, approveUser);
 router.put('/unverify/:id', protect, unverifyUser);
