@@ -24,37 +24,28 @@ const Agreement = () => {
 
   if (!event || !currentUser) return null;
 
-  // 👇 LOGIC UPDATE: Organizer bhi ID parameter se Sponsor dhund sakta hai
   const queryParams = new URLSearchParams(location.search);
   const paramSponsorId = queryParams.get('sponsorId');
-  
-  // Permission Check: Admin OR Event Creator OR Sponsor Himself
-  const isOrganizer = event.user._id === currentUser._id;
-  const isAdmin = currentUser.role === 'admin';
-  
-  let targetSponsorId = currentUser._id; // Default: Khud ka dhundo
-  
-  // Agar Admin ya Organizer hai, toh URL wale sponsor ko dikhao
-  if ((isAdmin || isOrganizer) && paramSponsorId) {
-      targetSponsorId = paramSponsorId;
-  }
-
+  const targetSponsorId = (currentUser.role === 'admin' && paramSponsorId) ? paramSponsorId : currentUser._id;
   const mySponsorship = event.sponsors?.find(s => s.sponsorId === targetSponsorId);
 
   if (!mySponsorship) return <div style={{textAlign:'center', padding:'50px'}}><h2>❌ Record Not Found</h2><button onClick={() => navigate(-1)}>Go Back</button></div>;
 
+  const isOrganizer = event.user._id === currentUser._id;
+  const isAdmin = currentUser.role === 'admin';
   const isSponsor = currentUser._id === mySponsorship.sponsorId;
   const canViewComment = isOrganizer || isAdmin || isSponsor;
 
   return (
     <div style={{ background: '#525659', minHeight: '100vh', padding: '40px 0' }}>
       
-      {(isAdmin || isOrganizer) && <div className="no-print" style={{textAlign:'center', color:'white', marginBottom:'15px', background:'#f97316', padding:'10px'}}>👮 OFFICIAL VIEW MODE (Organizer/Admin)</div>}
+      {(isAdmin || isOrganizer) && <div className="no-print" style={{textAlign:'center', color:'white', marginBottom:'15px', background:'#f97316', padding:'10px'}}>👮 OFFICIAL VIEW MODE</div>}
 
       <div className="print-area" style={{ padding: '60px', fontFamily: '"Times New Roman", Times, serif', maxWidth: '800px', margin: '0 auto', background: '#fff', boxShadow: '0 0 20px rgba(0,0,0,0.3)', minHeight: '1000px', position:'relative' }}>
         
+        {/* HEADER */}
         <div style={{ textAlign: 'center', marginBottom: '40px', borderBottom: '2px solid #000', paddingBottom: '20px' }}>
-            <h1 style={{ textTransform: 'uppercase', fontSize: '2rem', margin: '0' }}>Sponsorship Commitment</h1>
+            <h1 style={{ textTransform: 'uppercase', fontSize: '2rem', margin: '0' }}>Sponsorship Agreement</h1>
             <p style={{ fontStyle: 'italic', margin: '5px 0', fontSize:'1.1rem' }}>Memorandum of Understanding (MoU)</p>
         </div>
 
@@ -62,10 +53,8 @@ const Agreement = () => {
           <p>This Agreement is made on <strong>{new Date(mySponsorship.date).toLocaleDateString()}</strong> between:</p>
 
           <div style={{ display:'flex', justifyContent:'space-between', margin:'20px 0', background:'#f8fafc', padding:'20px', border:'1px solid #ddd' }}>
-            
             <div style={{width:'48%'}}>
                 <strong style={{textDecoration:'underline', color:'#666'}}>THE SPONSOR:</strong><br/>
-                {/* Agar Organizer/Admin hai toh Company Name dikhao */}
                 {(isOrganizer || isAdmin) ? (
                     <span style={{color:'#d97706', fontWeight:'bold', fontSize:'1.1rem'}}>🏢 {mySponsorship.companyName || "Individual Sponsor"}</span>
                 ) : (
@@ -84,11 +73,10 @@ const Agreement = () => {
           </div>
 
           <div style={{ textAlign: 'center', margin: '30px 0 10px 0', padding: '20px', border: '3px double #000' }}>
-            <span style={{ textTransform: 'uppercase', letterSpacing: '1px', fontSize:'0.9rem' }}>Committed Sponsorship Amount</span><br/>
+            <span style={{ textTransform: 'uppercase', letterSpacing: '1px', fontSize:'0.9rem' }}>Sponsorship Amount</span><br/>
             <strong style={{ fontSize: '2.5rem' }}>₹ {mySponsorship.amount}</strong>
           </div>
 
-          {/* SECRET COMMENT BOX */}
           {canViewComment && mySponsorship.comment && (
               <div style={{ textAlign:'center', marginBottom:'30px', padding:'15px', background:'#fffbeb', border:'1px dashed #f59e0b', color:'#92400e', fontSize:'0.9rem', borderRadius:'8px' }}>
                   <strong>{isOrganizer ? "🔒 Message from Company:" : "📝 Your Private Note:"}</strong><br/>
@@ -98,14 +86,17 @@ const Agreement = () => {
 
           <p><strong>TERMS OF AGREEMENT:</strong></p>
           <ol style={{ marginLeft: '20px' }}>
-            <li style={{ marginBottom: '10px', color:'#b91c1c', fontWeight:'bold' }}>
-                The Sponsor agrees to transfer the full amount within <span style={{textDecoration:'underline'}}>3 Business Days</span>. Failure to do so will result in deal cancellation.
+            <li style={{ marginBottom: '10px' }}>
+                {mySponsorship.status === 'verified' 
+                    ? "The Organizer acknowledges the receipt of the full sponsorship amount." 
+                    : "The Sponsor agrees to transfer the full amount within 3 Business Days."}
             </li>
             <li style={{ marginBottom: '10px' }}>The Organizer agrees to provide branding/promotion as discussed.</li>
-            <li>This document serves as a binding proof of the sponsorship pledge.</li>
+            <li>This document serves as a binding proof of the sponsorship arrangement.</li>
           </ol>
         </div>
 
+        {/* SIGNATURES & DYNAMIC STAMP */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '80px', alignItems: 'flex-end' }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontFamily: '"Dancing Script", cursive', fontSize: '2rem', color: '#1e3a8a', marginBottom: '-10px' }}>{mySponsorship.name}</div>
@@ -113,13 +104,28 @@ const Agreement = () => {
           </div>
 
           <div style={{ textAlign: 'center' }}>
-             <div style={{ border: '4px double #2563eb', color: '#2563eb', borderRadius: '50%', width: '110px', height: '110px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem', textAlign: 'center', margin: '0 auto 10px auto', transform: 'rotate(-15deg)', background:'rgba(37, 99, 235, 0.05)' }}>
-                OFFICIAL<br/>PLEDGE<br/>RECORDED
-             </div>
+             
+             {/* 👇 LOGIC FOR STAMP COLOR & TEXT */}
+             {mySponsorship.status === 'verified' ? (
+                 // 🟢 GREEN STAMP (VERIFIED)
+                 <div style={{ border: '4px double #16a34a', color: '#16a34a', borderRadius: '50%', width: '110px', height: '110px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem', textAlign: 'center', margin: '0 auto 10px auto', transform: 'rotate(-15deg)', background:'rgba(22, 163, 74, 0.05)', boxShadow:'0 0 10px rgba(22, 163, 74, 0.2)' }}>
+                    PAYMENT<br/>RECEIVED<br/>& VERIFIED
+                 </div>
+             ) : mySponsorship.status === 'refund_requested' ? (
+                 // 🔴 RED STAMP (REFUND)
+                 <div style={{ border: '4px double #dc2626', color: '#dc2626', borderRadius: '5px', width: '120px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.9rem', textAlign: 'center', margin: '0 auto 10px auto', transform: 'rotate(-10deg)', background:'rgba(220, 38, 38, 0.05)' }}>
+                    REFUND<br/>REQUESTED
+                 </div>
+             ) : (
+                 // 🔵 BLUE STAMP (PLEDGE)
+                 <div style={{ border: '4px double #2563eb', color: '#2563eb', borderRadius: '50%', width: '110px', height: '110px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem', textAlign: 'center', margin: '0 auto 10px auto', transform: 'rotate(-15deg)', background:'rgba(37, 99, 235, 0.05)' }}>
+                    OFFICIAL<br/>PLEDGE<br/>RECORDED
+                 </div>
+             )}
+
             <div style={{ borderTop: '1px solid #000', width:'200px', paddingTop:'5px' }}>System Verified</div>
           </div>
         </div>
-
       </div>
 
       <div className="no-print" style={{ marginTop: '30px', textAlign: 'center' }}>
