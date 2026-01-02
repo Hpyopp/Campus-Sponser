@@ -10,16 +10,13 @@ const Agreement = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Google Fonts load kar rahe hain (Signature Style)
     const link = document.createElement('link'); link.href = "https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap"; link.rel = "stylesheet"; document.head.appendChild(link);
-    
     const storedUser = JSON.parse(localStorage.getItem('user'));
     setCurrentUser(storedUser);
     if (!storedUser) { navigate('/login'); return; }
 
     const fetchEvent = async () => {
       try { 
-          // Token bhej rahe hain taaki unique view count na bigde
           const config = { headers: { Authorization: `Bearer ${storedUser.token}` } };
           const res = await axios.get(`/api/events/${id}`, config); 
           setEvent(res.data); 
@@ -32,8 +29,6 @@ const Agreement = () => {
 
   const queryParams = new URLSearchParams(location.search);
   const paramSponsorId = queryParams.get('sponsorId');
-  
-  // Logic: Agar Admin kisi aur ka dekh raha hai TOH URL se ID le, warna Khud ki ID le
   const targetSponsorId = (currentUser.role === 'admin' && paramSponsorId) ? paramSponsorId : currentUser._id;
   const mySponsorship = event.sponsors?.find(s => s.sponsorId === targetSponsorId);
 
@@ -51,7 +46,6 @@ const Agreement = () => {
 
       <div className="print-area" style={{ padding: '60px', fontFamily: '"Times New Roman", Times, serif', maxWidth: '800px', margin: '0 auto', background: '#fff', boxShadow: '0 0 20px rgba(0,0,0,0.3)', minHeight: '1000px', position:'relative' }}>
         
-        {/* HEADER */}
         <div style={{ textAlign: 'center', marginBottom: '40px', borderBottom: '2px solid #000', paddingBottom: '20px' }}>
             <h1 style={{ textTransform: 'uppercase', fontSize: '2rem', margin: '0' }}>Sponsorship Agreement</h1>
             <p style={{ fontStyle: 'italic', margin: '5px 0', fontSize:'1.1rem' }}>Memorandum of Understanding (MoU)</p>
@@ -60,7 +54,6 @@ const Agreement = () => {
         <div style={{ lineHeight: '1.8', fontSize: '1.1rem', textAlign: 'justify' }}>
           <p>This Agreement is executed on <strong>{new Date(mySponsorship.date).toLocaleDateString()}</strong> between:</p>
 
-          {/* PARTIES BOX */}
           <div style={{ display:'flex', justifyContent:'space-between', margin:'20px 0', background:'#f8fafc', padding:'20px', border:'1px solid #ddd' }}>
             <div style={{width:'48%'}}>
                 <strong style={{textDecoration:'underline', color:'#666'}}>THE SPONSOR:</strong><br/>
@@ -72,7 +65,6 @@ const Agreement = () => {
                 <br/>
                 <span style={{fontSize:'0.9rem'}}>{mySponsorship.email}</span>
             </div>
-
             <div style={{width:'48%', textAlign:'right'}}>
                 <strong style={{textDecoration:'underline', color:'#666'}}>THE ORGANIZER:</strong><br/>
                 <span style={{fontWeight:'bold'}}>Student Committee</span><br/>
@@ -81,7 +73,6 @@ const Agreement = () => {
             </div>
           </div>
 
-          {/* AMOUNT BOX */}
           <div style={{ textAlign: 'center', margin: '30px 0 10px 0', padding: '20px', border: '3px double #000' }}>
             <span style={{ textTransform: 'uppercase', letterSpacing: '1px', fontSize:'0.9rem' }}>Committed Sponsorship Amount</span><br/>
             <strong style={{ fontSize: '2.5rem' }}>₹ {mySponsorship.amount}</strong>
@@ -95,14 +86,12 @@ const Agreement = () => {
 
           <p><strong>TERMS & CONDITIONS:</strong></p>
           <ol style={{ marginLeft: '20px' }}>
-            <li style={{ marginBottom: '10px' }}>
-                The Organizer agrees to provide branding and promotion as discussed mutually.
-            </li>
+            <li style={{ marginBottom: '10px' }}>The Organizer agrees to provide branding and promotion as discussed mutually.</li>
             
-            {/* 👇 UPDATED: 3 DAY WARNING LOGIC */}
+            {/* 👇 3 DAY WARNING LOGIC */}
             <li style={{ marginBottom: '10px' }}>
                 {mySponsorship.status === 'verified' 
-                    ? "✅ Payment has been successfully verified. All financial obligations are met." 
+                    ? "✅ Payment verified. All financial obligations are met." 
                     : <span style={{color:'#dc2626', fontWeight:'bold'}}>⚠️ CRITICAL: The Sponsor must transfer the pledged amount within 3 BUSINESS DAYS, otherwise this deal stands void/cancelled.</span>
                 }
             </li>
@@ -111,7 +100,6 @@ const Agreement = () => {
           </ol>
         </div>
 
-        {/* SIGNATURES & DYNAMIC STAMP */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '80px', alignItems: 'flex-end' }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontFamily: '"Dancing Script", cursive', fontSize: '2rem', color: '#1e3a8a', marginBottom: '-10px' }}>{mySponsorship.name}</div>
@@ -120,19 +108,16 @@ const Agreement = () => {
 
           <div style={{ textAlign: 'center' }}>
              
-             {/* 👇 LOGIC FOR STAMPS */}
+             {/* 👇 "OFFICIAL DEAL DONE" STAMP */}
              {mySponsorship.status === 'verified' ? (
-                 // 🟢 GREEN STAMP: DEAL SEALED
                  <div style={{ border: '5px double #16a34a', color: '#16a34a', borderRadius: '50%', width: '130px', height: '130px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.9rem', textAlign: 'center', margin: '0 auto 10px auto', transform: 'rotate(-15deg)', background:'rgba(22, 163, 74, 0.05)', boxShadow:'0 0 10px rgba(22, 163, 74, 0.2)' }}>
-                    OFFICIAL<br/>DEAL<br/>SEALED
+                    OFFICIAL<br/>DEAL<br/>DONE
                  </div>
              ) : mySponsorship.status === 'refund_requested' ? (
-                 // 🔴 RED STAMP: REFUND
                  <div style={{ border: '4px double #dc2626', color: '#dc2626', borderRadius: '5px', width: '140px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.9rem', textAlign: 'center', margin: '0 auto 10px auto', transform: 'rotate(-10deg)', background:'rgba(220, 38, 38, 0.05)' }}>
                     REFUND<br/>REQUESTED
                  </div>
              ) : (
-                 // 🔵 BLUE STAMP: PLEDGED (PROCESSING)
                  <div style={{ border: '4px double #2563eb', color: '#2563eb', borderRadius: '50%', width: '130px', height: '130px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem', textAlign: 'center', margin: '0 auto 10px auto', transform: 'rotate(-15deg)', background:'rgba(37, 99, 235, 0.05)' }}>
                     PLEDGE<br/>RECORDED<br/><span style={{fontSize:'0.6rem'}}>(Pending Verification)</span>
                  </div>

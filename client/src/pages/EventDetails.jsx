@@ -17,7 +17,6 @@ const EventDetails = () => {
     
     const fetchEvent = async () => {
         try {
-            // 👇 Token bhejna zaroori hai taaki Backend pehchan sake ki kaun dekh raha hai
             const config = storedUser ? { headers: { Authorization: `Bearer ${storedUser.token}` } } : {};
             const res = await axios.get(`/api/events/${id}`, config);
             setEvent(res.data);
@@ -32,7 +31,17 @@ const EventDetails = () => {
 
   const handleSponsor = async () => { if (!user) return navigate('/login'); if (!user.isVerified) return alert("⛔ Not Verified!"); if (user.role !== 'sponsor') return alert("Only Sponsors!"); if (!amount || amount < 500) return alert("Min ₹500"); try { const config = { headers: { Authorization: `Bearer ${user.token}` } }; await axios.put(`/api/events/sponsor/${id}`, { amount, comment }, config); alert("🎉 Pledge Recorded!"); navigate(`/agreement/${id}`); } catch (error) { alert("Failed"); } };
   const handleVerifyPayment = async (sponsorId) => { if(!window.confirm("Payment Received?")) return; try { const config = { headers: { Authorization: `Bearer ${user.token}` } }; await axios.post('/api/events/admin/verify-payment', { eventId: id, sponsorId }, config); alert("✅ Verified!"); window.location.reload(); } catch (error) { alert("Error"); } };
-  const handleRequestRefund = async () => { if(!window.confirm("Cancel pledge?")) return; try { const config = { headers: { Authorization: `Bearer ${user.token}` } }; await axios.put(`/api/events/request-refund/${id}`, {}, config); alert("Refund Requested"); window.location.reload(); } catch (error) { alert("Error"); } };
+  
+  // 👇 REFUND LOGIC
+  const handleRequestRefund = async () => {
+    if(!window.confirm("Are you sure you want to cancel this pledge?")) return;
+    try {
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      await axios.put(`/api/events/request-refund/${id}`, {}, config);
+      alert("Refund Requested Successfully.");
+      window.location.reload();
+    } catch (error) { alert("Error requesting refund"); }
+  };
 
   if (loading) return <div style={{textAlign:'center', padding:'50px'}}>Loading...</div>;
   if (!event) return <div style={{textAlign:'center', padding:'50px'}}>Not Found</div>;
@@ -54,10 +63,7 @@ const EventDetails = () => {
             <p style={{color:'#64748b', margin:0}}>📍 {event.location} | 📅 {new Date(event.date).toLocaleDateString()}</p>
         </div>
         <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
-            {/* 👇 Display Array Length */}
-            <div style={{background:'#f1f5f9', padding:'8px 12px', borderRadius:'20px', fontSize:'0.85rem', color:'#475569', fontWeight:'bold'}}>
-                👁️ {event.views ? event.views.length : 0} Views
-            </div>
+            <div style={{background:'#f1f5f9', padding:'8px 12px', borderRadius:'20px', fontSize:'0.85rem', color:'#475569', fontWeight:'bold'}}>👁️ {event.views ? event.views.length : 0} Views</div>
             <button onClick={handleShare} style={{background:'#f1f5f9', border:'none', padding:'8px', borderRadius:'50%', cursor:'pointer', fontSize:'1.2rem'}}>🔗</button>
             <button onClick={handleWhatsApp} style={{background:'#dcfce7', border:'none', padding:'8px', borderRadius:'50%', cursor:'pointer', fontSize:'1.2rem'}}>💬</button>
         </div>
@@ -86,7 +92,22 @@ const EventDetails = () => {
                 ) : ( <div style={{padding:'20px', background:'#f1f5f9', textAlign:'center', color:'#64748b'}}>No sponsors yet.</div> )}
             </div>
         ) : (
-            <>{mySponsorship ? (<div style={{background:'#f8fafc', padding:'25px', borderRadius:'10px', border:'1px solid #cbd5e1'}}><div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', position:'relative'}}><div style={{position:'absolute', top:'15px', left:'10%', right:'10%', height:'3px', background:'#e2e8f0', zIndex:0}}></div><div style={{zIndex:1, textAlign:'center'}}><div style={{width:'35px', height:'35px', background: getStepColor(1, mySponsorship.status), color:'white', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto', fontWeight:'bold'}}>1</div><span style={{fontSize:'0.8rem', fontWeight:'bold'}}>Pledged</span></div><div style={{zIndex:1, textAlign:'center'}}><div style={{width:'35px', height:'35px', background: getStepColor(2, mySponsorship.status), color:'white', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto', fontWeight:'bold'}}>2</div><span style={{fontSize:'0.8rem', fontWeight:'bold'}}>Processing</span></div><div style={{zIndex:1, textAlign:'center'}}><div style={{width:'35px', height:'35px', background: getStepColor(3, mySponsorship.status), color:'white', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto', fontWeight:'bold'}}>3</div><span style={{fontSize:'0.8rem', fontWeight:'bold'}}>Completed</span></div></div><div style={{textAlign:'center', background: mySponsorship.status === 'verified' ? '#dcfce7' : '#fff7ed', color: mySponsorship.status === 'verified' ? '#166534' : '#c2410c', padding:'10px', borderRadius:'6px', fontSize:'0.9rem', marginBottom:'20px', border: mySponsorship.status === 'verified' ? '1px solid #16a34a' : '1px solid #fdba74'}}>{mySponsorship.status === 'verified' ? "🎉 Payment Verified! Deal is Sealed." : "⏳ Admin will verify payment within 24 hours."}</div><h3 style={{color:'#166534', marginTop:0}}>✅ Pledged: ₹{mySponsorship.amount}</h3>{mySponsorship.status !== 'verified' && (<div style={{display:'flex', gap:'20px', justifyContent:'center', marginTop:'15px'}}><button onClick={() => navigate(`/agreement/${id}`)} style={{padding:'12px 25px', background:'#2563eb', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold'}}>📄 View Agreement</button><button onClick={handleRequestRefund} style={{padding:'12px 25px', background:'#dc2626', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold'}}>❌ Request Refund</button></div>)}{mySponsorship.status === 'verified' && (<button onClick={() => navigate(`/agreement/${id}`)} style={{padding:'12px 25px', background:'#2563eb', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', marginTop:'10px'}}>📄 Download Final Agreement</button>)}</div>) : (<div style={{maxWidth:'550px', margin:'0 auto'}}>{user && user.role === 'sponsor' ? (user.isVerified ? (<div style={{display:'flex', flexDirection:'column', gap:'15px', background:'#f8fafc', padding:'25px', borderRadius:'15px', border:'1px solid #e2e8f0'}}><h3 style={{margin:'0 0 10px 0', color:'#334155'}}>🤝 Make a Pledge</h3><textarea placeholder="Private Note for Organizer..." value={comment} onChange={e=>setComment(e.target.value)} style={{width:'100%', padding:'12px', borderRadius:'8px', border:'1px solid #cbd5e1', minHeight:'80px'}}/><div style={{display:'flex', gap:'15px'}}><input type="number" placeholder="Amount (Min ₹500)" value={amount} onChange={e=>setAmount(e.target.value)} style={{padding:'12px', flex:1, border:'1px solid #cbd5e1', borderRadius:'8px', fontSize:'1rem'}} /><button onClick={handleSponsor} style={{padding:'12px 30px', background:'#16a34a', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold'}}>Confirm Pledge</button></div></div>) : (<div style={{padding:'20px', background:'#fff7ed', color:'#c2410c', border:'1px solid #fdba74', borderRadius:'10px'}}>⚠️ Verification Pending</div>)) : (<p style={{color:'#64748b'}}>Login as Verified Sponsor to fund.</p>)}</div>)}</>)}
+            <>{mySponsorship ? (<div style={{background:'#f8fafc', padding:'25px', borderRadius:'10px', border:'1px solid #cbd5e1'}}><div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', position:'relative'}}><div style={{position:'absolute', top:'15px', left:'10%', right:'10%', height:'3px', background:'#e2e8f0', zIndex:0}}></div><div style={{zIndex:1, textAlign:'center'}}><div style={{width:'35px', height:'35px', background: getStepColor(1, mySponsorship.status), color:'white', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto', fontWeight:'bold'}}>1</div><span style={{fontSize:'0.8rem', fontWeight:'bold'}}>Pledged</span></div><div style={{zIndex:1, textAlign:'center'}}><div style={{width:'35px', height:'35px', background: getStepColor(2, mySponsorship.status), color:'white', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto', fontWeight:'bold'}}>2</div><span style={{fontSize:'0.8rem', fontWeight:'bold'}}>Processing</span></div><div style={{zIndex:1, textAlign:'center'}}><div style={{width:'35px', height:'35px', background: getStepColor(3, mySponsorship.status), color:'white', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto', fontWeight:'bold'}}>3</div><span style={{fontSize:'0.8rem', fontWeight:'bold'}}>Completed</span></div></div><div style={{textAlign:'center', background: mySponsorship.status === 'verified' ? '#dcfce7' : '#fff7ed', color: mySponsorship.status === 'verified' ? '#166534' : '#c2410c', padding:'10px', borderRadius:'6px', fontSize:'0.9rem', marginBottom:'20px', border: mySponsorship.status === 'verified' ? '1px solid #16a34a' : '1px solid #fdba74'}}>{mySponsorship.status === 'verified' ? "🎉 Payment Verified! Deal is Sealed." : "⏳ Admin will verify payment within 24 hours."}</div><h3 style={{color:'#166534', marginTop:0}}>✅ Pledged: ₹{mySponsorship.amount}</h3>
+            
+            {/* 👇 UPDATED: Refund Button ab Hamesha Dikhega (Unless Refund Requested) */}
+            <div style={{display:'flex', gap:'20px', justifyContent:'center', marginTop:'15px'}}>
+                <button onClick={() => navigate(`/agreement/${id}`)} style={{padding:'12px 25px', background:'#2563eb', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold'}}>
+                    {mySponsorship.status === 'verified' ? "📄 Download Final Agreement" : "📄 View Agreement"}
+                </button>
+                
+                {mySponsorship.status !== 'refund_requested' && (
+                    <button onClick={handleRequestRefund} style={{padding:'12px 25px', background:'#dc2626', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold'}}>
+                        ❌ Request Refund
+                    </button>
+                )}
+            </div>
+            
+            </div>) : (<div style={{maxWidth:'550px', margin:'0 auto'}}>{user && user.role === 'sponsor' ? (user.isVerified ? (<div style={{display:'flex', flexDirection:'column', gap:'15px', background:'#f8fafc', padding:'25px', borderRadius:'15px', border:'1px solid #e2e8f0'}}><h3 style={{margin:'0 0 10px 0', color:'#334155'}}>🤝 Make a Pledge</h3><textarea placeholder="Private Note for Organizer..." value={comment} onChange={e=>setComment(e.target.value)} style={{width:'100%', padding:'12px', borderRadius:'8px', border:'1px solid #cbd5e1', minHeight:'80px'}}/><div style={{display:'flex', gap:'15px'}}><input type="number" placeholder="Amount (Min ₹500)" value={amount} onChange={e=>setAmount(e.target.value)} style={{padding:'12px', flex:1, border:'1px solid #cbd5e1', borderRadius:'8px', fontSize:'1rem'}} /><button onClick={handleSponsor} style={{padding:'12px 30px', background:'#16a34a', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold'}}>Confirm Pledge</button></div></div>) : (<div style={{padding:'20px', background:'#fff7ed', color:'#c2410c', border:'1px solid #fdba74', borderRadius:'10px'}}>⚠️ Verification Pending</div>)) : (<p style={{color:'#64748b'}}>Login as Verified Sponsor to fund.</p>)}</div>)}</>)}
       </div>
     </div>
   );
