@@ -29,16 +29,12 @@ const Agreement = () => {
 
   if (!event || !currentUser) return null;
 
-  // 👇 ERROR FIX LOGIC START
+  // Logic to find the correct sponsorship record
   const queryParams = new URLSearchParams(location.search);
   const paramSponsorId = queryParams.get('sponsorId');
-  
-  // Logic: Agar URL mein sponsorId hai (Organizer/Admin ke liye), toh wo use karo.
-  // Nahi toh, Logged In User ka ID use karo (Sponsor ke liye).
   const targetSponsorId = paramSponsorId ? paramSponsorId : currentUser._id;
   
   const mySponsorship = event.sponsors?.find(s => s.sponsorId === targetSponsorId);
-  // 👆 ERROR FIX LOGIC END
 
   if (!mySponsorship) return <div style={{textAlign:'center', padding:'50px', fontFamily:'Poppins'}}><h2>❌ Agreement Not Found</h2><p>Record does not match.</p><button onClick={() => navigate(-1)} style={{padding:'10px 20px', cursor:'pointer'}}>Go Back</button></div>;
 
@@ -75,7 +71,7 @@ const Agreement = () => {
                 <span style={{fontSize:'0.9rem'}}>{mySponsorship.email}</span>
             </div>
             <div style={{width:'48%', textAlign:'right'}}>
-                <strong style={{textDecoration:'underline', color:'#666'}}>THE ORGANIZER:</strong><br/>
+                <strong style={{textDecoration:'underline', color:'#666'}}>THE BENEFICIARY (COLLEGE):</strong><br/>
                 <span style={{fontWeight:'bold'}}>Student Committee</span><br/>
                 <span style={{fontSize:'1.1rem', fontWeight:'bold', color:'#1e3a8a'}}>{event.user?.collegeName || "Campus Institute"}</span><br/>
                 <span style={{fontSize:'0.9rem'}}>Event: {event.title}</span>
@@ -93,32 +89,33 @@ const Agreement = () => {
               </div>
           )}
 
-          <p><strong>TERMS & CONDITIONS:</strong></p>
+          <p><strong>TERMS & PAYMENT CONDITIONS:</strong></p>
           <ol style={{ marginLeft: '20px' }}>
-            <li style={{ marginBottom: '10px' }}>The Organizer agrees to provide branding and promotion as discussed mutually.</li>
+            <li style={{ marginBottom: '10px' }}>The Organizer agrees to provide branding and promotion to the Sponsor as discussed mutually.</li>
+            
+            {/* 👇 UPDATED LOGIC: 3 DAYS WARNING & DIRECT COLLEGE PAYMENT */}
             <li style={{ marginBottom: '10px' }}>
                 {mySponsorship.status === 'verified' 
-                    ? "✅ Payment verified. All financial obligations are met." 
-                    : <span style={{color:'#dc2626', fontWeight:'bold'}}>⚠️ CRITICAL: The Sponsor must transfer the pledged amount within 3 BUSINESS DAYS, otherwise this deal stands void/cancelled.</span>
+                    ? <span>✅ <strong>DEAL SEALED:</strong> The Sponsor confirms that the payment has been transferred <strong>DIRECTLY to the College Authority</strong>. The Platform acts only as a connector and holds no funds.</span>
+                    : <span style={{color:'#dc2626', fontWeight:'bold'}}>⚠️ PAYMENT WARNING: The Sponsor agrees to pay the pledged amount DIRECTLY to the College Bank Account within 3 BUSINESS DAYS. Failure to do so will render this deal cancelled.</span>
                 }
             </li>
-            <li>This document serves as a binding proof of the sponsorship arrangement.</li>
+            
+            <li>This document serves as a binding proof of the mutual agreement between the Sponsor and the College Committee.</li>
           </ol>
         </div>
 
-        {/* 👇 ALIGNMENT FIXED SECTION */}
+        {/* ALIGNMENT FIXED SIGNATURES */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '100px', alignItems: 'flex-end' }}>
           
-          {/* Left: Signature */}
           <div style={{ width:'200px', display:'flex', flexDirection:'column', alignItems:'center' }}>
             <div style={{ fontFamily: '"Dancing Script", cursive', fontSize: '2rem', color: '#1e3a8a', marginBottom: '5px' }}>{mySponsorship.name}</div>
             <div style={{ borderTop: '1px solid #000', width:'100%', paddingTop:'5px', textAlign:'center' }}>Authorized Signature</div>
           </div>
 
-          {/* Right: Stamp & Verify */}
           <div style={{ width:'200px', display:'flex', flexDirection:'column', alignItems:'center', position:'relative' }}>
              
-             {/* Stamp Wrapper */}
+             {/* STAMPS */}
              <div style={{ height:'130px', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:'-25px', zIndex:10 }}>
                 {mySponsorship.status === 'verified' ? (
                      <div style={{ border: '5px double #16a34a', color: '#16a34a', borderRadius: '50%', width: '130px', height: '130px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection:'column', fontWeight: 'bold', fontSize: '0.9rem', textAlign: 'center', transform: 'rotate(-15deg)', background:'rgba(22, 163, 74, 0.05)', boxShadow:'0 0 10px rgba(22, 163, 74, 0.2)' }}>
@@ -130,7 +127,7 @@ const Agreement = () => {
                      </div>
                 ) : (
                      <div style={{ border: '4px double #2563eb', color: '#2563eb', borderRadius: '50%', width: '130px', height: '130px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection:'column', fontWeight: 'bold', fontSize: '0.8rem', textAlign: 'center', transform: 'rotate(-15deg)', background:'rgba(37, 99, 235, 0.05)' }}>
-                        <span>PLEDGE</span><span style={{fontSize:'1.1rem', lineHeight:'1'}}>RECORDED</span><span style={{fontSize:'0.6rem'}}>(Pending)</span>
+                        <span>PLEDGE</span><span style={{fontSize:'1.1rem', lineHeight:'1'}}>RECORDED</span><span style={{fontSize:'0.6rem'}}>(Pending Payment)</span>
                      </div>
                 )}
              </div>
