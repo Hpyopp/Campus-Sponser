@@ -9,17 +9,17 @@ const eventSchema = mongoose.Schema({
   budget: { type: Number, required: true },
   contactEmail: { type: String, required: true },
   instagramLink: { type: String, default: '' },
-  
   permissionLetter: { type: String, required: true },
   isApproved: { type: Boolean, default: false },
-
   raisedAmount: { type: Number, default: 0 },
   
+  // 👇 NEW: View Counter
+  views: { type: Number, default: 0 }, 
+
   sponsors: [{
     sponsorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     name: String,
     email: String,
-    // 👇 NEW: Company ka naam yahan save hoga
     companyName: { type: String, default: '' }, 
     amount: Number,
     date: { type: Date, default: Date.now },

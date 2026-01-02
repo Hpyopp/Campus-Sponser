@@ -25,6 +25,19 @@ const EventDetails = () => {
     finally { setLoading(false); }
   };
 
+  // 👇 SHARE LOGIC
+  const handleShare = () => {
+      const url = window.location.href;
+      navigator.clipboard.writeText(url);
+      alert("🔗 Link Copied to Clipboard!");
+  };
+
+  const handleWhatsApp = () => {
+      const url = window.location.href;
+      const text = `Hey! Check out this event: *${event.title}* happening at ${event.location}. Support here: ${url}`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
   const handleSponsor = async () => {
     if (!user) return navigate('/login');
     if (!user.isVerified) return alert("⛔ Account Not Verified!");
@@ -39,9 +52,8 @@ const EventDetails = () => {
     } catch (error) { alert(error.response?.data?.message || "Failed"); }
   };
 
-  // 👇 ADMIN ACTION: Verify Payment
   const handleVerifyPayment = async (sponsorId) => {
-      if(!window.confirm("Confirm that payment is received?")) return;
+      if(!window.confirm("Confirm payment received?")) return;
       try {
           const config = { headers: { Authorization: `Bearer ${user.token}` } };
           await axios.post('/api/events/admin/verify-payment', { eventId: id, sponsorId }, config);
@@ -72,11 +84,9 @@ const EventDetails = () => {
   const budget = event.budget || 0;
   const remaining = Math.max(0, budget - raised);
 
-  // Helper: Tracker Color Logic
   const getStepColor = (step, currentStatus) => {
-      if (step === 1) return '#16a34a'; // Pledged (Green)
-      if (step === 2) return '#16a34a'; // Processing (Green)
-      // Step 3 is Green ONLY if Verified
+      if (step === 1) return '#16a34a'; 
+      if (step === 2) return '#16a34a'; 
       if (step === 3) return currentStatus === 'verified' ? '#16a34a' : '#cbd5e1'; 
       return '#cbd5e1';
   };
@@ -84,10 +94,25 @@ const EventDetails = () => {
   return (
     <div style={{ maxWidth: '900px', margin: '40px auto', padding: '30px', background: 'white', borderRadius: '15px', fontFamily: 'Poppins', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
       
-      <h1 style={{color:'#1e293b', marginBottom:'5px'}}>{event.title}</h1>
-      <p style={{color:'#64748b', margin:0}}>📍 {event.location} | 📅 {new Date(event.date).toLocaleDateString()}</p>
+      {/* HEADER WITH SHARE & VIEWS */}
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:'10px'}}>
+        <div>
+            <h1 style={{color:'#1e293b', marginBottom:'5px', marginTop:0}}>{event.title}</h1>
+            <p style={{color:'#64748b', margin:0}}>📍 {event.location} | 📅 {new Date(event.date).toLocaleDateString()}</p>
+        </div>
+        
+        <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
+            {/* View Counter */}
+            <div style={{background:'#f1f5f9', padding:'8px 12px', borderRadius:'20px', fontSize:'0.85rem', color:'#475569', fontWeight:'bold', display:'flex', alignItems:'center', gap:'5px'}}>
+                👁️ {event.views || 0} Views
+            </div>
+            {/* Share Buttons */}
+            <button onClick={handleShare} style={{background:'#f1f5f9', border:'none', padding:'8px', borderRadius:'50%', cursor:'pointer', fontSize:'1.2rem'}} title="Copy Link">🔗</button>
+            <button onClick={handleWhatsApp} style={{background:'#dcfce7', border:'none', padding:'8px', borderRadius:'50%', cursor:'pointer', fontSize:'1.2rem'}} title="Share on WhatsApp">💬</button>
+        </div>
+      </div>
 
-      {/* Progress Bar */}
+      {/* PROGRESS BAR */}
       <div style={{background:'#f0f9ff', padding:'20px', borderRadius:'10px', marginTop:'20px', textAlign:'center', border:'1px solid #bae6fd'}}>
          <div style={{display:'flex', justifyContent:'space-between', marginBottom:'10px', fontSize:'0.95rem', fontWeight:'bold'}}>
              <span style={{color:'#16a34a'}}>💰 Raised: ₹{raised}</span>
@@ -97,6 +122,7 @@ const EventDetails = () => {
          <div style={{width:'100%', height:'12px', background:'#e0f2fe', borderRadius:'10px', overflow:'hidden'}}>
              <div style={{width: `${Math.min((raised/budget)*100, 100)}%`, height:'100%', background: remaining === 0 ? '#16a34a' : '#0ea5e9', transition:'width 0.5s ease'}}></div>
          </div>
+         {remaining === 0 && <div style={{color:'#16a34a', fontWeight:'bold', marginTop:'5px', fontSize:'0.9rem'}}>🎉 Fully Funded!</div>}
       </div>
 
       <div style={{marginTop:'30px'}}>
@@ -137,11 +163,8 @@ const EventDetails = () => {
                                 <div style={{display:'flex', justifyContent:'flex-end', gap:'10px', marginTop:'5px'}}>
                                     <button onClick={() => navigate(`/agreement/${id}?sponsorId=${s.sponsorId}`)} style={{padding:'8px 15px', background:'#2563eb', color:'white', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold'}}>📄 Doc</button>
                                     
-                                    {/* 👇 VERIFY BUTTON (Only for Admin) */}
                                     {isAdmin && s.status !== 'verified' && s.status !== 'refund_requested' && (
-                                        <button onClick={() => handleVerifyPayment(s.sponsorId)} style={{padding:'8px 15px', background:'#16a34a', color:'white', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold'}}>
-                                            ✅ Verify Payment
-                                        </button>
+                                        <button onClick={() => handleVerifyPayment(s.sponsorId)} style={{padding:'8px 15px', background:'#16a34a', color:'white', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold'}}>✅ Verify Payment</button>
                                     )}
                                     {s.status === 'refund_requested' && <span style={{padding:'8px 15px', background:'#fee2e2', color:'#dc2626', borderRadius:'5px', fontWeight:'bold'}}>⚠️ Refund Req.</span>}
                                 </div>
@@ -160,17 +183,14 @@ const EventDetails = () => {
                         <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', position:'relative'}}>
                             <div style={{position:'absolute', top:'15px', left:'10%', right:'10%', height:'3px', background:'#e2e8f0', zIndex:0}}></div>
                             
-                            {/* Step 1 */}
                             <div style={{zIndex:1, textAlign:'center'}}>
                                 <div style={{width:'35px', height:'35px', background: getStepColor(1, mySponsorship.status), color:'white', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto', fontWeight:'bold'}}>1</div>
                                 <span style={{fontSize:'0.8rem', fontWeight:'bold'}}>Pledged</span>
                             </div>
-                            {/* Step 2 */}
                             <div style={{zIndex:1, textAlign:'center'}}>
                                 <div style={{width:'35px', height:'35px', background: getStepColor(2, mySponsorship.status), color:'white', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto', fontWeight:'bold'}}>2</div>
                                 <span style={{fontSize:'0.8rem', fontWeight:'bold'}}>Processing</span>
                             </div>
-                            {/* Step 3 */}
                             <div style={{zIndex:1, textAlign:'center'}}>
                                 <div style={{width:'35px', height:'35px', background: getStepColor(3, mySponsorship.status), color:'white', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto', fontWeight:'bold'}}>3</div>
                                 <span style={{fontSize:'0.8rem', fontWeight:'bold'}}>Completed</span>
@@ -178,14 +198,11 @@ const EventDetails = () => {
                         </div>
 
                         <div style={{textAlign:'center', background: mySponsorship.status === 'verified' ? '#dcfce7' : '#fff7ed', color: mySponsorship.status === 'verified' ? '#166534' : '#c2410c', padding:'10px', borderRadius:'6px', fontSize:'0.9rem', marginBottom:'20px', border: mySponsorship.status === 'verified' ? '1px solid #16a34a' : '1px solid #fdba74'}}>
-                            {mySponsorship.status === 'verified' 
-                                ? "🎉 Payment Verified! Deal is Sealed." 
-                                : "⏳ Admin will verify payment within 24 hours."}
+                            {mySponsorship.status === 'verified' ? "🎉 Payment Verified! Deal is Sealed." : "⏳ Admin will verify payment within 24 hours."}
                         </div>
 
                         <h3 style={{color:'#166534', marginTop:0}}>✅ Pledged: ₹{mySponsorship.amount}</h3>
                         
-                        {/* If NOT verified: Show Refund & View Doc */}
                         {mySponsorship.status !== 'verified' && (
                             <div style={{display:'flex', gap:'20px', justifyContent:'center', marginTop:'15px'}}>
                                 <button onClick={() => navigate(`/agreement/${id}`)} style={{padding:'12px 25px', background:'#2563eb', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold'}}>📄 View Agreement</button>
@@ -193,7 +210,6 @@ const EventDetails = () => {
                             </div>
                         )}
                         
-                        {/* If Verified: Hide Refund */}
                         {mySponsorship.status === 'verified' && (
                              <button onClick={() => navigate(`/agreement/${id}`)} style={{padding:'12px 25px', background:'#2563eb', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', marginTop:'10px'}}>📄 Download Final Agreement</button>
                         )}

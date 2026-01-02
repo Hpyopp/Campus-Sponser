@@ -6,10 +6,18 @@ const getEvents = asyncHandler(async (req, res) => {
   res.json(events); 
 });
 
-const getEventById = asyncHandler(async (req, res) => { 
-  const event = await Event.findById(req.params.id).populate('user', 'name email collegeName'); 
-  if(event) res.json(event); 
-  else {res.status(404); throw new Error('Not found');} 
+// 👇 UPDATED: Increment Views whenever event is fetched
+const getEventById = asyncHandler(async (req, res) => {
+  const event = await Event.findById(req.params.id).populate('user', 'name email collegeName');
+  
+  if(event) {
+      // View count badhao (agar field nahi hai to 0 se start karo)
+      event.views = (event.views || 0) + 1;
+      await event.save();
+      res.json(event);
+  } else {
+      res.status(404); throw new Error('Not found');
+  }
 });
 
 const createEvent = asyncHandler(async (req, res) => { 
@@ -96,7 +104,7 @@ const rejectRefund = asyncHandler(async (req, res) => {
   await event.save(); res.status(200).json({ message: 'Rejected' }); 
 });
 
-// 👇 NEW: VERIFY PAYMENT
+// 👇 Verify Sponsorship Payment
 const verifySponsorship = asyncHandler(async (req, res) => {
   const { eventId, sponsorId } = req.body;
   const event = await Event.findById(eventId);
@@ -105,7 +113,7 @@ const verifySponsorship = asyncHandler(async (req, res) => {
   const sponsor = event.sponsors.find(s => s.sponsorId.toString() === sponsorId);
   if (!sponsor) { res.status(404); throw new Error('Sponsor not found'); }
 
-  sponsor.status = 'verified'; // Status Updated
+  sponsor.status = 'verified'; 
   await event.save();
   res.status(200).json({ message: 'Payment Verified Successfully' });
 });
