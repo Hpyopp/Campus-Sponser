@@ -10,7 +10,7 @@ const Agreement = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Fonts load
+    // Load Signature Font
     const link = document.createElement('link'); link.href = "https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap"; link.rel = "stylesheet"; document.head.appendChild(link);
     
     const storedUser = JSON.parse(localStorage.getItem('user'));
@@ -29,12 +29,18 @@ const Agreement = () => {
 
   if (!event || !currentUser) return null;
 
+  // 👇 ERROR FIX LOGIC START
   const queryParams = new URLSearchParams(location.search);
   const paramSponsorId = queryParams.get('sponsorId');
-  const targetSponsorId = (currentUser.role === 'admin' && paramSponsorId) ? paramSponsorId : currentUser._id;
+  
+  // Logic: Agar URL mein sponsorId hai (Organizer/Admin ke liye), toh wo use karo.
+  // Nahi toh, Logged In User ka ID use karo (Sponsor ke liye).
+  const targetSponsorId = paramSponsorId ? paramSponsorId : currentUser._id;
+  
   const mySponsorship = event.sponsors?.find(s => s.sponsorId === targetSponsorId);
+  // 👆 ERROR FIX LOGIC END
 
-  if (!mySponsorship) return <div style={{textAlign:'center', padding:'50px'}}><h2>❌ No Agreement Found</h2><button onClick={() => navigate(-1)}>Go Back</button></div>;
+  if (!mySponsorship) return <div style={{textAlign:'center', padding:'50px', fontFamily:'Poppins'}}><h2>❌ Agreement Not Found</h2><p>Record does not match.</p><button onClick={() => navigate(-1)} style={{padding:'10px 20px', cursor:'pointer'}}>Go Back</button></div>;
 
   const isOrganizer = event.user._id === currentUser._id;
   const isAdmin = currentUser.role === 'admin';
@@ -90,60 +96,46 @@ const Agreement = () => {
           <p><strong>TERMS & CONDITIONS:</strong></p>
           <ol style={{ marginLeft: '20px' }}>
             <li style={{ marginBottom: '10px' }}>The Organizer agrees to provide branding and promotion as discussed mutually.</li>
-            
             <li style={{ marginBottom: '10px' }}>
                 {mySponsorship.status === 'verified' 
                     ? "✅ Payment verified. All financial obligations are met." 
                     : <span style={{color:'#dc2626', fontWeight:'bold'}}>⚠️ CRITICAL: The Sponsor must transfer the pledged amount within 3 BUSINESS DAYS, otherwise this deal stands void/cancelled.</span>
                 }
             </li>
-            
             <li>This document serves as a binding proof of the sponsorship arrangement.</li>
           </ol>
         </div>
 
-        {/* 👇 FIXED ALIGNMENT SECTION */}
+        {/* 👇 ALIGNMENT FIXED SECTION */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '100px', alignItems: 'flex-end' }}>
           
-          {/* LEFT: SPONSOR SIGNATURE */}
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', width:'200px' }}>
+          {/* Left: Signature */}
+          <div style={{ width:'200px', display:'flex', flexDirection:'column', alignItems:'center' }}>
             <div style={{ fontFamily: '"Dancing Script", cursive', fontSize: '2rem', color: '#1e3a8a', marginBottom: '5px' }}>{mySponsorship.name}</div>
             <div style={{ borderTop: '1px solid #000', width:'100%', paddingTop:'5px', textAlign:'center' }}>Authorized Signature</div>
           </div>
 
-          {/* RIGHT: STAMP & VERIFICATION */}
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', width:'200px', position:'relative' }}>
+          {/* Right: Stamp & Verify */}
+          <div style={{ width:'200px', display:'flex', flexDirection:'column', alignItems:'center', position:'relative' }}>
              
-             {/* Stamp Container with Height to accommodate rotation */}
-             <div style={{ height:'140px', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:'-20px' }}>
-                
-                {/* 1. GREEN STAMP (Deal Done) */}
-                {mySponsorship.status === 'verified' && (
-                     <div style={{ border: '5px double #16a34a', color: '#16a34a', borderRadius: '50%', width: '130px', height: '130px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection:'column', fontWeight: 'bold', fontSize: '0.9rem', textAlign: 'center', transform: 'rotate(-15deg)', background:'rgba(22, 163, 74, 0.05)', boxShadow:'0 0 10px rgba(22, 163, 74, 0.2)', zIndex:10 }}>
-                        <span>OFFICIAL</span>
-                        <span style={{fontSize:'1.2rem', lineHeight:'1'}}>DEAL</span>
-                        <span>SEALED</span>
+             {/* Stamp Wrapper */}
+             <div style={{ height:'130px', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:'-25px', zIndex:10 }}>
+                {mySponsorship.status === 'verified' ? (
+                     <div style={{ border: '5px double #16a34a', color: '#16a34a', borderRadius: '50%', width: '130px', height: '130px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection:'column', fontWeight: 'bold', fontSize: '0.9rem', textAlign: 'center', transform: 'rotate(-15deg)', background:'rgba(22, 163, 74, 0.05)', boxShadow:'0 0 10px rgba(22, 163, 74, 0.2)' }}>
+                        <span>OFFICIAL</span><span style={{fontSize:'1.2rem', lineHeight:'1'}}>DEAL</span><span>DONE</span>
                      </div>
-                )}
-
-                {/* 2. RED STAMP (Refund) */}
-                {mySponsorship.status === 'refund_requested' && (
-                     <div style={{ border: '4px double #dc2626', color: '#dc2626', borderRadius: '8px', width: '140px', height: '70px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection:'column', fontWeight: 'bold', fontSize: '1rem', textAlign: 'center', transform: 'rotate(-10deg)', background:'rgba(220, 38, 38, 0.05)', zIndex:10 }}>
+                ) : mySponsorship.status === 'refund_requested' ? (
+                     <div style={{ border: '4px double #dc2626', color: '#dc2626', borderRadius: '8px', width: '140px', height: '70px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection:'column', fontWeight: 'bold', fontSize: '1rem', textAlign: 'center', transform: 'rotate(-10deg)', background:'rgba(220, 38, 38, 0.05)' }}>
                         REFUND<br/>REQUESTED
                      </div>
-                )}
-
-                {/* 3. BLUE STAMP (Pending) */}
-                {mySponsorship.status !== 'verified' && mySponsorship.status !== 'refund_requested' && (
-                     <div style={{ border: '4px double #2563eb', color: '#2563eb', borderRadius: '50%', width: '130px', height: '130px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection:'column', fontWeight: 'bold', fontSize: '0.8rem', textAlign: 'center', transform: 'rotate(-15deg)', background:'rgba(37, 99, 235, 0.05)', zIndex:10 }}>
-                        <span>PLEDGE</span>
-                        <span style={{fontSize:'1.1rem', lineHeight:'1'}}>RECORDED</span>
-                        <span style={{fontSize:'0.6rem', marginTop:'2px'}}>(Pending Verification)</span>
+                ) : (
+                     <div style={{ border: '4px double #2563eb', color: '#2563eb', borderRadius: '50%', width: '130px', height: '130px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection:'column', fontWeight: 'bold', fontSize: '0.8rem', textAlign: 'center', transform: 'rotate(-15deg)', background:'rgba(37, 99, 235, 0.05)' }}>
+                        <span>PLEDGE</span><span style={{fontSize:'1.1rem', lineHeight:'1'}}>RECORDED</span><span style={{fontSize:'0.6rem'}}>(Pending)</span>
                      </div>
                 )}
              </div>
 
-            <div style={{ borderTop: '1px solid #000', width:'100%', paddingTop:'5px', textAlign:'center', position:'relative', zIndex:20, background:'rgba(255,255,255,0.8)' }}>Platform Verified</div>
+            <div style={{ borderTop: '1px solid #000', width:'100%', paddingTop:'5px', textAlign:'center', background:'rgba(255,255,255,0.8)', zIndex:20 }}>Platform Verified</div>
           </div>
 
         </div>
