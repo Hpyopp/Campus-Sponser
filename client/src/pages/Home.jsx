@@ -1,167 +1,43 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useNavigate, Link } from 'react-router-dom';
 
 const Home = () => {
+  const [events, setEvents] = useState([]);
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [events, setEvents] = useState([]); 
-  const [loading, setLoading] = useState(false);
 
-  // 1. LOAD USER & AUTO-SYNC
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem('user'));
-    
-    if (!storedUser) {
-      navigate('/login');
-    } else {
-      setUser(storedUser); // Pehle jo hai wo dikhao (Fast Load)
-      fetchEvents();       // Events lao
-      
-      // 👇 JADOO: Background me Fresh Status check karo
-      syncUserStatus(storedUser.token, storedUser);
-    }
-  }, [navigate]);
-
-  // 2. AUTO-SYNC FUNCTION (Chupke se update karega)
-  const syncUserStatus = async (token, currentUser) => {
-    try {
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-      const res = await axios.get('/api/users/me', config);
-      
-      // Agar status badal gaya hai, toh update karo
-      if (res.data.isVerified !== currentUser.isVerified || res.data.verificationDoc !== currentUser.verificationDoc) {
-        const updatedUser = { ...currentUser, ...res.data };
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        setUser(updatedUser); // Screen auto-update hogi
-        console.log("✅ Status Auto-Synced!");
-      }
-    } catch (error) {
-      console.log("Sync Error (Ignore if logged out):", error.message);
-    }
-  };
-
-  const fetchEvents = async () => {
-    try {
-      const res = await axios.get('/api/events');
-      setEvents(res.data);
-    } catch (error) {
-      console.log("Error fetching events:", error);
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    navigate('/login');
-  };
-
-  // 3. MANUAL CHECK (Button Click)
-  const checkStatus = async () => {
-    setLoading(true);
-    try {
-      const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      const res = await axios.get('/api/users/me', config);
-      
-      const updatedUser = { ...user, ...res.data }; 
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-
-      if (res.data.isVerified) {
-        alert("🎉 You are VERIFIED! You can now create events.");
-      } else if (res.data.verificationDoc) {
-        alert("⏳ Status: PENDING Admin Approval.");
-      } else {
-        alert("⚠️ Not Verified. Please Upload ID.");
-        navigate('/verify');
-      }
-    } catch (error) {
-      alert("Error checking status.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!user) return null;
+    const fetchEvents = async () => {
+      try {
+        const res = await axios.get('/api/events');
+        // 👇 Filter Only Approved
+        const approvedEvents = res.data.filter(e => e.isApproved === true);
+        setEvents(approvedEvents);
+      } catch (error) { console.error(error); }
+    };
+    fetchEvents();
+  }, []);
 
   return (
-    <div style={{ fontFamily: 'Poppins', padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
-      
-      {/* HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-        <h2 style={{ color: '#1e293b' }}>🚀 CampusSponsor</h2>
-        <div style={{display:'flex', gap:'15px', alignItems:'center'}}>
-            <span style={{fontWeight:'bold', color:'#64748b'}}>Hi, {user.name} 👋</span>
-            <button onClick={handleLogout} style={{ padding: '8px 15px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight:'bold' }}>Logout</button>
-        </div>
+    <div style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto', fontFamily:'Poppins' }}>
+      <div style={{display:'flex', justifyContent:'space-between', marginBottom:'30px'}}>
+        <h1>🔥 Upcoming Events</h1>
+        <Link to="/create-event" style={{padding:'10px 20px', background:'blue', color:'white', textDecoration:'none', borderRadius:'5px'}}>+ Add Event</Link>
       </div>
-
-      {/* STATUS CARD */}
-      <div style={{ background: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', textAlign: 'center', marginBottom:'40px' }}>
-        <div style={{ fontSize: '3rem', marginBottom: '10px' }}>{user.isVerified ? '✅' : '⏳'}</div>
-        <h2 style={{ color: '#0f172a', margin:'0 0 10px 0' }}>Welcome, {user.name}!</h2>
-        
-        <div style={{ 
-            display: 'inline-block', padding: '8px 20px', borderRadius: '20px', 
-            background: user.isVerified ? '#dcfce7' : '#fff7ed', 
-            color: user.isVerified ? '#166534' : '#c2410c',
-            fontWeight: 'bold', border: user.isVerified ? '1px solid #22c55e' : '1px solid #f97316'
-        }}>
-          {user.isVerified ? 'Verified Account' : 'Verification Pending'}
-        </div>
-
-        <div style={{ marginTop: '30px', display: 'flex', gap: '15px', justifyContent: 'center', flexWrap:'wrap' }}>
-          
-          <button onClick={checkStatus} disabled={loading} style={{ padding: '12px 25px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', display:'flex', alignItems:'center', gap:'8px' }}>
-            {loading ? 'Checking...' : '🔄 Check Status'}
-          </button>
-
-          {!user.isVerified && (
-            <button onClick={() => navigate('/verify')} style={{ padding: '12px 25px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-              📂 Upload ID Proof
-            </button>
-          )}
-
-          {user.role === 'student' && user.isVerified && (
-            <button onClick={() => navigate('/create-event')} style={{ padding: '12px 25px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight:'bold' }}>
-              ➕ Create Event
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* EVENTS LIST */}
-      <h3 style={{ color: '#1e293b', borderBottom:'2px solid #e2e8f0', paddingBottom:'10px' }}>📅 Upcoming Campus Events</h3>
       
-      {events.length === 0 ? (
-        <div style={{textAlign:'center', padding:'40px', color:'#94a3b8'}}>
-            <h3>No events found 📭</h3>
-            <p>Be the first one to create an event!</p>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginTop: '20px' }}>
-          {events.map((event) => (
-            <div 
-                key={event._id} 
-                onClick={() => navigate(`/event/${event._id}`)}
-                style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', cursor:'pointer', transition:'transform 0.2s' }}
-                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
-                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-            >
-                <h3 style={{ margin: '0 0 10px 0', color:'#2563eb' }}>{event.title}</h3>
-                <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom:'15px', height:'40px', overflow:'hidden' }}>{event.description}</p>
-                <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.85rem', color:'#475569', background:'#f8fafc', padding:'10px', borderRadius:'8px'}}>
-                    <span>📍 {event.location}</span>
-                    <span>💰 ₹{event.budget}</span>
-                </div>
-                <div style={{marginTop:'15px', textAlign:'right', fontSize:'0.8rem', color:'#94a3b8'}}>
-                    {new Date(event.date).toDateString()}
-                </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '30px' }}>
+        {events.map(event => (
+          <div key={event._id} onClick={() => navigate(`/event/${event._id}`)} style={{ background: 'white', padding: '20px', boxShadow: '0 5px 15px rgba(0,0,0,0.1)', cursor:'pointer', borderRadius:'10px' }}>
+            <h3>{event.title}</h3>
+            <p>📍 {event.location} | 📅 {new Date(event.date).toLocaleDateString()}</p>
+            <div style={{background:'#f0f9ff', padding:'10px', color:'blue', fontWeight:'bold', borderRadius:'5px', marginTop:'10px'}}>
+                Funds: ₹{event.raisedAmount} / ₹{event.budget}
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
+      {events.length === 0 && <p style={{textAlign:'center', color:'#888'}}>No events live right now.</p>}
     </div>
   );
 };
-
 export default Home;

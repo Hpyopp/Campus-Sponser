@@ -1,55 +1,51 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 const CreateEvent = () => {
-  const [formData, setFormData] = useState({
-    title: '', description: '', date: '', location: '', budget: '',
-    contactEmail: '', instagramLink: ''
-  });
+  const [formData, setFormData] = useState({ title: '', description: '', date: '', location: '', budget: '', contactEmail: '', instagramLink: '' });
+  const [file, setFile] = useState(null);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // 👇 SECURITY CHECK: Verify hai ya nahi?
-  useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user'));
-    if (!user || !user.isVerified) {
-        alert("⛔ Access Denied! You must be Verified to create events.");
-        navigate('/');
-    }
-  }, [navigate]);
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleFileChange = (e) => setFile(e.target.files[0]);
 
-  const onChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-
-  const onSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const user = JSON.parse(localStorage.getItem('user'));
+    if (!file) return alert("Upload College Permission Letter!");
+    setLoading(true);
+
     try {
-      const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      await axios.post('/api/events', formData, config);
-      alert('Event Created Successfully! 🎉');
+      const user = JSON.parse(localStorage.getItem('user'));
+      const data = new FormData();
+      Object.keys(formData).forEach(key => data.append(key, formData[key]));
+      data.append('permissionLetter', file);
+
+      const config = { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${user.token}` } };
+      await axios.post('/api/events', data, config);
+      alert("Event Created! Waiting for Admin Approval.");
       navigate('/');
-    } catch (error) { alert('Error creating event'); }
+    } catch (error) { alert("Error creating event"); } finally { setLoading(false); }
   };
 
-  const inputStyle = { width: '100%', padding: '12px', marginBottom: '15px', borderRadius: '8px', border: '1px solid #ccc' };
-
   return (
-    <div style={{ maxWidth: '600px', margin: '40px auto', padding: '30px', border: '1px solid #ddd', borderRadius: '15px' }}>
-      <h2 style={{ textAlign: 'center', color: '#1e293b' }}>+ Create New Event</h2>
-      <form onSubmit={onSubmit}>
-        <input type="text" name="title" onChange={onChange} placeholder="Event Title" required style={inputStyle} />
-        <textarea name="description" onChange={onChange} placeholder="Description" required style={{...inputStyle, height:'100px'}} />
-        <div style={{display:'flex', gap:'10px'}}>
-            <input type="date" name="date" onChange={onChange} required style={inputStyle} />
-            <input type="number" name="budget" onChange={onChange} placeholder="Budget (₹)" required style={inputStyle} />
-        </div>
-        <input type="text" name="location" onChange={onChange} placeholder="Location" required style={inputStyle} />
+    <div style={{ padding: '40px', maxWidth: '600px', margin: '0 auto', fontFamily:'Poppins' }}>
+      <h2>🚀 Create Event</h2>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+        <input name="title" placeholder="Title" onChange={handleChange} required style={{padding:'10px'}} />
+        <textarea name="description" placeholder="Description" onChange={handleChange} required style={{padding:'10px'}} />
+        <input name="date" type="date" onChange={handleChange} required style={{padding:'10px'}} />
+        <input name="location" placeholder="Location" onChange={handleChange} required style={{padding:'10px'}} />
+        <input name="budget" type="number" placeholder="Budget (₹)" onChange={handleChange} required style={{padding:'10px'}} />
+        <input name="contactEmail" type="email" placeholder="Email" onChange={handleChange} required style={{padding:'10px'}} />
+        <input name="instagramLink" placeholder="Instagram (Optional)" onChange={handleChange} style={{padding:'10px'}} />
         
-        <h4 style={{margin:'10px 0', color:'#64748b'}}>📞 Contact Details for Sponsors</h4>
-        <input type="email" name="contactEmail" onChange={onChange} placeholder="Official Contact Email" required style={inputStyle} />
-        <input type="text" name="instagramLink" onChange={onChange} placeholder="Instagram Link (Optional)" style={inputStyle} />
-
-        <button type="submit" style={{ width: '100%', padding: '12px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Publish Event 🚀</button>
+        <div style={{padding:'15px', border:'1px dashed blue', background:'#f0f9ff'}}>
+            <label>Upload Permission Letter:</label>
+            <input type="file" onChange={handleFileChange} required style={{marginTop:'10px'}} />
+        </div>
+        <button type="submit" disabled={loading} style={{padding:'15px', background:'blue', color:'white', border:'none', cursor:'pointer'}}>{loading ? 'Uploading...' : 'Submit'}</button>
       </form>
     </div>
   );
