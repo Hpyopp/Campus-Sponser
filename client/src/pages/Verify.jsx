@@ -10,7 +10,7 @@ const Verify = () => {
   const [userData, setUserData] = useState(null);
   const navigate = useNavigate();
 
-  // 1. REFRESH LOGIC (CHECK SERVER)
+  // 1. PAGE LOAD: Fetch Fresh Data from Server
   useEffect(() => {
     const fetchFreshData = async () => {
         const storedUser = JSON.parse(localStorage.getItem('user'));
@@ -18,14 +18,15 @@ const Verify = () => {
 
         try {
             const config = { headers: { Authorization: `Bearer ${storedUser.token}` } };
-            // Direct DB Check
+            // Direct Database Call
             const res = await axios.get('/api/users/me', config);
-            console.log("SERVER DATA:", res.data); // 👈 Console check karna browser mein
+            
+            console.log("SERVER RESPONSE:", res.data); // 👈 Check Console
 
-            // Update State
+            // Set Data
             setUserData(res.data);
             
-            // Sync Local
+            // Sync LocalStorage
             localStorage.setItem('user', JSON.stringify({ ...storedUser, ...res.data }));
 
             // Verified Redirect
@@ -54,11 +55,12 @@ const Verify = () => {
       const config = { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${storedUser.token}` } };
       
       const res = await axios.post('/api/users/upload-doc', formData, config);
-      console.log("UPLOAD SUCCESS:", res.data);
+      console.log("UPLOAD DONE:", res.data);
 
-      // FORCE UPDATE UI
+      // FORCE UPDATE UI with Server Response
       const newUser = { ...userData, verificationDoc: res.data.docUrl, isVerified: false };
       setUserData(newUser);
+      
       localStorage.setItem('user', JSON.stringify({ ...storedUser, ...newUser }));
       
       toast.success("✅ Saved! Application Locked.");
@@ -71,7 +73,7 @@ const Verify = () => {
     }
   };
 
-  if (checking) return <div style={{textAlign:'center', marginTop:'100px'}}>🔄 Checking Status...</div>;
+  if (checking) return <div style={{textAlign:'center', marginTop:'100px'}}>🔄 Verifying Status...</div>;
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '90vh', fontFamily: 'Poppins', padding: '20px' }}>

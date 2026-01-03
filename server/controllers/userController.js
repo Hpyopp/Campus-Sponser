@@ -27,48 +27,47 @@ const registerUser = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'OTP Generated', email: user.email, debugOtp: otp });
 });
 
-// 👇 2. UPLOAD DOC (FORCE UPDATE FIX)
+// 👇 2. UPLOAD DOC (FORCE UPDATE)
 const uploadDoc = asyncHandler(async (req, res) => {
-  if (!req.file) { res.status(400); throw new Error('Upload failed - No File Recieved'); }
+  if (!req.file) { res.status(400); throw new Error('Upload failed - No File'); }
   
-  // File URL/Path nikalo
-  const fileUrl = req.file.path || req.file.url; 
+  const fileUrl = req.file.path || req.file.url;
   
-  console.log("💾 Saving to DB:", fileUrl); // Server Terminal mein check karna
-
-  // 🔥 FORCE UPDATE: Direct Database Query
+  // 🔥 FORCE DATABASE UPDATE (Bypass Mongoose Save)
   const updatedUser = await User.findByIdAndUpdate(
-    req.user.id, 
+    req.user.id,
     { 
-      verificationDoc: fileUrl, 
-      isVerified: false 
+      $set: { 
+        verificationDoc: fileUrl, 
+        isVerified: false 
+      } 
     },
     { new: true } // Return updated doc
   );
 
   if (updatedUser) {
+    console.log("✅ DB UPDATED:", updatedUser.verificationDoc); // Server Console Check
     res.status(200).json({ 
-        message: 'Uploaded & Saved', 
+        message: 'Saved to DB', 
         docUrl: updatedUser.verificationDoc, 
         isVerified: false 
     });
   } else {
-    res.status(404); throw new Error('User update failed');
+    res.status(404); throw new Error('User Update Failed');
   }
 });
 
-// 3. GET ME (With Debugging)
+// 3. GET ME (Taaki Refresh par data mile)
 const getMe = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
   if (user) {
-    // console.log("🔍 Checking DB for User:", user.email, "Doc:", user.verificationDoc); 
     res.status(200).json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
         isVerified: user.isVerified,
-        verificationDoc: user.verificationDoc, 
+        verificationDoc: user.verificationDoc, // Check console log
         companyName: user.companyName
     });
   } else {
@@ -76,13 +75,15 @@ const getMe = asyncHandler(async (req, res) => {
   }
 });
 
-// 4. ADMIN REJECT (Reset Doc)
+// 4. ADMIN REJECT (Reset to NULL)
 const unverifyUser = asyncHandler(async (req, res) => { 
-  await User.findByIdAndUpdate(req.params.id, { isVerified: false, verificationDoc: null }); 
+  await User.findByIdAndUpdate(req.params.id, { 
+      $set: { isVerified: false, verificationDoc: null } 
+  }); 
   res.status(200).json({ message: 'Rejected & Reset' }); 
 });
 
-// ... (Shortened Common Functions) ...
+// ... (Baaki Same) ...
 const verifyRegisterOTP = asyncHandler(async (req, res) => { const { email, otp } = req.body; const user = await User.findOne({ email: email.toLowerCase().trim() }); if (user && user.otp === otp.toString().trim()) { user.isVerified = user.role === 'admin' ? true : false; user.otp = undefined; user.otpExpires = undefined; await user.save(); res.status(200).json({ _id: user.id, name: user.name, email: user.email, role: user.role, token: generateToken(user._id), isVerified: user.isVerified, verificationDoc: user.verificationDoc }); } else { res.status(400); throw new Error('Invalid OTP'); } });
 const loginUser = asyncHandler(async (req, res) => { const { email, password } = req.body; const user = await User.findOne({ email: email.toLowerCase().trim() }); if (user && (await bcrypt.compare(password, user.password))) { res.json({ _id: user.id, name: user.name, email: user.email, role: user.role, isVerified: user.isVerified, verificationDoc: user.verificationDoc, token: generateToken(user._id) }); } else { res.status(401); throw new Error('Invalid Credentials'); } });
 const getAllUsers = asyncHandler(async (req, res) => { const users = await User.find().sort({ createdAt: -1 }); res.status(200).json(users); });
