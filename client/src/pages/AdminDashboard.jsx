@@ -2,28 +2,28 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const AdminPanel = () => {
+const AdminDashboard = () => {  // 👈 Naam ab AdminDashboard hai
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState({ totalRaised: 0, totalUsers: 0, totalEvents: 0, pending: 0 });
 
   // 1. DATA FETCH KARO
   const fetchUsers = async () => {
     try {
-      // Token Headers mein bhejna zaroori hai
       const config = {
           headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('user')).token}` }
       };
 
+      // 👇 Ye '/all' wala route humne backend mein fix kiya tha
       const { data } = await axios.get('/api/users/all', config);
       setUsers(data);
 
-      // Stats Calculate karo
+      // Stats Calculate
       const raised = data.reduce((acc, user) => acc + (user.raisedAmount || 0), 0);
       const pendingCount = data.filter(u => !u.isVerified).length;
       setStats({ 
           totalRaised: raised, 
           totalUsers: data.length, 
-          totalEvents: 0, // Events ka alag API hai, abhi 0 rakha hai
+          totalEvents: 0, 
           pending: pendingCount 
       });
 
@@ -37,39 +37,40 @@ const AdminPanel = () => {
     fetchUsers();
   }, []);
 
-  // 2. APPROVE FUNCTION (Backend Route: /api/users/:id/approve)
+  // 2. APPROVE FUNCTION (Fix: Sahi URL lagaya hai)
   const handleApprove = async (id) => {
     if(!window.confirm("Are you sure you want to verify this user?")) return;
     try {
       const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('user')).token}` } };
       
-      // 👇 SAHI ROUTE
+      // 👇 Backend Route: router.put('/:id/approve')
       await axios.put(`/api/users/${id}/approve`, {}, config);
       
       toast.success("User Verified Successfully ✅");
-      fetchUsers(); // List refresh karo
+      fetchUsers(); // List refresh
     } catch (error) {
+      // Asli error message dikhayega agar fail hua toh
       toast.error(error.response?.data?.message || "Action Failed");
     }
   };
 
-  // 3. REVOKE FUNCTION (Backend Route: /api/users/:id/unverify)
+  // 3. REVOKE FUNCTION
   const handleRevoke = async (id) => {
     if(!window.confirm("Are you sure you want to un-verify this user?")) return;
     try {
       const config = { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('user')).token}` } };
       
-      // 👇 SAHI ROUTE
+      // 👇 Backend Route: router.put('/:id/unverify')
       await axios.put(`/api/users/${id}/unverify`, {}, config);
       
       toast.success("User Unverified ⚠️");
       fetchUsers();
     } catch (error) {
-      toast.error("Action Failed");
+      toast.error(error.response?.data?.message || "Action Failed");
     }
   };
 
-  // 4. DELETE FUNCTION (Backend Route: /api/users/:id)
+  // 4. DELETE FUNCTION
   const handleDelete = async (id) => {
     if(!window.confirm("Delete this user permanently?")) return;
     try {
@@ -80,7 +81,7 @@ const AdminPanel = () => {
       toast.success("User Deleted 🗑️");
       fetchUsers();
     } catch (error) {
-      toast.error("Action Failed");
+      toast.error(error.response?.data?.message || "Action Failed");
     }
   };
 
