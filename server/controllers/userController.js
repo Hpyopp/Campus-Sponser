@@ -8,9 +8,10 @@ const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
-// 1. REGISTER (With Green Box Support ✅)
+// 1. REGISTER (⚡ INSTANT OTP MODE)
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone, role, companyName, collegeName } = req.body;
+  
   if (!name || !email || !password || !phone) { res.status(400); throw new Error('Fill all fields'); }
   
   const cleanEmail = email.toLowerCase().trim();
@@ -31,14 +32,16 @@ const registerUser = asyncHandler(async (req, res) => {
     isVerified: false, verificationDoc: ""
   });
 
-  // Email koshish karega, par fail hua toh bhi code chalega
-  try { await sendEmail({ email: user.email, subject: 'Verify Your Account', message: `Your OTP is: ${otp}` }); } 
-  catch (error) { console.log("Email error (Ignored for Dev):", error.message); }
+  // 👇 FAST FIX: 'await' hata diya. Email background mein fail hota rahega, hum rukenge nahi.
+  sendEmail({ email: user.email, subject: 'Verify Your Account', message: `Your OTP is: ${otp}` })
+    .catch(err => console.log("Dev Mode: Email skipped for speed"));
 
+  // Turant Response (Milliseconds mein)
   res.status(201).json({ 
-      message: 'OTP Sent', 
+      success: true,
+      message: 'OTP Generated (Dev Mode)', 
       email: user.email,
-      otp: otp // 👈 YE HAI WO JADU (Green Box ke liye)
+      otp: otp // 👈 Ye Frontend pakdega aur Green Box dikhayega
   });
 });
 
@@ -56,40 +59,30 @@ const loginUser = asyncHandler(async (req, res) => {
   } else { res.status(401); throw new Error('Invalid email or password'); }
 });
 
-// 3. FORGOT PASSWORD (With Green Box Support ✅)
+// 3. FORGOT PASSWORD (⚡ INSTANT OTP MODE)
 const forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
     const user = await User.findOne({ email: email.toLowerCase().trim() });
 
     if (!user) { res.status(404); throw new Error('User not found'); }
 
-    // Naya OTP Generate karo
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     user.otp = otp;
     await user.save();
 
-    // Email try karo
-    try { await sendEmail({ email: user.email, subject: 'Reset Password', message: `Your OTP is: ${otp}` }); } 
-    catch (error) { console.log("Email error (Ignored):", error.message); }
+    // 👇 FAST FIX: 'await' hata diya. Turant response aayega.
+    sendEmail({ email: user.email, subject: 'Reset Password', message: `Your OTP is: ${otp}` })
+      .catch(err => console.log("Dev Mode: Email skipped for speed"));
 
+    // Turant Response
     res.json({ 
-        message: "OTP Generated", 
-        otp: otp // 👈 YE HAI WO JADU (Green Box ke liye)
+        success: true,
+        message: "OTP Generated (Dev Mode)", 
+        otp: otp // 👈 Green Box ke liye zaroori
     });
 });
 
-// 4. VERIFY OTP
-const verifyRegisterOTP = asyncHandler(async (req, res) => {
-  const { email, otp } = req.body;
-  const user = await User.findOne({ email });
-  if (user && user.otp === otp) {
-    user.isVerified = (user.role === 'admin'); user.otp = undefined;
-    await user.save();
-    res.json({ _id: user.id, token: generateToken(user._id), role: user.role });
-  } else { res.status(400); throw new Error('Invalid OTP'); }
-});
-
-// 5. RESET PASSWORD
+// 4. RESET PASSWORD
 const resetPassword = asyncHandler(async (req, res) => { 
     const { email, otp, newPassword } = req.body;
     const user = await User.findOne({ email });
@@ -105,7 +98,19 @@ const resetPassword = asyncHandler(async (req, res) => {
     }
 });
 
-// --- HELPER FUNCTIONS ---
+// 5. VERIFY REGISTRATION OTP
+const verifyRegisterOTP = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+  const user = await User.findOne({ email });
+  
+  if (user && user.otp === otp) {
+    user.isVerified = (user.role === 'admin'); user.otp = undefined;
+    await user.save();
+    res.json({ _id: user.id, token: generateToken(user._id), role: user.role });
+  } else { res.status(400); throw new Error('Invalid OTP'); }
+});
+
+// Helpers (Existing functions, no change needed)
 const getMe = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
   if (user) { res.json({ _id: user._id, name: user.name, email: user.email, role: user.role, isVerified: user.isVerified, verificationDoc: user.verificationDoc || "", companyName: user.companyName }); } 
@@ -130,8 +135,8 @@ module.exports = {
   registerUser,
   loginUser,
   verifyRegisterOTP,
-  forgotPassword, // ✅ Added Real Logic
-  resetPassword,  // ✅ Added Real Logic
+  forgotPassword,
+  resetPassword,
   getMe, uploadDoc, getAllUsers,
   approveUser, unverifyUser, deleteUser, verifyLogin
 };
