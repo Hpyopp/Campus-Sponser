@@ -3,17 +3,16 @@ const asyncHandler = require('express-async-handler');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
-// ❌ EMAIL SYSTEM JAD SE KHATAM (Import hi hata diya)
+// ❌ EMAIL IMPORT HATA DIYA (Server ab email bhej hi nahi sakta)
 // const sendEmail = require('../utils/sendEmail'); 
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
-// 1. REGISTER (⚡ 0.00 Seconds Delay)
+// 1. REGISTER (⚡ INSTANT RESPONSE + GREEN BOX)
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone, role, companyName, collegeName } = req.body;
-  
   if (!name || !email || !password || !phone) { res.status(400); throw new Error('Fill all fields'); }
   
   const cleanEmail = email.toLowerCase().trim();
@@ -22,11 +21,8 @@ const registerUser = asyncHandler(async (req, res) => {
 
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
-  
-  // OTP Generate
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // User Save
   const user = await User.create({
     name, email: cleanEmail, password: hashedPassword, phone,
     role: role || 'student',
@@ -35,14 +31,15 @@ const registerUser = asyncHandler(async (req, res) => {
     isVerified: false, verificationDoc: ""
   });
 
-  // 🚀 KOI EMAIL CODE NAHI HAI YAHAN - SERVER RUKEGA HI NAHI.
-  console.log(`🚀 INSTANT OTP: ${otp}`); 
+  // 🚀 NO EMAIL WAIT. NO DELAY.
+  console.log(`🚀 INSTANT REGISTER OTP: ${otp}`); 
 
-  // ✅ RESPONSE: Green Box ke liye 'otp' bhej diya
+  // ✅ FRONTEND RESPONSE (Green Box Data)
   res.status(201).json({ 
-      message: 'OTP Generated', 
+      success: true,
+      message: 'OTP Generated Instantly', 
       email: user.email,
-      otp: otp  // 👈 Ye Field Frontend pakdega aur Green Box dikhayega
+      otp: otp // 👈 Ye data Green Box mein dikhega
   });
 });
 
@@ -60,25 +57,25 @@ const loginUser = asyncHandler(async (req, res) => {
   } else { res.status(401); throw new Error('Invalid email or password'); }
 });
 
-// 3. FORGOT PASSWORD (⚡ 0.00 Seconds Delay)
+// 3. FORGOT PASSWORD (⚡ INSTANT RESPONSE + GREEN BOX)
 const forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
     const user = await User.findOne({ email: email.toLowerCase().trim() });
 
     if (!user) { res.status(404); throw new Error('User not found'); }
 
-    // OTP Generate
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     user.otp = otp;
     await user.save();
 
-    // 🚀 NO WAIT. NO EMAIL.
-    console.log(`🚀 INSTANT RESET OTP: ${otp}`);
+    // 🚀 NO EMAIL WAIT.
+    console.log(`🚀 INSTANT FORGOT OTP: ${otp}`);
 
-    // ✅ RESPONSE
+    // ✅ FRONTEND RESPONSE (Green Box Data)
     res.json({ 
-        message: "OTP Generated", 
-        otp: otp // 👈 Ye Field Green Box dikhayega
+        success: true,
+        message: "OTP Generated Instantly", 
+        otp: otp // 👈 Ye data Green Box mein dikhega
     });
 });
 
@@ -130,11 +127,6 @@ const deleteUser = asyncHandler(async (req, res) => { await User.findByIdAndDele
 const verifyLogin = asyncHandler(async (req, res) => { res.status(400).json({ message: "Use password login" }); });
 
 module.exports = {
-  registerUser,
-  loginUser,
-  verifyRegisterOTP,
-  forgotPassword,
-  resetPassword,
-  getMe, uploadDoc, getAllUsers,
-  approveUser, unverifyUser, deleteUser, verifyLogin
+  registerUser, loginUser, verifyRegisterOTP, forgotPassword, resetPassword,
+  getMe, uploadDoc, getAllUsers, approveUser, unverifyUser, deleteUser, verifyLogin
 };
