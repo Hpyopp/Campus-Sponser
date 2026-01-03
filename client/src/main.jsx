@@ -1,20 +1,14 @@
-// client/src/main.jsx
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App.jsx';
-import './index.css';
-import axios from 'axios';
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+import axios from 'axios'; // 👈 1. Import Axios
 
-// Vercel Connection Setup
-const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-axios.defaults.baseURL = isLocal 
-  ? 'http://localhost:5000' 
-  : 'https://campus-sponser-api.onrender.com';
-axios.defaults.withCredentials = false;
+// 👇 2. YE LINE ADD KAR (Tera Render URL yahan daal)
+axios.defaults.baseURL = 'https://campus-sponser-api.onrender.com';
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    {/* ❌ YAHAN ROUTER MAT LAGANA KYUNKI APP.JSX MEIN HAI */}
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
     <App />
-  </React.StrictMode>,
-);
+  </StrictMode>,
+)
