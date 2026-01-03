@@ -8,20 +8,27 @@ const sendEmail = require('../utils/sendEmail');
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone, role, companyName, collegeName } = req.body;
   if (!name || !email || !password || !phone) { res.status(400); throw new Error('Please fill all fields including Phone Number'); }
+  
   const cleanEmail = email.toLowerCase().trim();
   const userExists = await User.findOne({ email: cleanEmail });
   if (userExists) { res.status(400); throw new Error('User already exists'); }
+  
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  
   const user = await User.create({
     name, email: cleanEmail, password: hashedPassword, phone, 
     role: role || 'student',
     companyName: (role === 'sponsor' && companyName) ? companyName : '',
     collegeName: (role === 'student' && collegeName) ? collegeName : '',
-    otp, otpExpires: Date.now() + 10 * 60 * 1000, isVerified: false
+    otp, otpExpires: Date.now() + 10 * 60 * 1000, 
+    isVerified: false // Default False
   });
-  sendEmail({ email: user.email, subject: 'Verify Account', message: `Your OTP is: ${otp}` }).catch(err => console.log("Email Dev Mode: Skipped waiting"));
+  
+  sendEmail({ email: user.email, subject: 'Verify Account', message: `Your OTP is: ${otp}` })
+    .catch(err => console.log("Email Dev Mode: Skipped waiting"));
+
   res.status(200).json({ message: 'OTP Generated', email: user.email, debugOtp: otp });
 });
 
@@ -29,47 +36,56 @@ const registerUser = asyncHandler(async (req, res) => {
 const verifyRegisterOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   const user = await User.findOne({ email: email.toLowerCase().trim() });
+  
   if (user && user.otp === otp.toString().trim()) {
-      // NOTE: Student/Sponsor abhi verified nahi honge, bas OTP clear hoga.
-      // Only Admin gets auto-verified (if you have admin registration logic, otherwise keep everyone false)
+      // Admin hai toh direct verify, warna false (Document upload ke liye)
       user.isVerified = user.role === 'admin' ? true : false; 
       user.otp = undefined;
       user.otpExpires = undefined;
       await user.save();
-      res.status(200).json({ _id: user.id, name: user.name, email: user.email, role: user.role, token: generateToken(user._id), isVerified: user.isVerified, verificationDoc: user.verificationDoc });
+      
+      res.status(200).json({ 
+          _id: user.id, name: user.name, email: user.email, role: user.role, 
+          token: generateToken(user._id), isVerified: user.isVerified, verificationDoc: user.verificationDoc 
+      });
   } else {
       res.status(400); throw new Error('Invalid OTP');
   }
 });
 
-// 3. LOGIN
+// 👇 3. LOGIN (UPDATED: Allow Login even if Not Verified)
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email: email.toLowerCase().trim() });
+
   if (user && (await bcrypt.compare(password, user.password))) {
-      // If role is student/sponsor and not verified, block login (except if they need to upload doc)
-      if (user.role !== 'admin' && !user.isVerified && user.verificationDoc) {
-          res.status(401); throw new Error('⏳ Account Pending Admin Approval.');
-      }
-      // If they haven't uploaded doc yet, let them login to reach /verify page
-      res.json({ _id: user.id, name: user.name, email: user.email, role: user.role, isVerified: user.isVerified, verificationDoc: user.verificationDoc, token: generateToken(user._id) });
+      
+      // BLOCK NAHI KAR RAHE. Token return kar rahe hain.
+      // Frontend decide karega kahan bhejna hai.
+      
+      res.json({
+          _id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isVerified: user.isVerified,
+          verificationDoc: user.verificationDoc,
+          token: generateToken(user._id)
+      });
   } else {
       res.status(401); throw new Error('Invalid Email or Password');
   }
 });
 
-// 👇 4. UPLOAD DOC (CRITICAL FIX HERE!!!)
+// 4. UPLOAD DOC (Critical: Keep Verified False)
 const uploadDoc = asyncHandler(async (req, res) => {
   if (!req.file || !req.file.path) { res.status(400); throw new Error('Upload failed'); }
   const user = await User.findById(req.user.id);
   if (user) {
     user.verificationDoc = req.file.path;
-    
-    // 🚨 THE FIX: Status must remain FALSE until Admin approves
-    user.isVerified = false; 
-    
+    user.isVerified = false; // Status Pending hi rahega jab tak Admin approve na kare
     await user.save();
-    res.status(200).json({ message: 'Uploaded successfully. Wait for approval.', docUrl: req.file.path, isVerified: false });
+    res.status(200).json({ message: 'Uploaded successfully', docUrl: req.file.path, isVerified: false });
   } else {
     res.status(404); throw new Error('User not found');
   }
