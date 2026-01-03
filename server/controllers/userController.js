@@ -15,7 +15,6 @@ const registerUser = asyncHandler(async (req, res) => {
   const hashedPassword = await bcrypt.hash(password, salt);
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   
-  // Explicitly setting verificationDoc to empty string
   const user = await User.create({
     name, email: cleanEmail, password: hashedPassword, phone, role: role || 'student', 
     companyName: (role === 'sponsor' && companyName) ? companyName : '', 
@@ -28,13 +27,15 @@ const registerUser = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'OTP Generated', email: user.email, debugOtp: otp });
 });
 
-// 2. UPLOAD DOC (The Savior)
+// 👇 2. UPLOAD DOC (FORCE SAVE)
 const uploadDoc = asyncHandler(async (req, res) => {
-  if (!req.file) { res.status(400); throw new Error('Upload failed - No File'); }
+  console.log("📂 UPLOAD HIT - Body:", req.body, "File:", req.file);
+
+  if (!req.file) { res.status(400); throw new Error('No file uploaded'); }
   
   const fileUrl = req.file.path || req.file.url;
-  console.log("🔥 SAVING TO DB:", fileUrl); // TERMINAL MEIN YE DIKHNA CHAHIYE
-
+  
+  // 🔥 Zabardasti Update Karo
   const updatedUser = await User.findByIdAndUpdate(
     req.user.id,
     { 
@@ -43,28 +44,27 @@ const uploadDoc = asyncHandler(async (req, res) => {
         isVerified: false 
       } 
     },
-    { new: true } // Return updated doc
+    { new: true } // Return updated document
   );
+
+  console.log("✅ DB UPDATED DOC:", updatedUser.verificationDoc); // <--- YE CHECK KARNA TERMINAL MEIN
 
   if (updatedUser) {
     res.status(200).json({ 
-        message: 'Saved to DB', 
+        message: 'Saved', 
         docUrl: updatedUser.verificationDoc, 
         isVerified: false 
     });
   } else {
-    res.status(404); throw new Error('User Update Failed');
+    res.status(404); throw new Error('Update Failed');
   }
 });
 
-// 3. GET ME (Debugging Added)
+// 3. GET ME (Refresh Check)
 const getMe = asyncHandler(async (req, res) => {
-  // .lean() makes it a plain JS object, ensures no hidden Mongoose magic
-  const user = await User.findById(req.user.id).lean(); 
-  
+  const user = await User.findById(req.user.id);
   if (user) {
-    console.log("👀 FETCHING USER FROM DB. DOC IS:", user.verificationDoc); // CHECK THIS LOG
-    
+    console.log("🔍 GET ME CALL - Doc in DB is:", user.verificationDoc); // <--- YE BHI CHECK KARNA
     res.status(200).json({
         _id: user._id,
         name: user.name,
@@ -82,10 +82,10 @@ const getMe = asyncHandler(async (req, res) => {
 // 4. REJECT
 const unverifyUser = asyncHandler(async (req, res) => { 
   await User.findByIdAndUpdate(req.params.id, { $set: { isVerified: false, verificationDoc: "" } }); 
-  res.status(200).json({ message: 'Rejected & Reset' }); 
+  res.status(200).json({ message: 'Rejected' }); 
 });
 
-// ... (Copy baaki functions same as before) ...
+// ... (Baaki wahi same code) ...
 const verifyRegisterOTP = asyncHandler(async (req, res) => { const { email, otp } = req.body; const user = await User.findOne({ email: email.toLowerCase().trim() }); if (user && user.otp === otp.toString().trim()) { user.isVerified = user.role === 'admin' ? true : false; user.otp = undefined; user.otpExpires = undefined; await user.save(); res.status(200).json({ _id: user.id, name: user.name, email: user.email, role: user.role, token: generateToken(user._id), isVerified: user.isVerified, verificationDoc: user.verificationDoc }); } else { res.status(400); throw new Error('Invalid OTP'); } });
 const loginUser = asyncHandler(async (req, res) => { const { email, password } = req.body; const user = await User.findOne({ email: email.toLowerCase().trim() }); if (user && (await bcrypt.compare(password, user.password))) { res.json({ _id: user.id, name: user.name, email: user.email, role: user.role, isVerified: user.isVerified, verificationDoc: user.verificationDoc, token: generateToken(user._id) }); } else { res.status(401); throw new Error('Invalid Credentials'); } });
 const getAllUsers = asyncHandler(async (req, res) => { const users = await User.find().sort({ createdAt: -1 }); res.status(200).json(users); });
