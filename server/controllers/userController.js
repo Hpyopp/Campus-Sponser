@@ -1,5 +1,4 @@
 const User = require('../models/User');
-const mongoose = require('mongoose');
 const asyncHandler = require('express-async-handler');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -16,7 +15,6 @@ const registerUser = asyncHandler(async (req, res) => {
   
   const cleanEmail = email.toLowerCase().trim();
   const userExists = await User.findOne({ email: cleanEmail });
-  
   if (userExists) { res.status(400); throw new Error('User already exists'); }
 
   const salt = await bcrypt.genSalt(10);
@@ -31,9 +29,8 @@ const registerUser = asyncHandler(async (req, res) => {
     isVerified: false, verificationDoc: ""
   });
 
-  try {
-    await sendEmail({ email: user.email, subject: 'Verify Your Account', message: `Your OTP is: ${otp}` });
-  } catch (error) { console.log("Email error:", error); }
+  try { await sendEmail({ email: user.email, subject: 'Verify Your Account', message: `Your OTP is: ${otp}` }); } 
+  catch (error) { console.log("Email error:", error); }
 
   res.status(201).json({ message: 'OTP Sent to Email', email: user.email });
 });
@@ -53,12 +50,10 @@ const loginUser = asyncHandler(async (req, res) => {
       verificationDoc: user.verificationDoc || "",
       token: generateToken(user._id)
     });
-  } else {
-    res.status(401); throw new Error('Invalid email or password');
-  }
+  } else { res.status(401); throw new Error('Invalid email or password'); }
 });
 
-// 3. GET ME (✅ YE MISSING THA - Wapas Add Kiya)
+// 3. GET ME (🔴 YE MISSING THA - AB FIX HAI)
 const getMe = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
   if (user) {
@@ -74,21 +69,20 @@ const getMe = asyncHandler(async (req, res) => {
   } else { res.status(404); throw new Error('User not found'); }
 });
 
-// 4. UPLOAD DOC (✅ YE MISSING THA - Wapas Add Kiya)
+// 4. UPLOAD DOC (🔴 YE BHI MISSING THA - AB FIX HAI)
 const uploadDoc = asyncHandler(async (req, res) => {
   if (!req.file) { res.status(400); throw new Error('No file uploaded'); }
   const fileUrl = req.file.path || req.file.url;
-
   const user = await User.findById(req.user.id);
   if (user) {
     user.verificationDoc = fileUrl;
-    user.isVerified = false; // Reset on new upload
+    user.isVerified = false;
     await user.save();
-    res.json({ message: 'Document Uploaded', docUrl: fileUrl, isVerified: false });
+    res.json({ message: 'Document Uploaded', docUrl: fileUrl });
   } else { res.status(404); throw new Error('User not found'); }
 });
 
-// 5. GET ALL USERS (✅ YE MISSING THA - Admin ke liye)
+// 5. GET ALL USERS (🔴 YE BHI WAPAS AAYA)
 const getAllUsers = asyncHandler(async (req, res) => {
   const users = await User.find().sort({ createdAt: -1 });
   res.json(users);
@@ -99,7 +93,7 @@ const verifyRegisterOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   const user = await User.findOne({ email });
   if (user && user.otp === otp) {
-    user.isVerified = (user.role === 'admin'); 
+    user.isVerified = (user.role === 'admin');
     user.otp = undefined;
     await user.save();
     res.json({ _id: user.id, token: generateToken(user._id), role: user.role });
@@ -107,20 +101,20 @@ const verifyRegisterOTP = asyncHandler(async (req, res) => {
 });
 
 const approveUser = asyncHandler(async (req, res) => { await User.findByIdAndUpdate(req.params.id, { isVerified: true }); res.json({ message: 'Verified' }); });
-const unverifyUser = asyncHandler(async (req, res) => { await User.findByIdAndUpdate(req.params.id, { isVerified: false, verificationDoc: "" }); res.json({ message: 'Unverified' }); });
+const unverifyUser = asyncHandler(async (req, res) => { await User.findByIdAndUpdate(req.params.id, { isVerified: false }); res.json({ message: 'Unverified' }); });
 const deleteUser = asyncHandler(async (req, res) => { await User.findByIdAndDelete(req.params.id); res.json({ message: 'User Deleted' }); });
 const forgotPassword = asyncHandler(async (req, res) => { res.json({ message: "OTP sent" }); });
 const resetPassword = asyncHandler(async (req, res) => { res.json({ message: "Password Reset Successful" }); });
 const verifyLogin = asyncHandler(async (req, res) => { res.status(400).json({ message: "Use password login" }); });
 
-// 👇 CRITICAL: Check kar ye saare naam yahan hone chahiye
+// 👇 CRITICAL: Check Exports
 module.exports = {
   registerUser,
   loginUser,
   verifyRegisterOTP,
-  getMe,        // ✅
-  uploadDoc,    // ✅
-  getAllUsers,  // ✅
+  getMe,        // ✅ Ab ye exported hai
+  uploadDoc,    // ✅ Ye bhi
+  getAllUsers,  // ✅ Ye bhi
   approveUser,
   unverifyUser,
   deleteUser,
