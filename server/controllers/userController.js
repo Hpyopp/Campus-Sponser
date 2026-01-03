@@ -58,7 +58,7 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 });
 
-// 3. GET ME (Ye Missing Tha)
+// 3. GET ME (✅ YE MISSING THA - Wapas Add Kiya)
 const getMe = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
   if (user) {
@@ -74,7 +74,7 @@ const getMe = asyncHandler(async (req, res) => {
   } else { res.status(404); throw new Error('User not found'); }
 });
 
-// 4. UPLOAD DOC (Ye Missing Tha)
+// 4. UPLOAD DOC (✅ YE MISSING THA - Wapas Add Kiya)
 const uploadDoc = asyncHandler(async (req, res) => {
   if (!req.file) { res.status(400); throw new Error('No file uploaded'); }
   const fileUrl = req.file.path || req.file.url;
@@ -82,13 +82,13 @@ const uploadDoc = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
   if (user) {
     user.verificationDoc = fileUrl;
-    user.isVerified = false; // Reset verification on new upload
+    user.isVerified = false; // Reset on new upload
     await user.save();
     res.json({ message: 'Document Uploaded', docUrl: fileUrl, isVerified: false });
   } else { res.status(404); throw new Error('User not found'); }
 });
 
-// 5. GET ALL USERS (Admin - Ye Missing Tha)
+// 5. GET ALL USERS (✅ YE MISSING THA - Admin ke liye)
 const getAllUsers = asyncHandler(async (req, res) => {
   const users = await User.find().sort({ createdAt: -1 });
   res.json(users);
@@ -99,7 +99,7 @@ const verifyRegisterOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   const user = await User.findOne({ email });
   if (user && user.otp === otp) {
-    user.isVerified = (user.role === 'admin'); // Admins auto-verified
+    user.isVerified = (user.role === 'admin'); 
     user.otp = undefined;
     await user.save();
     res.json({ _id: user.id, token: generateToken(user._id), role: user.role });
@@ -113,14 +113,14 @@ const forgotPassword = asyncHandler(async (req, res) => { res.json({ message: "O
 const resetPassword = asyncHandler(async (req, res) => { res.json({ message: "Password Reset Successful" }); });
 const verifyLogin = asyncHandler(async (req, res) => { res.status(400).json({ message: "Use password login" }); });
 
-// 👇 CRITICAL: Ensure ALL functions are exported here
+// 👇 CRITICAL: Check kar ye saare naam yahan hone chahiye
 module.exports = {
   registerUser,
   loginUser,
   verifyRegisterOTP,
-  getMe,        // ✅ Added
-  uploadDoc,    // ✅ Added
-  getAllUsers,  // ✅ Added
+  getMe,        // ✅
+  uploadDoc,    // ✅
+  getAllUsers,  // ✅
   approveUser,
   unverifyUser,
   deleteUser,
