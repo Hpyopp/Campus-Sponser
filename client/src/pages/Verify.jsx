@@ -9,20 +9,35 @@ const Verify = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const navigate = useNavigate();
 
+  // 👇 Force Refresh User Data on Mount
   useEffect(() => {
-    // LocalStorage se user uthao (UserSync isko update rakhega)
-    const loadUser = () => {
-        const user = JSON.parse(localStorage.getItem('user'));
-        if (!user) { navigate('/login'); return; }
-        if (user.isVerified) { navigate('/'); return; }
-        setCurrentUser(user);
+    const fetchLatestUserData = async () => {
+        const storedUser = JSON.parse(localStorage.getItem('user'));
+        if (!storedUser) { navigate('/login'); return; }
+        
+        // Agar pehle se Verified hai, toh yahan kya kar raha hai? Home ja.
+        if (storedUser.isVerified) { navigate('/'); return; }
+
+        // Setup User State
+        setCurrentUser(storedUser);
+
+        // Double Check from Server (Sometimes LocalStorage lags)
+        try {
+            const config = { headers: { Authorization: `Bearer ${storedUser.token}` } };
+            const res = await axios.get('/api/users/me', config);
+            
+            // Server data ko LocalStorage se sync karo
+            const freshUser = { ...storedUser, verificationDoc: res.data.verificationDoc, isVerified: res.data.isVerified };
+            localStorage.setItem('user', JSON.stringify(freshUser));
+            setCurrentUser(freshUser);
+            
+            if (res.data.isVerified) navigate('/');
+        } catch (error) {
+            console.log("Sync error");
+        }
     };
 
-    loadUser();
-    
-    // Listen for updates from UserSync
-    window.addEventListener('storage', loadUser);
-    return () => window.removeEventListener('storage', loadUser);
+    fetchLatestUserData();
   }, [navigate]);
 
   const handleUpload = async (e) => {
@@ -37,17 +52,18 @@ const Verify = () => {
       const config = { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${currentUser.token}` } };
       const res = await axios.post('/api/users/upload-doc', formData, config);
       
-      // Update Local immediately
+      // Update Local State IMMEDIATELY
       const updatedUser = { ...currentUser, verificationDoc: res.data.docUrl, isVerified: false };
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setCurrentUser(updatedUser);
+      
+      // Notify other tabs/components
       window.dispatchEvent(new Event("storage"));
 
-      toast.success("Document Uploaded! Redirecting...");
+      toast.success("Document Uploaded Successfully!");
       
-      setTimeout(() => {
-          navigate('/');
-      }, 1500);
+      // Thoda wait karke Home bhej do
+      setTimeout(() => navigate('/'), 1500);
 
     } catch (error) {
       toast.error(error.response?.data?.message || "Upload Failed");
@@ -56,7 +72,7 @@ const Verify = () => {
     }
   };
 
-  if (!currentUser) return null;
+  if (!currentUser) return <div style={{textAlign:'center', padding:'50px'}}>Loading...</div>;
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '90vh', fontFamily: 'Poppins', padding: '20px' }}>
@@ -65,34 +81,40 @@ const Verify = () => {
         <h1 style={{ fontSize: '3rem', marginBottom: '10px' }}>🛡️</h1>
         <h2 style={{ color: '#1e293b', margin: '0 0 15px 0' }}>Account Verification</h2>
 
-        {/* 👇 LOCKED STATE: Agar Doc Uploaded hai, toh Lock dikhao */}
+        {/* 👇 LOGIC: Agar Doc Hai = LOCKED. Agar Doc Nahi Hai = UPLOAD FORM. */}
         {currentUser.verificationDoc ? (
+            
+            // === LOCKED VIEW (User sees this if they return here) ===
             <div style={{ background: '#f8fafc', border: '2px solid #cbd5e1', padding: '25px', borderRadius: '10px' }}>
                 <div style={{fontSize:'3rem', marginBottom:'10px'}}>🔒</div>
                 <h3 style={{ margin: '0 0 10px 0', color: '#334155' }}>Submission Locked</h3>
                 
                 <p style={{ fontSize: '0.9rem', color:'#64748b', marginBottom:'20px' }}>
-                    You have already submitted your document. It is currently under review by the Admin.
+                    You have submitted your document. It is under review.
                 </p>
 
-                {/* SHOW PREVIEW */}
+                {/* Document Preview */}
                 <div style={{marginBottom:'20px', border:'1px dashed #ccc', padding:'10px', background:'white', borderRadius:'8px'}}>
-                    <p style={{fontSize:'0.8rem', fontWeight:'bold', margin:'0 0 5px 0', color:'#475569'}}>Your Uploaded Document:</p>
+                    <p style={{fontSize:'0.8rem', fontWeight:'bold', margin:'0 0 5px 0', color:'#475569'}}>Uploaded Document:</p>
                     {currentUser.verificationDoc.endsWith('.pdf') ? (
-                        <a href={currentUser.verificationDoc} target="_blank" rel="noreferrer" style={{color:'#2563eb', fontWeight:'bold'}}>📄 View PDF</a>
+                        <a href={currentUser.verificationDoc} target="_blank" rel="noreferrer" style={{color:'#2563eb', fontWeight:'bold'}}>📄 View Uploaded PDF</a>
                     ) : (
-                        <img src={currentUser.verificationDoc} alt="ID Proof" style={{width:'100%', maxHeight:'150px', objectFit:'contain', borderRadius:'5px'}} />
+                        <img src={currentUser.verificationDoc} alt="ID Proof" style={{width:'100%', maxHeight:'200px', objectFit:'contain', borderRadius:'5px'}} />
                     )}
                 </div>
 
                 <div style={{ fontSize: '0.85rem', color:'#dc2626', background:'#fee2e2', padding:'10px', borderRadius:'5px' }}>
-                    <strong>Note:</strong> You cannot change this document until the Admin reviews it. If rejected, the lock will open.
+                    <strong>Note:</strong> You cannot upload again unless the Admin rejects this document.
                 </div>
                 
-                <button onClick={() => navigate('/')} style={{marginTop:'20px', padding:'10px 20px', background:'#334155', color:'white', border:'none', borderRadius:'5px', cursor:'pointer'}}>Go to Home</button>
+                <button onClick={() => navigate('/')} style={{marginTop:'20px', padding:'12px 25px', background:'#334155', color:'white', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold'}}>
+                    Go Back Home
+                </button>
             </div>
+
         ) : (
-            /* 👇 UPLOAD STATE: Sirf tab jab Doc NULL ho (New user or Rejected user) */
+            
+            // === UPLOAD FORM (Only if Doc is NULL) ===
             <>
                 <p style={{ color: '#64748b', marginBottom: '25px', lineHeight: '1.6' }}>
                 To ensure trust, please upload a valid College ID (for Students) or Company Registration/Visiting Card (for Sponsors).
@@ -116,7 +138,7 @@ const Verify = () => {
                     </div>
                     
                     <button type="submit" disabled={loading} style={{ padding: '15px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', transition: '0.3s', opacity: loading ? 0.7 : 1 }}>
-                        {loading ? 'Uploading & Submitting...' : 'Submit for Verification'}
+                        {loading ? '🚀 Upload & Submit' : 'Submit for Verification'}
                     </button>
                 </form>
             </>
