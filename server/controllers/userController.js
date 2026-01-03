@@ -2,16 +2,15 @@ const User = require('../models/User');
 const asyncHandler = require('express-async-handler');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-// const sendEmail = require('../utils/sendEmail'); // 👈 EMAIL SYSTEM DISABLED
+// const sendEmail = require('../utils/sendEmail'); // 👈 DEKH MAINE IMPORT HI BAND KAR DIYA
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
-// 1. REGISTER (⚡ INSTANT - 0ms Delay)
+// 1. REGISTER (⚡ 0.01 Second Response)
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone, role, companyName, collegeName } = req.body;
-  
   if (!name || !email || !password || !phone) { res.status(400); throw new Error('Fill all fields'); }
   
   const cleanEmail = email.toLowerCase().trim();
@@ -21,9 +20,10 @@ const registerUser = asyncHandler(async (req, res) => {
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
   
-  // OTP Generate
+  // OTP Bana
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
+  // User Save Kar
   const user = await User.create({
     name, email: cleanEmail, password: hashedPassword, phone,
     role: role || 'student',
@@ -32,16 +32,17 @@ const registerUser = asyncHandler(async (req, res) => {
     isVerified: false, verificationDoc: ""
   });
 
-  // ❌ EMAIL CODE REMOVED FOR SPEED
+  // ❌ EMAIL CODE HATA DIYA (Server ab rukega nahi)
   // await sendEmail(...); 
-  console.log(`🚀 Fast Mode: OTP for ${user.email} is ${otp}`);
+  
+  console.log(`🚀 INSTANT OTP: ${otp}`); // Sirf Console mein dikhega
 
-  // ✅ INSTANT RESPONSE WITH GREEN BOX DATA
+  // ✅ Turant Response bhej diya
   res.status(201).json({ 
       success: true,
-      message: 'OTP Generated', 
+      message: 'OTP Generated Instantly', 
       email: user.email,
-      otp: otp // 👈 Ye seedha tere Green Box mein dikhega
+      otp: otp // 👈 Ye Frontend ke Green Box mein jayega
   });
 });
 
@@ -59,27 +60,26 @@ const loginUser = asyncHandler(async (req, res) => {
   } else { res.status(401); throw new Error('Invalid email or password'); }
 });
 
-// 3. FORGOT PASSWORD (⚡ INSTANT - 0ms Delay)
+// 3. FORGOT PASSWORD (⚡ 0.01 Second Response)
 const forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
     const user = await User.findOne({ email: email.toLowerCase().trim() });
 
     if (!user) { res.status(404); throw new Error('User not found'); }
 
-    // OTP Generate
+    // OTP Bana
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     user.otp = otp;
     await user.save();
 
-    // ❌ EMAIL CODE REMOVED FOR SPEED
+    // ❌ EMAIL CODE HATA DIYA
     // await sendEmail(...);
-    console.log(`🚀 Fast Mode: Reset OTP is ${otp}`);
 
-    // ✅ INSTANT RESPONSE
+    // ✅ Turant Response
     res.json({ 
         success: true,
-        message: "OTP Generated", 
-        otp: otp // 👈 Green Box Data
+        message: "OTP Generated Instantly", 
+        otp: otp // 👈 Ye Frontend ke Green Box mein jayega
     });
 });
 
