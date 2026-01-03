@@ -5,46 +5,44 @@ import toast from 'react-hot-toast';
 
 const Verify = () => {
   const [file, setFile] = useState(null);
-  const [uploading, setUploading] = useState(false); // Upload loading state
-  const [fetching, setFetching] = useState(true);   // Page loading state
-  const [userData, setUserData] = useState(null);   // Store fresh user data
+  const [uploading, setUploading] = useState(false);
+  const [fetching, setFetching] = useState(true);
+  const [userData, setUserData] = useState(null);
   const navigate = useNavigate();
 
-  // 👇 STEP 1: Page Load hote hi Server se pucho
+  // 1. Fetch Fresh Data on Page Load (Most Important)
   useEffect(() => {
-    const fetchLatestStatus = async () => {
+    const fetchStatus = async () => {
         const storedUser = JSON.parse(localStorage.getItem('user'));
         if (!storedUser) { navigate('/login'); return; }
 
         try {
             const config = { headers: { Authorization: `Bearer ${storedUser.token}` } };
-            // Direct DB Call
+            // Direct Database Call
             const res = await axios.get('/api/users/me', config);
             
-            setUserData(res.data); // Save Fresh Data
+            setUserData(res.data);
             
-            // Sync LocalStorage too
-            const updatedLocal = { ...storedUser, ...res.data };
-            localStorage.setItem('user', JSON.stringify(updatedLocal));
+            // Sync LocalStorage
+            const updated = { ...storedUser, ...res.data };
+            localStorage.setItem('user', JSON.stringify(updated));
 
-            // Agar verified hai toh Home bhejo
-            if (res.data.isVerified) { 
-                navigate('/'); 
-            }
+            // Agar verified hai, toh home bhejo
+            if (res.data.isVerified) navigate('/');
+
         } catch (error) {
-            console.error("Fetch Error", error);
+            console.error("Sync Failed", error);
         } finally {
             setFetching(false);
         }
     };
-
-    fetchLatestStatus();
+    fetchStatus();
   }, [navigate]);
 
-  // 👇 STEP 2: Upload Handler
+  // 2. Upload Handler
   const handleUpload = async (e) => {
     e.preventDefault();
-    if (!file) return toast.error("Please select a file");
+    if (!file) return toast.error("File select karo bhai!");
 
     const storedUser = JSON.parse(localStorage.getItem('user'));
     const formData = new FormData();
@@ -54,22 +52,20 @@ const Verify = () => {
     try {
       const config = { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${storedUser.token}` } };
       
-      // Upload API Call
       const res = await axios.post('/api/users/upload-doc', formData, config);
       
-      // 👇 UI UPDATE MAGIC: Manually state update kar do taaki turant Lock dikhe
-      setUserData(prev => ({
-          ...prev,
-          verificationDoc: res.data.docUrl,
-          isVerified: false
-      }));
-
-      // Update LocalStorage
-      const updatedUser = { ...storedUser, verificationDoc: res.data.docUrl, isVerified: false };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      // Update State Immediately to show LOCK
+      const newUser = { 
+          ...userData, 
+          verificationDoc: res.data.docUrl, 
+          isVerified: false 
+      };
+      
+      setUserData(newUser);
+      localStorage.setItem('user', JSON.stringify({ ...storedUser, ...newUser }));
       window.dispatchEvent(new Event("storage"));
 
-      toast.success("✅ Uploaded! Locking submission...");
+      toast.success("✅ Uploaded! Application Locked.");
 
     } catch (error) {
       toast.error(error.response?.data?.message || "Upload Failed");
@@ -78,13 +74,7 @@ const Verify = () => {
     }
   };
 
-  if (fetching) {
-      return (
-        <div style={{display:'flex', justifyContent:'center', marginTop:'100px', fontFamily:'Poppins'}}>
-            <h3>🔄 Checking Status...</h3>
-        </div>
-      );
-  }
+  if (fetching) return <div style={{textAlign:'center', marginTop:'50px'}}>Checking Status...</div>;
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '90vh', fontFamily: 'Poppins', padding: '20px' }}>
@@ -93,69 +83,41 @@ const Verify = () => {
         <h1 style={{ fontSize: '3rem', marginBottom: '10px' }}>🛡️</h1>
         <h2 style={{ color: '#1e293b', margin: '0 0 15px 0' }}>Account Verification</h2>
 
-        {/* 👇 FINAL CHECK: userData.verificationDoc check karo */}
+        {/* 👇 LOCK LOGIC: Agar Doc Hai = LOCK. Agar Doc NULL Hai = FORM */}
         {userData && userData.verificationDoc ? (
-            
-            // === LOCKED VIEW ===
-            <div style={{ background: '#f8fafc', border: '2px solid #cbd5e1', padding: '25px', borderRadius: '10px', animation: 'fadeIn 0.5s' }}>
+            <div style={{ background: '#f8fafc', border: '2px solid #cbd5e1', padding: '25px', borderRadius: '10px', animation:'fadeIn 0.5s' }}>
                 <div style={{fontSize:'3rem', marginBottom:'10px'}}>🔒</div>
                 <h3 style={{ margin: '0 0 10px 0', color: '#334155' }}>Submission Locked</h3>
-                
-                <p style={{ fontSize: '0.9rem', color:'#64748b', marginBottom:'20px' }}>
-                    You have submitted your document. It is under review by the Admin.
-                </p>
+                <p style={{ fontSize: '0.9rem', color:'#64748b', marginBottom:'20px' }}>Document submitted. Waiting for Admin approval.</p>
 
-                {/* Preview */}
                 <div style={{marginBottom:'20px', border:'1px dashed #ccc', padding:'10px', background:'white', borderRadius:'8px'}}>
-                    <p style={{fontSize:'0.8rem', fontWeight:'bold', margin:'0 0 5px 0', color:'#475569'}}>Uploaded Document:</p>
+                    <p style={{fontSize:'0.8rem', fontWeight:'bold', margin:'0 0 5px 0', color:'#475569'}}>Uploaded File:</p>
                     {userData.verificationDoc.endsWith('.pdf') ? (
-                        <a href={userData.verificationDoc} target="_blank" rel="noreferrer" style={{color:'#2563eb', fontWeight:'bold'}}>📄 View Uploaded PDF</a>
+                        <a href={userData.verificationDoc} target="_blank" rel="noreferrer" style={{color:'#2563eb', fontWeight:'bold'}}>📄 View PDF</a>
                     ) : (
-                        <img src={userData.verificationDoc} alt="ID Proof" style={{width:'100%', maxHeight:'200px', objectFit:'contain', borderRadius:'5px'}} />
+                        <img src={userData.verificationDoc} alt="ID" style={{width:'100%', maxHeight:'150px', objectFit:'contain', borderRadius:'5px'}} />
                     )}
                 </div>
 
                 <div style={{ fontSize: '0.85rem', color:'#dc2626', background:'#fee2e2', padding:'10px', borderRadius:'5px' }}>
-                    <strong>Note:</strong> You cannot re-upload unless the Admin rejects this document.
+                    Note: You cannot re-upload unless Admin rejects it.
                 </div>
                 
-                <button onClick={() => navigate('/')} style={{marginTop:'20px', padding:'12px 25px', background:'#334155', color:'white', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold'}}>
-                    Go Back Home
-                </button>
+                <button onClick={() => navigate('/')} style={{marginTop:'20px', padding:'10px 20px', background:'#334155', color:'white', border:'none', borderRadius:'5px', cursor:'pointer'}}>Go Home</button>
             </div>
-
         ) : (
-            
-            // === UPLOAD FORM ===
             <>
-                <p style={{ color: '#64748b', marginBottom: '25px', lineHeight: '1.6' }}>
-                To ensure trust, please upload a valid College ID (for Students) or Company Registration/Visiting Card (for Sponsors).
-                </p>
-                
+                <p style={{ color: '#64748b', marginBottom: '25px' }}>Please upload your ID Proof.</p>
                 <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <div style={{ border: '2px dashed #cbd5e1', padding: '30px', borderRadius: '10px', background: '#f8fafc', cursor: 'pointer', position:'relative' }}>
-                        <input 
-                        type="file" 
-                        accept="image/*,application/pdf" 
-                        onChange={(e) => setFile(e.target.files[0])} 
-                        required 
-                        style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', opacity:0, cursor:'pointer' }}
-                        />
+                    <div style={{ border: '2px dashed #cbd5e1', padding: '30px', borderRadius: '10px', background: '#f8fafc', position:'relative' }}>
+                        <input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files[0])} required style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', opacity:0, cursor:'pointer' }} />
                         <div style={{fontSize:'2rem', color:'#94a3b8', marginBottom:'10px'}}>📁</div>
-                        {file ? (
-                            <div style={{ color: '#2563eb', fontWeight: 'bold' }}>Selected: {file.name}</div>
-                        ) : (
-                            <div style={{ color: '#64748b' }}>Click or Drag to Upload Document<br/><span style={{fontSize:'0.8rem'}}>(Image or PDF, Max 5MB)</span></div>
-                        )}
+                        {file ? <div style={{ color: '#2563eb', fontWeight: 'bold' }}>{file.name}</div> : <div style={{ color: '#64748b' }}>Click to Upload</div>}
                     </div>
-                    
-                    <button type="submit" disabled={uploading} style={{ padding: '15px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', transition: '0.3s', opacity: uploading ? 0.7 : 1 }}>
-                        {uploading ? '🚀 Uploading...' : 'Submit for Verification'}
-                    </button>
+                    <button type="submit" disabled={uploading} style={{ padding: '15px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>{uploading ? 'Uploading...' : 'Submit'}</button>
                 </form>
             </>
         )}
-
       </div>
       <style>{`@keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }`}</style>
     </div>
