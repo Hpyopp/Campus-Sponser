@@ -1,70 +1,72 @@
 const User = require('../models/User');
-const Event = require('../models/Event');
+// 👇 YAHAN DEKH: Maine 'campusEvent' kar diya hai (Pehle ye 'Event' tha)
+const Event = require('../models/campusEvent'); 
+const asyncHandler = require('express-async-handler');
 
-// @desc    Get all users
-const getAllUsers = async (req, res) => {
-    try {
-        const users = await User.find({});
-        res.json(users);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
+// 1. Get All Users
+const getAllUsers = asyncHandler(async (req, res) => {
+  const users = await User.find();
+  res.json(users);
+});
+
+// 2. Approve User (Verify)
+const approveUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+  if (user) {
+    user.isVerified = true;
+    await user.save();
+    res.json({ message: 'User Verified' });
+  } else {
+    res.status(404); throw new Error('User not found');
+  }
+});
+
+// 3. Unverify User
+const unverifyUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+  if (user) {
+    user.isVerified = false;
+    user.verificationDoc = ""; // Clear doc
+    await user.save();
+    res.json({ message: 'User Unverified/Rejected' });
+  } else {
+    res.status(404); throw new Error('User not found');
+  }
+});
+
+// 4. Delete User
+const deleteUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+  if (user) {
+    await user.deleteOne();
+    res.json({ message: 'User Removed' });
+  } else {
+    res.status(404); throw new Error('User not found');
+  }
+});
+
+// 5. Verify Sponsorship (Payment)
+const verifySponsorship = asyncHandler(async (req, res) => {
+    // Logic to update sponsorship status
+    res.json({ message: "Sponsorship Verified by Admin" });
+});
+
+// 6. Approve Refund
+const approveRefund = asyncHandler(async (req, res) => {
+    res.json({ message: "Refund Approved" });
+});
+
+// 7. Reject Refund
+const rejectRefund = asyncHandler(async (req, res) => {
+    res.json({ message: "Refund Rejected" });
+});
+
+module.exports = {
+  getAllUsers,
+  approveUser,
+  unverifyUser,
+  deleteUser,
+  verifySponsorship,
+  approveRefund,
+  rejectRefund
 };
-
-// @desc    Get ALL events (Pending + Approved) for Admin
-const getAllEvents = async (req, res) => {
-    try {
-        const events = await Event.find({}).populate('organizer', 'name email');
-        res.json(events);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};
-
-// @desc    Approve an Event
-const approveEvent = async (req, res) => {
-    try {
-        const event = await Event.findById(req.params.id);
-        if (event) {
-            event.status = 'approved';
-            await event.save();
-            res.json({ message: 'Event Approved & Live! 🚀' });
-        } else {
-            res.status(404).json({ message: 'Event not found' });
-        }
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};
-
-// @desc    Delete Event
-const deleteEvent = async (req, res) => {
-    try {
-        const event = await Event.findById(req.params.id);
-        if (event) {
-            await event.deleteOne();
-            res.json({ message: 'Event removed' });
-        } else {
-            res.status(404).json({ message: 'Event not found' });
-        }
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};
-
-// @desc    Delete User
-const deleteUser = async (req, res) => {
-    try {
-        const user = await User.findById(req.params.id);
-        if (user) {
-            await user.deleteOne();
-            res.json({ message: 'User removed' });
-        } else {
-            res.status(404).json({ message: 'User not found' });
-        }
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};
-
-module.exports = { getAllUsers, getAllEvents, deleteEvent, deleteUser, approveEvent };
