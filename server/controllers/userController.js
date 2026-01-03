@@ -8,10 +8,9 @@ const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
-// 1. REGISTER (⚡ INSTANT OTP MODE)
+// 1. REGISTER (⚡ FAST & GREEN BOX)
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone, role, companyName, collegeName } = req.body;
-  
   if (!name || !email || !password || !phone) { res.status(400); throw new Error('Fill all fields'); }
   
   const cleanEmail = email.toLowerCase().trim();
@@ -20,8 +19,6 @@ const registerUser = asyncHandler(async (req, res) => {
 
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
-  
-  // OTP Generate
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
   const user = await User.create({
@@ -32,20 +29,19 @@ const registerUser = asyncHandler(async (req, res) => {
     isVerified: false, verificationDoc: ""
   });
 
-  // 👇 FAST FIX: 'await' hata diya. Email background mein fail hota rahega, hum rukenge nahi.
+  // 🚀 FAST FIX: 'await' hata diya. Email background mein chalega.
   sendEmail({ email: user.email, subject: 'Verify Your Account', message: `Your OTP is: ${otp}` })
     .catch(err => console.log("Dev Mode: Email skipped for speed"));
 
-  // Turant Response (Milliseconds mein)
+  // ✅ GREEN BOX RESPONSE
   res.status(201).json({ 
-      success: true,
-      message: 'OTP Generated (Dev Mode)', 
+      message: 'OTP Generated', 
       email: user.email,
-      otp: otp // 👈 Ye Frontend pakdega aur Green Box dikhayega
+      otp: otp // 👈 Ye Frontend par Green Box layega
   });
 });
 
-// 2. LOGIN
+// 2. LOGIN (Standard)
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email: email.toLowerCase().trim() });
@@ -59,7 +55,7 @@ const loginUser = asyncHandler(async (req, res) => {
   } else { res.status(401); throw new Error('Invalid email or password'); }
 });
 
-// 3. FORGOT PASSWORD (⚡ INSTANT OTP MODE)
+// 3. FORGOT PASSWORD (⚡ FAST & GREEN BOX)
 const forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
     const user = await User.findOne({ email: email.toLowerCase().trim() });
@@ -70,35 +66,18 @@ const forgotPassword = asyncHandler(async (req, res) => {
     user.otp = otp;
     await user.save();
 
-    // 👇 FAST FIX: 'await' hata diya. Turant response aayega.
+    // 🚀 FAST FIX: 'await' hata diya
     sendEmail({ email: user.email, subject: 'Reset Password', message: `Your OTP is: ${otp}` })
       .catch(err => console.log("Dev Mode: Email skipped for speed"));
 
-    // Turant Response
+    // ✅ GREEN BOX RESPONSE
     res.json({ 
-        success: true,
-        message: "OTP Generated (Dev Mode)", 
-        otp: otp // 👈 Green Box ke liye zaroori
+        message: "OTP Generated", 
+        otp: otp // 👈 Ye Frontend par Green Box layega
     });
 });
 
-// 4. RESET PASSWORD
-const resetPassword = asyncHandler(async (req, res) => { 
-    const { email, otp, newPassword } = req.body;
-    const user = await User.findOne({ email });
-
-    if (user && user.otp === otp) {
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(newPassword, salt);
-        user.otp = undefined;
-        await user.save();
-        res.json({ message: "Password Reset Successful" });
-    } else {
-        res.status(400); throw new Error('Invalid OTP or Email');
-    }
-});
-
-// 5. VERIFY REGISTRATION OTP
+// 4. VERIFY OTP
 const verifyRegisterOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   const user = await User.findOne({ email });
@@ -110,7 +89,21 @@ const verifyRegisterOTP = asyncHandler(async (req, res) => {
   } else { res.status(400); throw new Error('Invalid OTP'); }
 });
 
-// Helpers (Existing functions, no change needed)
+// 5. RESET PASSWORD
+const resetPassword = asyncHandler(async (req, res) => { 
+    const { email, otp, newPassword } = req.body;
+    const user = await User.findOne({ email });
+
+    if (user && user.otp === otp) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(newPassword, salt);
+        user.otp = undefined;
+        await user.save();
+        res.json({ message: "Password Reset Successful" });
+    } else { res.status(400); throw new Error('Invalid OTP or Email'); }
+});
+
+// --- HELPER FUNCTIONS ---
 const getMe = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
   if (user) { res.json({ _id: user._id, name: user.name, email: user.email, role: user.role, isVerified: user.isVerified, verificationDoc: user.verificationDoc || "", companyName: user.companyName }); } 
