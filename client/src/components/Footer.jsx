@@ -26,20 +26,25 @@ const Footer = () => {
           </ul>
         </div>
 
-        {/* 3. CONTACT INFO */}
+        {/* 3. CONTACT INFO (Updated) */}
         <div>
           <h3 style={{ color: '#f8fafc', borderBottom:'3px solid #3b82f6', display:'inline-block', paddingBottom:'5px', marginBottom:'20px' }}>Contact Us</h3>
           <div style={{ color: '#cbd5e1', fontSize:'0.95rem', display:'flex', flexDirection:'column', gap:'12px' }}>
             <div>📍 Ulhasnagar, Maharashtra, India</div>
-            <div>📧 support@campussponsor.com</div>
-            <div>📞 +91 98765 43210</div>
+            
+            {/* 👇 UPDATED EMAIL */}
+            <div>📧 prathamkhandelwal223@gmail.com</div>
+            
+            {/* 👇 UPDATED PHONE */}
+            <div>📞 +91 90224 89860</div>
           </div>
         </div>
 
       </div>
 
+      {/* COPYRIGHT (Cleaned) */}
       <div style={{ textAlign: 'center', marginTop: '50px', borderTop: '1px solid #1e293b', paddingTop: '25px', color: '#64748b', fontSize: '0.85rem' }}>
-        &copy; {new Date().getFullYear()} CampusSponsor Inc. All rights reserved. <br/> Built with ❤️ for Shark Tank.
+        &copy; {new Date().getFullYear()} CampusSponsor Inc. All rights reserved.
       </div>
     </footer>
   );
