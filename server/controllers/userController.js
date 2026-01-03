@@ -4,102 +4,85 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const sendEmail = require('../utils/sendEmail'); 
 
-// 1. REGISTER (User create karo par isVerified FALSE rakho)
+// 1. REGISTER
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone, role, companyName, collegeName } = req.body;
-
-  if (!name || !email || !password || !phone) { 
-      res.status(400); throw new Error('Please fill all fields including Phone Number'); 
-  }
-
+  if (!name || !email || !password || !phone) { res.status(400); throw new Error('Please fill all fields including Phone Number'); }
   const cleanEmail = email.toLowerCase().trim();
   const userExists = await User.findOne({ email: cleanEmail });
-  
   if (userExists) { res.status(400); throw new Error('User already exists'); }
-  
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
-  
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  
   const user = await User.create({
-    name, 
-    email: cleanEmail, 
-    password: hashedPassword, 
-    phone, // 👈 PHONE SAVE HOGA
+    name, email: cleanEmail, password: hashedPassword, phone, 
     role: role || 'student',
     companyName: (role === 'sponsor' && companyName) ? companyName : '',
     collegeName: (role === 'student' && collegeName) ? collegeName : '',
-    otp, 
-    otpExpires: Date.now() + 10 * 60 * 1000, 
-    isVerified: false // 👈 LOGIN ROKNE KE LIYE
+    otp, otpExpires: Date.now() + 10 * 60 * 1000, isVerified: false
   });
-  
-  sendEmail({ email: user.email, subject: 'Verify Account', message: `Your OTP is: ${otp}` })
-    .catch(err => console.log("Email Dev Mode: Skipped waiting"));
-
+  sendEmail({ email: user.email, subject: 'Verify Account', message: `Your OTP is: ${otp}` }).catch(err => console.log("Email Dev Mode: Skipped waiting"));
   res.status(200).json({ message: 'OTP Generated', email: user.email, debugOtp: otp });
 });
 
-// 2. VERIFY OTP (Yahan isVerified TRUE hoga)
+// 2. VERIFY OTP
 const verifyRegisterOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   const user = await User.findOne({ email: email.toLowerCase().trim() });
-
   if (user && user.otp === otp.toString().trim()) {
-      user.isVerified = true; // 👈 AB LOGIN ALLOW HOGA
+      // NOTE: Student/Sponsor abhi verified nahi honge, bas OTP clear hoga.
+      // Only Admin gets auto-verified (if you have admin registration logic, otherwise keep everyone false)
+      user.isVerified = user.role === 'admin' ? true : false; 
       user.otp = undefined;
       user.otpExpires = undefined;
       await user.save();
-      
-      res.status(200).json({
-          _id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          token: generateToken(user._id),
-          isVerified: true
-      });
+      res.status(200).json({ _id: user.id, name: user.name, email: user.email, role: user.role, token: generateToken(user._id), isVerified: user.isVerified, verificationDoc: user.verificationDoc });
   } else {
       res.status(400); throw new Error('Invalid OTP');
   }
 });
 
-// 3. LOGIN (Loophole Closed Here 🔒)
+// 3. LOGIN
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email: email.toLowerCase().trim() });
-
   if (user && (await bcrypt.compare(password, user.password))) {
-      
-      // 👇 SECURITY CHECK: Agar OTP verify nahi kiya, toh login mat karne do
-      if (!user.isVerified) {
-          res.status(401);
-          throw new Error('❌ Account Not Verified. Please complete OTP verification.');
+      // If role is student/sponsor and not verified, block login (except if they need to upload doc)
+      if (user.role !== 'admin' && !user.isVerified && user.verificationDoc) {
+          res.status(401); throw new Error('⏳ Account Pending Admin Approval.');
       }
-
-      res.json({
-          _id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          isVerified: user.isVerified,
-          token: generateToken(user._id)
-      });
+      // If they haven't uploaded doc yet, let them login to reach /verify page
+      res.json({ _id: user.id, name: user.name, email: user.email, role: user.role, isVerified: user.isVerified, verificationDoc: user.verificationDoc, token: generateToken(user._id) });
   } else {
       res.status(401); throw new Error('Invalid Email or Password');
   }
 });
 
-// ... (Baaki Functions Same) ...
-const forgotPassword = asyncHandler(async (req, res) => { const { email } = req.body; const user = await User.findOne({ email: email.toLowerCase().trim() }); if (!user) { res.status(404); throw new Error('User not found'); } const otp = Math.floor(100000 + Math.random() * 900000).toString(); user.otp = otp; user.otpExpires = Date.now() + 10 * 60 * 1000; await user.save(); sendEmail({ email: user.email, subject: 'Reset Password Code', message: `Your Password Reset Code is: ${otp}` }).catch(err => console.log("Email Dev Mode: Skipped waiting")); res.json({ message: 'OTP Generated', debugOtp: otp }); });
-const resetPassword = asyncHandler(async (req, res) => { const { email, otp, newPassword } = req.body; const user = await User.findOne({ email: email.toLowerCase().trim() }); if (user && user.otp === otp && user.otpExpires > Date.now()) { const salt = await bcrypt.genSalt(10); user.password = await bcrypt.hash(newPassword, salt); user.otp = undefined; user.otpExpires = undefined; await user.save(); res.json({ message: 'Password Changed Successfully' }); } else { res.status(400); throw new Error('Invalid or Expired OTP'); } });
-const uploadDoc = asyncHandler(async (req, res) => { if (!req.file || !req.file.path) { res.status(400); throw new Error('Upload failed'); } const user = await User.findById(req.user.id); if (user) { user.verificationDoc = req.file.path; user.isVerified = true; await user.save(); res.status(200).json({ message: 'Uploaded', docUrl: req.file.path }); } else { res.status(404); throw new Error('User not found'); } });
+// 👇 4. UPLOAD DOC (CRITICAL FIX HERE!!!)
+const uploadDoc = asyncHandler(async (req, res) => {
+  if (!req.file || !req.file.path) { res.status(400); throw new Error('Upload failed'); }
+  const user = await User.findById(req.user.id);
+  if (user) {
+    user.verificationDoc = req.file.path;
+    
+    // 🚨 THE FIX: Status must remain FALSE until Admin approves
+    user.isVerified = false; 
+    
+    await user.save();
+    res.status(200).json({ message: 'Uploaded successfully. Wait for approval.', docUrl: req.file.path, isVerified: false });
+  } else {
+    res.status(404); throw new Error('User not found');
+  }
+});
+
+// ... (Baaki functions same rahenge) ...
 const getMe = asyncHandler(async (req, res) => { const user = await User.findById(req.user.id); if (user) { res.status(200).json({ _id: user._id, name: user.name, email: user.email, role: user.role, isVerified: user.isVerified, verificationDoc: user.verificationDoc, companyName: user.companyName }); } else { res.status(404); throw new Error('User not found'); } });
 const getAllUsers = asyncHandler(async (req, res) => { const users = await User.find().sort({ createdAt: -1 }); res.status(200).json(users); });
 const approveUser = asyncHandler(async (req, res) => { await User.findByIdAndUpdate(req.params.id, { isVerified: true }); res.status(200).json({ message: 'Verified' }); });
 const unverifyUser = asyncHandler(async (req, res) => { await User.findByIdAndUpdate(req.params.id, { isVerified: false }); res.status(200).json({ message: 'Revoked' }); });
 const deleteUser = asyncHandler(async (req, res) => { await User.findByIdAndDelete(req.params.id); res.status(200).json({ message: 'Deleted' }); });
+const forgotPassword = asyncHandler(async (req, res) => { const { email } = req.body; const user = await User.findOne({ email: email.toLowerCase().trim() }); if (!user) { res.status(404); throw new Error('User not found'); } const otp = Math.floor(100000 + Math.random() * 900000).toString(); user.otp = otp; user.otpExpires = Date.now() + 10 * 60 * 1000; await user.save(); sendEmail({ email: user.email, subject: 'Reset Password Code', message: `Your Password Reset Code is: ${otp}` }).catch(err => console.log("Email Dev Mode: Skipped waiting")); res.json({ message: 'OTP Generated', debugOtp: otp }); });
+const resetPassword = asyncHandler(async (req, res) => { const { email, otp, newPassword } = req.body; const user = await User.findOne({ email: email.toLowerCase().trim() }); if (user && user.otp === otp && user.otpExpires > Date.now()) { const salt = await bcrypt.genSalt(10); user.password = await bcrypt.hash(newPassword, salt); user.otp = undefined; user.otpExpires = undefined; await user.save(); res.json({ message: 'Password Changed Successfully' }); } else { res.status(400); throw new Error('Invalid or Expired OTP'); } });
 const verifyLogin = asyncHandler(async (req, res) => { res.status(400).json({message: "Use password login"}); });
 const generateToken = (id) => { return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' }); };
 
