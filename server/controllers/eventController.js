@@ -1,41 +1,37 @@
-const Event = require('../models/Event'); // ⚠️ Ensure file name is 'Event.js' in models folder
+// 👇 WAPAS NORMAL KAR DIYA (Taaki tere existing file se match kare)
+const Event = require('../models/Event'); 
 const asyncHandler = require('express-async-handler');
 
-// 1. GET ALL EVENTS (Isime Error aa raha tha)
+// 1. GET EVENTS (Crash Proof Banaya hai)
 const getEvents = asyncHandler(async (req, res) => {
   try {
-    console.log("📡 Request: Fetching all events...");
+    // Debugging
+    console.log("📡 Fetching Events...");
     
-    // Check if Event model works
+    // Agar Model load nahi hua toh bata dega
     if (!Event) {
-      throw new Error("Event Model is not loaded check file name '../models/Event'");
+      throw new Error("Event Model load nahi hua! Check '../models/Event.js'");
     }
 
     const events = await Event.find().populate('organizer', 'name email');
-    
-    console.log(`✅ Success: Found ${events.length} events`);
+    console.log(`✅ Events Found: ${events.length}`);
     res.json(events);
 
   } catch (error) {
-    console.error("❌ ERROR in getEvents:", error.message);
+    console.error("❌ GET EVENTS ERROR:", error.message);
     res.status(500).json({ 
-        message: "Server Error: Could not fetch events", 
+        message: "Server Error Fetching Events", 
         error: error.message 
     });
   }
 });
 
-// 2. GET SINGLE EVENT
-const getEventById = asyncHandler(async (req, res) => {
-  const event = await Event.findById(req.params.id).populate('organizer', 'name email');
-  if (event) { res.json(event); } 
-  else { res.status(404); throw new Error('Event not found'); }
-});
-
-// 3. CREATE EVENT
+// 2. CREATE EVENT
 const createEvent = asyncHandler(async (req, res) => {
   const { title, description, date, venue, requiredAmount, category } = req.body;
-  if (!title || !description || !date || !venue || !requiredAmount) { res.status(400); throw new Error('Fill all fields'); }
+  if (!title || !description || !date || !venue || !requiredAmount) { 
+      res.status(400); throw new Error('Fill all fields'); 
+  }
 
   let permissionLetter = "";
   if (req.file) { permissionLetter = req.file.path || req.file.url; }
@@ -47,6 +43,13 @@ const createEvent = asyncHandler(async (req, res) => {
     status: 'pending', sponsors: []
   });
   res.status(201).json(event);
+});
+
+// 3. GET SINGLE EVENT
+const getEventById = asyncHandler(async (req, res) => {
+  const event = await Event.findById(req.params.id).populate('organizer', 'name email');
+  if (event) { res.json(event); } 
+  else { res.status(404); throw new Error('Event not found'); }
 });
 
 // 4. DELETE EVENT
@@ -67,19 +70,15 @@ const sponsorEvent = asyncHandler(async (req, res) => {
   } else { res.status(404); throw new Error('Event not found'); }
 });
 
-// --- HELPER FUNCTIONS ---
+// Helpers
 const requestRefund = asyncHandler(async (req, res) => { res.json({message: 'Refund Requested'}); });
 const approveRefund = asyncHandler(async (req, res) => { res.json({message: 'Refund Approved'}); });
 const rejectRefund = asyncHandler(async (req, res) => { res.json({message: 'Refund Rejected'}); });
-const approveEvent = asyncHandler(async (req, res) => { 
-    const event = await Event.findById(req.params.id);
-    if(event) { event.status = 'approved'; await event.save(); res.json({message: 'Event Approved'}); }
-});
-const revokeEvent = asyncHandler(async (req, res) => { res.json({message: 'Event Revoked'}); });
+const approveEvent = asyncHandler(async (req, res) => { const event = await Event.findById(req.params.id); if(event) { event.status = 'approved'; await event.save(); res.json({message: 'Approved'}); } });
+const revokeEvent = asyncHandler(async (req, res) => { res.json({message: 'Revoked'}); });
 const verifySponsorship = asyncHandler(async (req, res) => { res.json({ message: "Verified" }); });
 const rejectSponsorship = asyncHandler(async (req, res) => { res.json({ message: "Rejected" }); });
 
-// 👇 CLEAN EXPORTS (Jaise User Controller mein kiya tha)
 module.exports = {
   getEvents, getEventById, createEvent, deleteEvent,
   sponsorEvent, requestRefund, approveRefund, rejectRefund,
