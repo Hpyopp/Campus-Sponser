@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const sendEmail = require('../utils/sendEmail'); 
 
-// ... (Register same rahega)
+// 1. REGISTER
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone, role, companyName, collegeName } = req.body;
   if (!name || !email || !password || !phone) { res.status(400); throw new Error('Fill all fields'); }
@@ -22,23 +22,25 @@ const registerUser = asyncHandler(async (req, res) => {
     otp, otpExpires: Date.now() + 10 * 60 * 1000, 
     isVerified: false, verificationDoc: "" 
   });
+  
   sendEmail({ email: user.email, subject: 'Verify Account', message: `OTP: ${otp}` }).catch(err => console.log("Email skipped"));
   res.status(200).json({ message: 'OTP Generated', email: user.email, debugOtp: otp });
 });
 
-// 👇 UPLOAD DOC (FIXED)
+// 👇 2. UPLOAD DOC (DEBUG MODE)
 const uploadDoc = asyncHandler(async (req, res) => {
-  console.log("📂 UPLOAD START for User ID:", req.user.id);
+  console.log("🚀 UPLOAD STARTED FOR:", req.user.email);
 
   if (!req.file) { 
-      console.log("❌ No file in Request");
+      console.log("❌ ERROR: No file received");
       res.status(400); throw new Error('No file uploaded'); 
   }
   
-  const fileUrl = req.file.path || req.file.url;
-  console.log("✅ File Path Detected:", fileUrl);
+  // File Path Nikalo
+  const fileUrl = req.file.path || req.file.url; 
+  console.log("📂 File Path Detected:", fileUrl);
 
-  // FORCE UPDATE
+  // 🔥 FORCE DB UPDATE
   const updatedUser = await User.findByIdAndUpdate(
     req.user.id,
     { 
@@ -47,14 +49,15 @@ const uploadDoc = asyncHandler(async (req, res) => {
         isVerified: false 
       } 
     },
-    { new: true, upsert: true } // Upsert ensures field creation
+    { new: true } // Return updated doc
   );
 
-  console.log("💾 DB SAVE RESULT:", updatedUser.verificationDoc);
+  // LOG KRO KI KYA SAVE HUA
+  console.log("💾 DB SAVE RESULT:", updatedUser.verificationDoc); 
 
   if (updatedUser) {
     res.status(200).json({ 
-        message: 'Saved', 
+        message: 'Saved Successfully', 
         docUrl: updatedUser.verificationDoc, 
         isVerified: false 
     });
@@ -63,11 +66,12 @@ const uploadDoc = asyncHandler(async (req, res) => {
   }
 });
 
-// 👇 GET ME (DEBUGGING)
+// 👇 3. GET ME (CHECK DATA)
 const getMe = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
   if (user) {
-    console.log(`🔍 GET ME CALL for ${user.email} | Doc: ${user.verificationDoc}`); // <--- CHECK TERMINAL
+    console.log(`👀 GET ME: User ${user.email} | Doc Saved: ${user.verificationDoc}`); // Check this log
+    
     res.status(200).json({
         _id: user._id,
         name: user.name,
@@ -88,7 +92,7 @@ const unverifyUser = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'Rejected' }); 
 });
 
-// ... (Baaki Functions Same)
+// ... (Baaki Functions - Same as before)
 const verifyRegisterOTP = asyncHandler(async (req, res) => { const { email, otp } = req.body; const user = await User.findOne({ email: email.toLowerCase().trim() }); if (user && user.otp === otp.toString().trim()) { user.isVerified = user.role === 'admin' ? true : false; user.otp = undefined; user.otpExpires = undefined; await user.save(); res.status(200).json({ _id: user.id, name: user.name, email: user.email, role: user.role, token: generateToken(user._id), isVerified: user.isVerified, verificationDoc: user.verificationDoc }); } else { res.status(400); throw new Error('Invalid OTP'); } });
 const loginUser = asyncHandler(async (req, res) => { const { email, password } = req.body; const user = await User.findOne({ email: email.toLowerCase().trim() }); if (user && (await bcrypt.compare(password, user.password))) { res.json({ _id: user.id, name: user.name, email: user.email, role: user.role, isVerified: user.isVerified, verificationDoc: user.verificationDoc, token: generateToken(user._id) }); } else { res.status(401); throw new Error('Invalid Credentials'); } });
 const getAllUsers = asyncHandler(async (req, res) => { const users = await User.find().sort({ createdAt: -1 }); res.status(200).json(users); });
