@@ -9,11 +9,12 @@ const Register = () => {
   
   const [formData, setFormData] = useState({ name: '', email: '', password: '', phone: '', companyName: '', collegeName: '' });
   const [otp, setOtp] = useState('');
-  const [developerOtp, setDeveloperOtp] = useState(null);
+  const [developerOtp, setDeveloperOtp] = useState(null); // Green Box Variable
   
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // 1. REGISTER & GET OTP
   const handleRegister = async (e) => {
     e.preventDefault();
     if(formData.phone.length < 10) return toast.error("Invalid Phone Number");
@@ -21,7 +22,10 @@ const Register = () => {
     setLoading(true);
     try {
       const res = await axios.post('/api/users', { ...formData, role });
-      setDeveloperOtp(res.data.debugOtp);
+      
+      // 👇 YAHAN GALTI THI (Ab Fix Hai)
+      setDeveloperOtp(res.data.otp); // Backend 'otp' bhej raha hai
+      
       toast.success("OTP Sent! Check Green Box");
       setStep(2);
     } catch (error) {
@@ -29,19 +33,18 @@ const Register = () => {
     } finally { setLoading(false); }
   };
 
+  // 2. VERIFY OTP
   const handleVerify = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
       const res = await axios.post('/api/users/verify-otp', { email: formData.email, otp });
       
-      // Store user and redirect
       localStorage.setItem('user', JSON.stringify(res.data));
       window.dispatchEvent(new Event("storage"));
       
       toast.success("✅ Account Verified & Logged In!");
       
-      // Agar Doc upload baki hai (Student ke liye) toh Verify page, nahi toh Home
       if (res.data.role !== 'admin' && !res.data.verificationDoc) {
           navigate('/verify');
       } else {
@@ -69,10 +72,7 @@ const Register = () => {
 
             <input type="text" placeholder="Full Name" value={formData.name} onChange={e=>setFormData({...formData, name:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
             <input type="email" placeholder="Email Address" value={formData.email} onChange={e=>setFormData({...formData, email:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
-            
-            {/* Phone Input */}
             <input type="number" placeholder="Mobile Number" value={formData.phone} onChange={e=>setFormData({...formData, phone:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
-
             <input type="password" placeholder="Password" value={formData.password} onChange={e=>setFormData({...formData, password:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
 
             {role === 'sponsor' ? (
@@ -82,13 +82,13 @@ const Register = () => {
             )}
 
             <button type="submit" disabled={loading} style={{ padding: '12px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>{loading ? 'Processing...' : 'Get OTP'}</button>
-            
             <div style={{ textAlign: 'center', marginTop: '10px' }}>Already have account? <Link to="/login" style={{ color: '#2563eb', fontWeight: 'bold' }}>Login</Link></div>
           </form>
         )}
 
         {step === 2 && (
           <div style={{marginTop:'20px'}}>
+             {/* 👇 GREEN BOX DISPLAY */}
              {developerOtp && (
                 <div style={{background: '#dcfce7', border: '2px dashed #16a34a', padding: '15px', borderRadius: '8px', textAlign: 'center', marginBottom: '20px', animation: 'fadeIn 0.5s'}}>
                     <span style={{color: '#166534', fontSize: '0.9rem', display: 'block', marginBottom: '5px'}}>Developer Code:</span>
