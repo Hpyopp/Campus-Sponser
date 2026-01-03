@@ -2,15 +2,16 @@ const User = require('../models/User');
 const asyncHandler = require('express-async-handler');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const sendEmail = require('../utils/sendEmail');
+// const sendEmail = require('../utils/sendEmail'); // 👈 EMAIL SYSTEM DISABLED
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
-// 1. REGISTER (⚡ FAST & GREEN BOX)
+// 1. REGISTER (⚡ INSTANT - 0ms Delay)
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone, role, companyName, collegeName } = req.body;
+  
   if (!name || !email || !password || !phone) { res.status(400); throw new Error('Fill all fields'); }
   
   const cleanEmail = email.toLowerCase().trim();
@@ -19,6 +20,8 @@ const registerUser = asyncHandler(async (req, res) => {
 
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
+  
+  // OTP Generate
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
   const user = await User.create({
@@ -29,19 +32,20 @@ const registerUser = asyncHandler(async (req, res) => {
     isVerified: false, verificationDoc: ""
   });
 
-  // 🚀 FAST FIX: 'await' hata diya. Email background mein chalega.
-  sendEmail({ email: user.email, subject: 'Verify Your Account', message: `Your OTP is: ${otp}` })
-    .catch(err => console.log("Dev Mode: Email skipped for speed"));
+  // ❌ EMAIL CODE REMOVED FOR SPEED
+  // await sendEmail(...); 
+  console.log(`🚀 Fast Mode: OTP for ${user.email} is ${otp}`);
 
-  // ✅ GREEN BOX RESPONSE
+  // ✅ INSTANT RESPONSE WITH GREEN BOX DATA
   res.status(201).json({ 
+      success: true,
       message: 'OTP Generated', 
       email: user.email,
-      otp: otp // 👈 Ye Frontend par Green Box layega
+      otp: otp // 👈 Ye seedha tere Green Box mein dikhega
   });
 });
 
-// 2. LOGIN (Standard)
+// 2. LOGIN
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email: email.toLowerCase().trim() });
@@ -55,25 +59,27 @@ const loginUser = asyncHandler(async (req, res) => {
   } else { res.status(401); throw new Error('Invalid email or password'); }
 });
 
-// 3. FORGOT PASSWORD (⚡ FAST & GREEN BOX)
+// 3. FORGOT PASSWORD (⚡ INSTANT - 0ms Delay)
 const forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
     const user = await User.findOne({ email: email.toLowerCase().trim() });
 
     if (!user) { res.status(404); throw new Error('User not found'); }
 
+    // OTP Generate
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     user.otp = otp;
     await user.save();
 
-    // 🚀 FAST FIX: 'await' hata diya
-    sendEmail({ email: user.email, subject: 'Reset Password', message: `Your OTP is: ${otp}` })
-      .catch(err => console.log("Dev Mode: Email skipped for speed"));
+    // ❌ EMAIL CODE REMOVED FOR SPEED
+    // await sendEmail(...);
+    console.log(`🚀 Fast Mode: Reset OTP is ${otp}`);
 
-    // ✅ GREEN BOX RESPONSE
+    // ✅ INSTANT RESPONSE
     res.json({ 
+        success: true,
         message: "OTP Generated", 
-        otp: otp // 👈 Ye Frontend par Green Box layega
+        otp: otp // 👈 Green Box Data
     });
 });
 
