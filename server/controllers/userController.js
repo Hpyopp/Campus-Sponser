@@ -53,7 +53,7 @@ const loginUser = asyncHandler(async (req, res) => {
   } else { res.status(401); throw new Error('Invalid email or password'); }
 });
 
-// 3. GET ME (🔴 YE MISSING THA - AB FIX HAI)
+// 3. GET ME (🔴 YE MISSING THA - Ab fix hai)
 const getMe = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
   if (user) {
@@ -69,7 +69,7 @@ const getMe = asyncHandler(async (req, res) => {
   } else { res.status(404); throw new Error('User not found'); }
 });
 
-// 4. UPLOAD DOC (🔴 YE BHI MISSING THA - AB FIX HAI)
+// 4. UPLOAD DOC (🔴 YE BHI MISSING THA - Ab fix hai)
 const uploadDoc = asyncHandler(async (req, res) => {
   if (!req.file) { res.status(400); throw new Error('No file uploaded'); }
   const fileUrl = req.file.path || req.file.url;
@@ -82,7 +82,7 @@ const uploadDoc = asyncHandler(async (req, res) => {
   } else { res.status(404); throw new Error('User not found'); }
 });
 
-// 5. GET ALL USERS (🔴 YE BHI WAPAS AAYA)
+// 5. GET ALL USERS (🔴 YE BHI MISSING THA - Ab fix hai)
 const getAllUsers = asyncHandler(async (req, res) => {
   const users = await User.find().sort({ createdAt: -1 });
   res.json(users);
@@ -107,14 +107,14 @@ const forgotPassword = asyncHandler(async (req, res) => { res.json({ message: "O
 const resetPassword = asyncHandler(async (req, res) => { res.json({ message: "Password Reset Successful" }); });
 const verifyLogin = asyncHandler(async (req, res) => { res.status(400).json({ message: "Use password login" }); });
 
-// 👇 CRITICAL: Check Exports
+// 👇 CRITICAL: Ensure ALL Functions Are Exported Here
 module.exports = {
   registerUser,
   loginUser,
   verifyRegisterOTP,
-  getMe,        // ✅ Ab ye exported hai
-  uploadDoc,    // ✅ Ye bhi
-  getAllUsers,  // ✅ Ye bhi
+  getMe,        // ✅ Added
+  uploadDoc,    // ✅ Added
+  getAllUsers,  // ✅ Added
   approveUser,
   unverifyUser,
   deleteUser,
