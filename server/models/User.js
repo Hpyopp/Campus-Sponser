@@ -10,8 +10,8 @@ const userSchema = mongoose.Schema({
   companyName: { type: String }, 
   collegeName: { type: String }, 
   
-  // 👇 YE FIELD HONA ZAROORI HAI
-  verificationDoc: { type: String, default: null }, 
+  // 👇 YE LINE NAHI HOGI TOH DATA SAVE NAHI HOGA
+  verificationDoc: { type: String, default: "" }, 
   
   isVerified: { type: Boolean, default: false },
   

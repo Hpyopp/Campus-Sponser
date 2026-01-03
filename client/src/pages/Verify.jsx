@@ -10,38 +10,37 @@ const Verify = () => {
   const [userData, setUserData] = useState(null);
   const navigate = useNavigate();
 
-  // 1. PAGE LOAD: Fetch Fresh Data from Server
+  // 1. Refresh Logic (SERVER FIRST)
   useEffect(() => {
-    const fetchFreshData = async () => {
+    const fetchStatus = async () => {
         const storedUser = JSON.parse(localStorage.getItem('user'));
         if (!storedUser) { navigate('/login'); return; }
 
         try {
             const config = { headers: { Authorization: `Bearer ${storedUser.token}` } };
-            // Direct Database Call
+            // Database se taaza data maango
             const res = await axios.get('/api/users/me', config);
             
-            console.log("SERVER RESPONSE:", res.data); // 👈 Check Console
+            console.log("FRESH SERVER DATA:", res.data); // 👈 Console mein check karna
 
-            // Set Data
             setUserData(res.data);
             
-            // Sync LocalStorage
+            // LocalStorage update karo taaki agle page ko pata chale
             localStorage.setItem('user', JSON.stringify({ ...storedUser, ...res.data }));
 
-            // Verified Redirect
+            // Agar verified hai toh Home
             if (res.data.isVerified) navigate('/');
 
         } catch (error) {
-            console.error("Sync Error", error);
+            console.error("Fetch Error:", error);
         } finally {
             setChecking(false);
         }
     };
-    fetchFreshData();
+    fetchStatus();
   }, [navigate]);
 
-  // 2. UPLOAD HANDLER
+  // 2. Upload Logic
   const handleUpload = async (e) => {
     e.preventDefault();
     if (!file) return toast.error("Select File");
@@ -55,15 +54,15 @@ const Verify = () => {
       const config = { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${storedUser.token}` } };
       
       const res = await axios.post('/api/users/upload-doc', formData, config);
-      console.log("UPLOAD DONE:", res.data);
+      console.log("UPLOAD SUCCESS:", res.data);
 
-      // FORCE UPDATE UI with Server Response
+      // Force Update Frontend State
       const newUser = { ...userData, verificationDoc: res.data.docUrl, isVerified: false };
       setUserData(newUser);
       
       localStorage.setItem('user', JSON.stringify({ ...storedUser, ...newUser }));
       
-      toast.success("✅ Saved! Application Locked.");
+      toast.success("✅ Uploaded! Application Locked.");
 
     } catch (error) {
       console.error(error);
@@ -73,7 +72,7 @@ const Verify = () => {
     }
   };
 
-  if (checking) return <div style={{textAlign:'center', marginTop:'100px'}}>🔄 Verifying Status...</div>;
+  if (checking) return <div style={{textAlign:'center', marginTop:'100px'}}>🔄 Checking Status...</div>;
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '90vh', fontFamily: 'Poppins', padding: '20px' }}>
@@ -82,7 +81,7 @@ const Verify = () => {
         <h1 style={{ fontSize: '3rem', marginBottom: '10px' }}>🛡️</h1>
         <h2 style={{ color: '#1e293b', margin: '0 0 15px 0' }}>Account Verification</h2>
 
-        {/* 👇 LOGIC CHECK */}
+        {/* 👇 LOGIC: Doc exists check */}
         {userData && userData.verificationDoc ? (
             <div style={{ background: '#f8fafc', border: '2px solid #cbd5e1', padding: '25px', borderRadius: '10px', animation:'fadeIn 0.5s' }}>
                 <div style={{fontSize:'3rem', marginBottom:'10px'}}>🔒</div>
@@ -90,7 +89,7 @@ const Verify = () => {
                 <p style={{ fontSize: '0.9rem', color:'#64748b', marginBottom:'20px' }}>Document submitted. Waiting for Admin approval.</p>
 
                 <div style={{marginBottom:'20px', border:'1px dashed #ccc', padding:'10px', background:'white', borderRadius:'8px'}}>
-                    <p style={{fontSize:'0.8rem', fontWeight:'bold', margin:'0 0 5px 0', color:'#475569'}}>Your File:</p>
+                    <p style={{fontSize:'0.8rem', fontWeight:'bold', margin:'0 0 5px 0', color:'#475569'}}>Uploaded File:</p>
                     {userData.verificationDoc.endsWith('.pdf') ? (
                         <a href={userData.verificationDoc} target="_blank" rel="noreferrer" style={{color:'#2563eb', fontWeight:'bold'}}>📄 View PDF</a>
                     ) : (
@@ -99,7 +98,7 @@ const Verify = () => {
                 </div>
 
                 <div style={{ fontSize: '0.85rem', color:'#dc2626', background:'#fee2e2', padding:'10px', borderRadius:'5px' }}>
-                    <strong>Note:</strong> You cannot re-upload unless Admin rejects it.
+                    Note: You cannot re-upload unless Admin rejects it.
                 </div>
                 
                 <button onClick={() => navigate('/')} style={{marginTop:'20px', padding:'10px 20px', background:'#334155', color:'white', border:'none', borderRadius:'5px', cursor:'pointer'}}>Go Home</button>
