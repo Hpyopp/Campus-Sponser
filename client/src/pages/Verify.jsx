@@ -10,7 +10,7 @@ const Verify = () => {
   const [userData, setUserData] = useState(null);
   const navigate = useNavigate();
 
-  // 1. REFRESH HONE PAR SERVER SE DATA LO
+  // 1. Refresh Logic
   useEffect(() => {
     const fetchStatus = async () => {
         const storedUser = JSON.parse(localStorage.getItem('user'));
@@ -20,15 +20,16 @@ const Verify = () => {
             const config = { headers: { Authorization: `Bearer ${storedUser.token}` } };
             const res = await axios.get('/api/users/me', config);
             
-            console.log("FRONTEND GOT DATA:", res.data); // Console mein check kar
-
+            console.log("SERVER SAYS:", res.data); // Console check
+            
+            // Critical Update
             setUserData(res.data);
             localStorage.setItem('user', JSON.stringify({ ...storedUser, ...res.data }));
 
             if (res.data.isVerified) navigate('/');
 
         } catch (error) {
-            console.error(error);
+            console.error("Error", error);
         } finally {
             setChecking(false);
         }
@@ -36,7 +37,7 @@ const Verify = () => {
     fetchStatus();
   }, [navigate]);
 
-  // 2. UPLOAD KARO
+  // 2. Upload Logic
   const handleUpload = async (e) => {
     e.preventDefault();
     if (!file) return toast.error("Select File");
@@ -50,7 +51,7 @@ const Verify = () => {
       const config = { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${storedUser.token}` } };
       
       const res = await axios.post('/api/users/upload-doc', formData, config);
-      console.log("UPLOAD RESPONSE:", res.data);
+      console.log("UPLOAD OK:", res.data);
 
       const newUser = { ...userData, verificationDoc: res.data.docUrl, isVerified: false };
       setUserData(newUser);
@@ -59,7 +60,7 @@ const Verify = () => {
       toast.success("✅ Uploaded! Application Locked.");
 
     } catch (error) {
-      toast.error("Upload Failed");
+      toast.error("Upload Failed. Check Server Logs.");
     } finally {
       setUploading(false);
     }
@@ -67,8 +68,8 @@ const Verify = () => {
 
   if (checking) return <div style={{textAlign:'center', marginTop:'100px'}}>Wait...</div>;
 
-  // CHECK: Doc length check to avoid empty strings
-  const isLocked = userData && userData.verificationDoc && userData.verificationDoc.length > 5;
+  // Strict check
+  const hasDoc = userData && userData.verificationDoc && userData.verificationDoc.trim() !== "";
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '90vh', fontFamily: 'Poppins', padding: '20px' }}>
@@ -77,11 +78,11 @@ const Verify = () => {
         <h1 style={{ fontSize: '3rem', marginBottom: '10px' }}>🛡️</h1>
         <h2 style={{ color: '#1e293b', margin: '0 0 15px 0' }}>Account Verification</h2>
 
-        {isLocked ? (
+        {hasDoc ? (
             <div style={{ background: '#f8fafc', border: '2px solid #cbd5e1', padding: '25px', borderRadius: '10px' }}>
                 <div style={{fontSize:'3rem', marginBottom:'10px'}}>🔒</div>
                 <h3 style={{ margin: '0 0 10px 0', color: '#334155' }}>Submission Locked</h3>
-                <p style={{ fontSize: '0.9rem', color:'#64748b', marginBottom:'20px' }}>Waiting for Admin Approval.</p>
+                <p style={{ fontSize: '0.9rem', color:'#64748b', marginBottom:'20px' }}>Document submitted. Waiting for Admin approval.</p>
 
                 <div style={{marginBottom:'20px', border:'1px dashed #ccc', padding:'10px', background:'white', borderRadius:'8px'}}>
                     <p style={{fontSize:'0.8rem', fontWeight:'bold', margin:'0 0 5px 0', color:'#475569'}}>Your File:</p>
