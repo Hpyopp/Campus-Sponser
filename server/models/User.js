@@ -23,7 +23,7 @@ const userSchema = mongoose.Schema({
     enum: ['student', 'sponsor', 'admin'],
     default: 'student',
   },
-  
+  phone: { type: String, required: true },
   // Specific Fields
   companyName: { type: String, default: '' },
   collegeName: { type: String, default: '' },

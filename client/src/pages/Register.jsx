@@ -1,102 +1,103 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const Register = () => {
-  // States
-  const [step, setStep] = useState(1); // 1 = Form, 2 = OTP
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', phone: '', role: 'student', companyName: '', collegeName: '' });
-  const [otp, setOtp] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState(1);
+  const [role, setRole] = useState('student');
   
+  // 👇 Phone added to state
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', phone: '', companyName: '', collegeName: '' });
+  const [otp, setOtp] = useState('');
+  const [developerOtp, setDeveloperOtp] = useState(null);
+  
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Handle Input
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-
-  // 1. SEND OTP (Register Request)
   const handleRegister = async (e) => {
     e.preventDefault();
+    
+    // 👇 Phone Validation
+    if(formData.phone.length < 10) return toast.error("Please enter a valid 10-digit Phone Number");
+    
     setLoading(true);
     try {
-      // Backend request to create temp user & send OTP
-      const res = await axios.post('/api/users', formData);
-      alert(`✅ OTP Sent to ${formData.email}! Check your inbox.`);
-      setStep(2); // Show OTP Input
+      const res = await axios.post('/api/users', { ...formData, role });
+      setDeveloperOtp(res.data.debugOtp);
+      toast.success("OTP Sent!");
+      setStep(2);
     } catch (error) {
-      alert(error.response?.data?.message || "Registration Failed");
+      toast.error(error.response?.data?.message || "Error Occurred");
     } finally { setLoading(false); }
   };
 
-  // 2. VERIFY OTP & AUTO LOGIN
-  const handleVerifyOtp = async (e) => {
+  const handleVerify = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
       const res = await axios.post('/api/users/verify-otp', { email: formData.email, otp });
-      
-      // 👇 CRITICAL FIX: Save User & Force Update Navbar
       localStorage.setItem('user', JSON.stringify(res.data));
-      window.dispatchEvent(new Event("storage")); // Navbar ko jagao
-
-      alert("🎉 Registration Successful! Please upload your ID proof.");
-      
-      // 👇 FIX: Seedha Upload page par bhejo
-      navigate('/verify'); 
-
+      window.dispatchEvent(new Event("storage"));
+      toast.success("Account Verified!");
+      navigate('/verify');
     } catch (error) {
-      alert(error.response?.data?.message || "Invalid OTP");
+      toast.error("Invalid OTP");
     } finally { setLoading(false); }
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f8fafc', fontFamily: 'Poppins' }}>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f8fafc', fontFamily: 'Poppins', padding:'20px' }}>
       <div style={{ background: 'white', padding: '40px', borderRadius: '15px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', width: '100%', maxWidth: '400px' }}>
         
-        <h2 style={{ textAlign: 'center', color: '#1e293b', marginBottom: '20px' }}>
-          {step === 1 ? '🚀 Create Account' : '🔐 Enter OTP'}
-        </h2>
+        <h2 style={{ textAlign: 'center', color: '#1e293b' }}>{step === 1 ? '🚀 Create Account' : '🔐 Verify OTP'}</h2>
 
-        {step === 1 ? (
-          // --- STEP 1: FORM ---
-          <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <input name="name" placeholder="Full Name" onChange={handleChange} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
-            <input name="email" type="email" placeholder="Email Address" onChange={handleChange} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
-            <input name="password" type="password" placeholder="Password" onChange={handleChange} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
-            <input name="phone" placeholder="Phone Number" onChange={handleChange} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
+        {step === 1 && (
+          <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop:'20px' }}>
             
-            <select name="role" onChange={handleChange} style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }}>
-              <option value="student">Student</option>
-              <option value="sponsor">Sponsor</option>
-            </select>
+            {/* ROLE SELECTION */}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginBottom:'10px' }}>
+              <button type="button" onClick={() => setRole('student')} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: role === 'student' ? '2px solid #2563eb' : '1px solid #ccc', background: role === 'student' ? '#eff6ff' : 'white', fontWeight: 'bold', cursor: 'pointer', color:'#1e293b' }}>Student</button>
+              <button type="button" onClick={() => setRole('sponsor')} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: role === 'sponsor' ? '2px solid #2563eb' : '1px solid #ccc', background: role === 'sponsor' ? '#eff6ff' : 'white', fontWeight: 'bold', cursor: 'pointer', color:'#1e293b' }}>Sponsor</button>
+            </div>
 
-            {/* Role Specific Fields */}
-            {formData.role === 'student' && <input name="collegeName" placeholder="College Name" onChange={handleChange} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />}
-            {formData.role === 'sponsor' && <input name="companyName" placeholder="Company Name" onChange={handleChange} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />}
-
-            <button type="submit" disabled={loading} style={{ padding: '12px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-              {loading ? 'Sending OTP...' : 'Next ➡️'}
-            </button>
-          </form>
-        ) : (
-          // --- STEP 2: OTP ---
-          <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <p style={{textAlign:'center', fontSize:'0.9rem', color:'#666'}}>OTP sent to <strong>{formData.email}</strong></p>
-            <input name="otp" placeholder="Enter 6-digit OTP" onChange={(e) => setOtp(e.target.value)} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc', textAlign: 'center', letterSpacing: '5px', fontSize: '1.2rem' }} />
+            <input type="text" placeholder="Full Name" value={formData.name} onChange={e=>setFormData({...formData, name:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
+            <input type="email" placeholder="Email Address" value={formData.email} onChange={e=>setFormData({...formData, email:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
             
-            <button type="submit" disabled={loading} style={{ padding: '12px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-              {loading ? 'Verifying...' : 'Verify & Login ✅'}
-            </button>
-            <button type="button" onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', textDecoration: 'underline' }}>Wrong Email?</button>
+            {/* 👇 PHONE INPUT */}
+            <input type="number" placeholder="Mobile Number (e.g. 9876543210)" value={formData.phone} onChange={e=>setFormData({...formData, phone:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
+
+            <input type="password" placeholder="Password" value={formData.password} onChange={e=>setFormData({...formData, password:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
+
+            {role === 'sponsor' ? (
+                <input type="text" placeholder="Company Name" value={formData.companyName} onChange={e=>setFormData({...formData, companyName:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
+            ) : (
+                <input type="text" placeholder="College Name" value={formData.collegeName} onChange={e=>setFormData({...formData, collegeName:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
+            )}
+
+            <button type="submit" disabled={loading} style={{ padding: '12px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>{loading ? 'Processing...' : 'Get OTP'}</button>
+            
+            <div style={{ textAlign: 'center', marginTop: '10px' }}>Already have account? <Link to="/login" style={{ color: '#2563eb', fontWeight: 'bold' }}>Login</Link></div>
           </form>
         )}
 
-        <div style={{ textAlign: 'center', marginTop: '20px' }}>
-          Already have an account? <Link to="/login" style={{ color: '#2563eb', fontWeight: 'bold' }}>Login</Link>
-        </div>
+        {step === 2 && (
+          <div style={{marginTop:'20px'}}>
+             {developerOtp && (
+                <div style={{background: '#dcfce7', border: '2px dashed #16a34a', padding: '15px', borderRadius: '8px', textAlign: 'center', marginBottom: '20px', animation: 'fadeIn 0.5s'}}>
+                    <span style={{color: '#166534', fontSize: '0.9rem', display: 'block', marginBottom: '5px'}}>Developer Code:</span>
+                    <strong style={{color: '#16a34a', fontSize: '2rem', letterSpacing: '3px', fontFamily:'monospace'}}>{developerOtp}</strong>
+                </div>
+            )}
+            <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <input type="text" placeholder="Enter OTP" value={otp} onChange={e=>setOtp(e.target.value)} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc', letterSpacing:'5px', textAlign:'center', fontSize:'1.2rem' }} />
+              <button type="submit" disabled={loading} style={{ padding: '12px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>{loading ? 'Verifying...' : 'Verify & Login'}</button>
+            </form>
+          </div>
+        )}
+
       </div>
     </div>
   );
 };
-
 export default Register;
