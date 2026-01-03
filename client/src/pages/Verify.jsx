@@ -10,7 +10,7 @@ const Verify = () => {
   const [userData, setUserData] = useState(null);
   const navigate = useNavigate();
 
-  // 👇 STEP 1: PAGE REFRESH HOTE HI CHECK KARO
+  // 1. PAGE LOAD: Server Check
   useEffect(() => {
     const checkServerStatus = async () => {
       const storedUser = JSON.parse(localStorage.getItem('user'));
@@ -23,18 +23,14 @@ const Verify = () => {
       try {
         const config = { headers: { Authorization: `Bearer ${storedUser.token}` } };
         
-        // 🚀 SERVER CALL: "Batao user ka kya status hai?"
+        // Server se pucho: "Mere paas doc hai kya?"
         const res = await axios.get('/api/users/me', config);
         
-        console.log("FRESH DATA FROM SERVER:", res.data); // Console check karna
+        console.log("FRESH DATA FROM SERVER:", res.data); 
 
-        // Data set karo
         setUserData(res.data);
-        
-        // LocalStorage ko bhi update kar do taaki baaki app sync rahe
         localStorage.setItem('user', JSON.stringify({ ...storedUser, ...res.data }));
 
-        // Agar Verified hai toh Home bhejo
         if (res.data.isVerified) {
           navigate('/');
         }
@@ -42,17 +38,17 @@ const Verify = () => {
       } catch (error) {
         console.error("Sync Error:", error);
       } finally {
-        setChecking(false); // Checking khatam
+        setChecking(false);
       }
     };
 
     checkServerStatus();
   }, [navigate]);
 
-  // 👇 STEP 2: UPLOAD LOGIC
+  // 2. UPLOAD HANDLER
   const handleUpload = async (e) => {
     e.preventDefault();
-    if (!file) return toast.error("File select karo bhai!");
+    if (!file) return toast.error("Select file!");
 
     const storedUser = JSON.parse(localStorage.getItem('user'));
     const formData = new FormData();
@@ -64,10 +60,10 @@ const Verify = () => {
       
       const res = await axios.post('/api/users/upload-doc', formData, config);
       
-      // 🔥 UI UPDATE: Upload hote hi Lock dikhana shuru karo
+      // Update UI Immediately
       const updatedData = { 
           ...userData, 
-          verificationDoc: res.data.docUrl, // Server ne jo naya URL diya
+          verificationDoc: res.data.docUrl, 
           isVerified: false 
       };
       
@@ -85,8 +81,8 @@ const Verify = () => {
 
   if (checking) return <div style={{textAlign:'center', marginTop:'100px'}}>Checking Verification Status...</div>;
 
-  // 👇 MAIN LOGIC: Agar 'verificationDoc' hai, toh LOCKED dikhao.
-  const isLocked = userData && userData.verificationDoc && userData.verificationDoc.length > 0;
+  // 🔒 LOCK CHECK
+  const isLocked = userData && userData.verificationDoc && userData.verificationDoc.length > 5;
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '90vh', fontFamily: 'Poppins', padding: '20px' }}>
@@ -96,7 +92,7 @@ const Verify = () => {
         <h2 style={{ color: '#1e293b', margin: '0 0 15px 0' }}>Account Verification</h2>
 
         {isLocked ? (
-            // 🔒 LOCK SCREEN (Ye dikhega refresh ke baad bhi)
+            // LOCKED VIEW
             <div style={{ background: '#f8fafc', border: '2px solid #cbd5e1', padding: '25px', borderRadius: '10px', animation: 'fadeIn 0.5s' }}>
                 <div style={{fontSize:'3rem', marginBottom:'10px'}}>🔒</div>
                 <h3 style={{ margin: '0 0 10px 0', color: '#334155' }}>Submission Locked</h3>
@@ -105,18 +101,18 @@ const Verify = () => {
                 </p>
 
                 <div style={{marginBottom:'20px', border:'1px dashed #ccc', padding:'10px', background:'white', borderRadius:'8px'}}>
-                    <p style={{fontSize:'0.8rem', fontWeight:'bold', margin:'0 0 5px 0', color:'#475569'}}>Your File:</p>
+                    <p style={{fontSize:'0.8rem', fontWeight:'bold', margin:'0 0 5px 0', color:'#475569'}}>Uploaded File:</p>
                     <a href={userData.verificationDoc} target="_blank" rel="noreferrer" style={{color:'#2563eb', fontWeight:'bold'}}>📄 View Document</a>
                 </div>
 
                 <div style={{ fontSize: '0.85rem', color:'#dc2626', background:'#fee2e2', padding:'10px', borderRadius:'5px' }}>
-                    You cannot re-upload unless Admin rejects it.
+                    Note: You cannot re-upload unless Admin rejects it.
                 </div>
                 
                 <button onClick={() => navigate('/')} style={{marginTop:'20px', padding:'10px 20px', background:'#334155', color:'white', border:'none', borderRadius:'5px', cursor:'pointer'}}>Go Home</button>
             </div>
         ) : (
-            // 📁 UPLOAD FORM (Sirf tab dikhega jab Doc na ho)
+            // UPLOAD VIEW
             <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <p style={{ color: '#64748b' }}>Please upload your ID Proof.</p>
                 <div style={{ border: '2px dashed #cbd5e1', padding: '30px', borderRadius: '10px', background: '#f8fafc', position:'relative' }}>

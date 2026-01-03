@@ -1,34 +1,38 @@
 const express = require('express');
 const router = express.Router();
-const { 
-    registerUser, loginUser, verifyRegisterOTP, 
-    uploadDoc, getMe, getAllUsers, approveUser, unverifyUser, deleteUser,
-    forgotPassword, resetPassword, verifyLogin 
-} = require('../controllers/userController');
-
-const { protect } = require('../middleware/authMiddleware');
+const controller = require('../controllers/userController');
+const { protect, admin } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 
-// Auth
-router.post('/', registerUser);
-router.post('/login', loginUser); 
-router.post('/verify-otp', verifyRegisterOTP); 
+// 👇 DEBUG BLOCK (Server Start Hote Hi Check Karega)
+const requiredFunctions = ['getMe', 'getAllUsers', 'uploadDoc'];
+requiredFunctions.forEach(func => {
+    if (!controller[func]) {
+        console.error(`❌ CRITICAL ERROR: '${func}' is MISSING in userController!`);
+    } else {
+        console.log(`✅ Loaded: ${func}`);
+    }
+});
 
-// Password Reset
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPassword);
+if (!admin) console.error("❌ CRITICAL ERROR: 'admin' middleware is MISSING!");
 
-// Placeholders
-router.post('/verify-login', verifyLogin);
+// === ROUTES ===
+router.post('/register', controller.registerUser);
+router.post('/verify-otp', controller.verifyRegisterOTP);
+router.post('/login', controller.loginUser);
+router.post('/forgot-password', controller.forgotPassword);
+router.post('/reset-password', controller.resetPassword);
 
-// Protected
-router.get('/me', protect, getMe);
-router.post('/upload-doc', protect, upload.single('doc'), uploadDoc);
+// User
+router.post('/upload-doc', protect, upload.single('verificationDoc'), controller.uploadDoc);
+router.get('/me', protect, controller.getMe);
 
-// Admin
-router.get('/all', protect, getAllUsers);
-router.put('/approve/:id', protect, approveUser);
-router.put('/unverify/:id', protect, unverifyUser);
-router.delete('/:id', protect, deleteUser);
+// Admin (Ye Line 32 thi jo Crash kar rahi thi)
+// Ab hum ensure kar rahe hain ki 'admin' aur 'getAllUsers' dono exist karein
+router.get('/', protect, admin, controller.getAllUsers);
+
+router.put('/:id/approve', protect, admin, controller.approveUser);
+router.put('/:id/unverify', protect, admin, controller.unverifyUser);
+router.delete('/:id', protect, admin, controller.deleteUser);
 
 module.exports = router;
