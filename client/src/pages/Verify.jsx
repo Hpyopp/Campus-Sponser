@@ -6,58 +6,53 @@ import toast from 'react-hot-toast';
 const Verify = () => {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [checking, setChecking] = useState(true); // Page load hote hi check karega
+  const [checking, setChecking] = useState(true); // Loading state
   const [userData, setUserData] = useState(null);
   const navigate = useNavigate();
 
-  // 1. PAGE LOAD: FETCH FRESH DATA FROM SERVER
+  // 👇 STEP 1: PAGE REFRESH HOTE HI CHECK KARO
   useEffect(() => {
-    const fetchStatus = async () => {
+    const checkServerStatus = async () => {
       const storedUser = JSON.parse(localStorage.getItem('user'));
       
-      if (!storedUser || !storedUser.token) { 
-        navigate('/login'); 
-        return; 
+      if (!storedUser || !storedUser.token) {
+        navigate('/login');
+        return;
       }
 
       try {
         const config = { headers: { Authorization: `Bearer ${storedUser.token}` } };
         
-        // 🔥 DIRECT SERVER CALL (Sach yahi batayega)
+        // 🚀 SERVER CALL: "Batao user ka kya status hai?"
         const res = await axios.get('/api/users/me', config);
         
-        console.log("SERVER STATUS:", res.data); // Console check kar: verificationDoc hai ya nahi?
+        console.log("FRESH DATA FROM SERVER:", res.data); // Console check karna
 
-        // State update karo
+        // Data set karo
         setUserData(res.data);
         
-        // LocalStorage ko bhi taaza karo
+        // LocalStorage ko bhi update kar do taaki baaki app sync rahe
         localStorage.setItem('user', JSON.stringify({ ...storedUser, ...res.data }));
 
-        // Agar verified hai toh Home bhej do
+        // Agar Verified hai toh Home bhejo
         if (res.data.isVerified) {
           navigate('/');
         }
 
       } catch (error) {
         console.error("Sync Error:", error);
-        // Agar token expire ho gaya toh logout
-        if(error.response?.status === 401) {
-            localStorage.clear();
-            navigate('/login');
-        }
       } finally {
-        setChecking(false);
+        setChecking(false); // Checking khatam
       }
     };
 
-    fetchStatus();
+    checkServerStatus();
   }, [navigate]);
 
-  // 2. UPLOAD HANDLER
+  // 👇 STEP 2: UPLOAD LOGIC
   const handleUpload = async (e) => {
     e.preventDefault();
-    if (!file) return toast.error("Please select a file first");
+    if (!file) return toast.error("File select karo bhai!");
 
     const storedUser = JSON.parse(localStorage.getItem('user'));
     const formData = new FormData();
@@ -67,44 +62,31 @@ const Verify = () => {
     try {
       const config = { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${storedUser.token}` } };
       
-      // Upload Call
       const res = await axios.post('/api/users/upload-doc', formData, config);
       
-      console.log("UPLOAD RESPONSE:", res.data);
-
-      // 🔥 IMMEDIATE UI UPDATE (Bina refresh ke Lock dikhao)
-      const freshUser = { 
+      // 🔥 UI UPDATE: Upload hote hi Lock dikhana shuru karo
+      const updatedData = { 
           ...userData, 
-          verificationDoc: res.data.docUrl, // Server se jo URL aaya
+          verificationDoc: res.data.docUrl, // Server ne jo naya URL diya
           isVerified: false 
       };
-
-      setUserData(freshUser);
-      localStorage.setItem('user', JSON.stringify({ ...storedUser, ...freshUser }));
       
-      // Force app-wide sync
-      window.dispatchEvent(new Event("storage"));
-
-      toast.success("✅ Uploaded Successfully! Application Locked.");
+      setUserData(updatedData);
+      localStorage.setItem('user', JSON.stringify({ ...storedUser, ...updatedData }));
+      
+      toast.success("✅ Uploaded! Screen Locked.");
 
     } catch (error) {
-      console.error(error);
-      toast.error(error.response?.data?.message || "Upload Failed");
+      toast.error("Upload Failed");
     } finally {
       setUploading(false);
     }
   };
 
-  // CHECK: Kya document exist karta hai? (Empty string nahi hona chahiye)
-  const isLocked = userData && userData.verificationDoc && userData.verificationDoc.length > 5;
+  if (checking) return <div style={{textAlign:'center', marginTop:'100px'}}>Checking Verification Status...</div>;
 
-  if (checking) {
-      return (
-        <div style={{display:'flex', justifyContent:'center', marginTop:'100px', fontFamily:'Poppins', color:'#64748b'}}>
-            <h3>🔄 Checking Verification Status...</h3>
-        </div>
-      );
-  }
+  // 👇 MAIN LOGIC: Agar 'verificationDoc' hai, toh LOCKED dikhao.
+  const isLocked = userData && userData.verificationDoc && userData.verificationDoc.length > 0;
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '90vh', fontFamily: 'Poppins', padding: '20px' }}>
@@ -114,63 +96,37 @@ const Verify = () => {
         <h2 style={{ color: '#1e293b', margin: '0 0 15px 0' }}>Account Verification</h2>
 
         {isLocked ? (
-            // === LOCKED VIEW (Jab Document Uploaded Ho) ===
+            // 🔒 LOCK SCREEN (Ye dikhega refresh ke baad bhi)
             <div style={{ background: '#f8fafc', border: '2px solid #cbd5e1', padding: '25px', borderRadius: '10px', animation: 'fadeIn 0.5s' }}>
                 <div style={{fontSize:'3rem', marginBottom:'10px'}}>🔒</div>
                 <h3 style={{ margin: '0 0 10px 0', color: '#334155' }}>Submission Locked</h3>
-                
                 <p style={{ fontSize: '0.9rem', color:'#64748b', marginBottom:'20px' }}>
-                    Your document has been submitted and is under review.
+                    Document submitted. Waiting for Admin approval.
                 </p>
 
-                <div style={{marginBottom:'20px', border:'1px dashed #94a3b8', padding:'10px', background:'white', borderRadius:'8px'}}>
-                    <p style={{fontSize:'0.8rem', fontWeight:'bold', margin:'0 0 5px 0', color:'#475569'}}>Uploaded Document:</p>
-                    
-                    {/* Document Link/Preview */}
-                    <a href={userData.verificationDoc} target="_blank" rel="noreferrer" style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'5px', textDecoration:'none', color:'#2563eb', fontWeight:'bold', padding:'10px', background:'#eff6ff', borderRadius:'5px'}}>
-                        📄 View Uploaded File
-                    </a>
+                <div style={{marginBottom:'20px', border:'1px dashed #ccc', padding:'10px', background:'white', borderRadius:'8px'}}>
+                    <p style={{fontSize:'0.8rem', fontWeight:'bold', margin:'0 0 5px 0', color:'#475569'}}>Your File:</p>
+                    <a href={userData.verificationDoc} target="_blank" rel="noreferrer" style={{color:'#2563eb', fontWeight:'bold'}}>📄 View Document</a>
                 </div>
 
                 <div style={{ fontSize: '0.85rem', color:'#dc2626', background:'#fee2e2', padding:'10px', borderRadius:'5px' }}>
-                    <strong>Note:</strong> You cannot change this document unless the Admin rejects your application.
+                    You cannot re-upload unless Admin rejects it.
                 </div>
                 
-                <button onClick={() => navigate('/')} style={{marginTop:'20px', padding:'12px 25px', background:'#0f172a', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold'}}>
-                    Go Back Home
-                </button>
+                <button onClick={() => navigate('/')} style={{marginTop:'20px', padding:'10px 20px', background:'#334155', color:'white', border:'none', borderRadius:'5px', cursor:'pointer'}}>Go Home</button>
             </div>
         ) : (
-            // === UPLOAD FORM (Jab Document NAHI Ho) ===
-            <>
-                <p style={{ color: '#64748b', marginBottom: '25px', lineHeight: '1.6' }}>
-                To ensure trust, please upload a valid College ID (for Students) or Company Registration/Visiting Card (for Sponsors).
-                </p>
-                
-                <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <div style={{ border: '2px dashed #cbd5e1', padding: '30px', borderRadius: '10px', background: '#f8fafc', cursor: 'pointer', position:'relative', transition:'0.3s' }} onMouseOver={e=>e.currentTarget.style.borderColor='#2563eb'} onMouseOut={e=>e.currentTarget.style.borderColor='#cbd5e1'}>
-                        <input 
-                        type="file" 
-                        accept="image/*,application/pdf" 
-                        onChange={(e) => setFile(e.target.files[0])} 
-                        required 
-                        style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', opacity:0, cursor:'pointer' }}
-                        />
-                        <div style={{fontSize:'2rem', color:'#94a3b8', marginBottom:'10px'}}>📁</div>
-                        {file ? (
-                            <div style={{ color: '#2563eb', fontWeight: 'bold', wordBreak:'break-all' }}>Selected: {file.name}</div>
-                        ) : (
-                            <div style={{ color: '#64748b' }}>Click or Drag to Upload<br/><span style={{fontSize:'0.8rem'}}>(Image or PDF)</span></div>
-                        )}
-                    </div>
-                    
-                    <button type="submit" disabled={uploading} style={{ padding: '15px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', transition: '0.3s', opacity: uploading ? 0.7 : 1 }}>
-                        {uploading ? '🚀 Uploading & Saving...' : 'Submit for Verification'}
-                    </button>
-                </form>
-            </>
+            // 📁 UPLOAD FORM (Sirf tab dikhega jab Doc na ho)
+            <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <p style={{ color: '#64748b' }}>Please upload your ID Proof.</p>
+                <div style={{ border: '2px dashed #cbd5e1', padding: '30px', borderRadius: '10px', background: '#f8fafc', position:'relative' }}>
+                    <input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files[0])} required style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', opacity:0, cursor:'pointer' }} />
+                    <div style={{fontSize:'2rem', color:'#94a3b8', marginBottom:'10px'}}>📁</div>
+                    {file ? <div style={{ color: '#2563eb', fontWeight: 'bold' }}>{file.name}</div> : <div style={{ color: '#64748b' }}>Click to Upload</div>}
+                </div>
+                <button type="submit" disabled={uploading} style={{ padding: '15px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>{uploading ? 'Uploading...' : 'Submit'}</button>
+            </form>
         )}
-
       </div>
       <style>{`@keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }`}</style>
     </div>
