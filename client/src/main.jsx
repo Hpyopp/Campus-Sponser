@@ -1,14 +1,26 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.jsx'
-import axios from 'axios'; // 👈 1. Import Axios
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App.jsx';
+import './index.css';
+import { BrowserRouter } from 'react-router-dom';
+import axios from 'axios';
+import { Toaster } from 'react-hot-toast';
 
-// 👇 2. YE LINE ADD KAR (Tera Render URL yahan daal)
-axios.defaults.baseURL = 'https://campus-sponser-api.onrender.com';
+// 👇 YE WALA PART SABSE ZAROORI HAI (Copy Paste This Logic) 👇
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+// Agar local hai toh localhost, nahi toh Render ka URL (Jo tere logs mein dikh raha hai)
+axios.defaults.baseURL = isLocal 
+  ? 'http://localhost:5000' 
+  : 'https://campus-sponser-api.onrender.com'; // Tera Render URL
+
+axios.defaults.withCredentials = false; // CORS issue avoid karne ke liye false rakha hai abhi
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <App />
+      <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+    </BrowserRouter>
+  </React.StrictMode>,
+);
