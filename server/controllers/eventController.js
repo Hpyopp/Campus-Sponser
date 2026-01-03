@@ -1,25 +1,31 @@
-// server/controllers/eventController.js
-
-// 👇 DHYAN DE: Yahan Capital 'E' hai. Step 1 mein File ka naam bhi 'Event.js' hona chahiye.
-const Event = require('../models/Event'); 
+const Event = require('../models/Event'); // ⚠️ Ensure file name is 'Event.js' in models folder
 const asyncHandler = require('express-async-handler');
 
-// 1. GET EVENTS (With Debugging)
+// 1. GET ALL EVENTS (Isime Error aa raha tha)
 const getEvents = asyncHandler(async (req, res) => {
   try {
-    console.log("📡 Fetching Events from DB...");
-    // Populate check karega ki user exist karta hai ya nahi
+    console.log("📡 Request: Fetching all events...");
+    
+    // Check if Event model works
+    if (!Event) {
+      throw new Error("Event Model is not loaded check file name '../models/Event'");
+    }
+
     const events = await Event.find().populate('organizer', 'name email');
     
-    console.log(`✅ Found ${events.length} events`);
+    console.log(`✅ Success: Found ${events.length} events`);
     res.json(events);
+
   } catch (error) {
-    console.error("❌ ERROR IN GET EVENTS:", error.message);
-    res.status(500).json({ message: "Server Error Fetching Events", error: error.message });
+    console.error("❌ ERROR in getEvents:", error.message);
+    res.status(500).json({ 
+        message: "Server Error: Could not fetch events", 
+        error: error.message 
+    });
   }
 });
 
-// 2. GET EVENT BY ID
+// 2. GET SINGLE EVENT
 const getEventById = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id).populate('organizer', 'name email');
   if (event) { res.json(event); } 
@@ -61,7 +67,7 @@ const sponsorEvent = asyncHandler(async (req, res) => {
   } else { res.status(404); throw new Error('Event not found'); }
 });
 
-// 6. OTHER CONTROLLERS
+// --- HELPER FUNCTIONS ---
 const requestRefund = asyncHandler(async (req, res) => { res.json({message: 'Refund Requested'}); });
 const approveRefund = asyncHandler(async (req, res) => { res.json({message: 'Refund Approved'}); });
 const rejectRefund = asyncHandler(async (req, res) => { res.json({message: 'Refund Rejected'}); });
@@ -73,6 +79,7 @@ const revokeEvent = asyncHandler(async (req, res) => { res.json({message: 'Event
 const verifySponsorship = asyncHandler(async (req, res) => { res.json({ message: "Verified" }); });
 const rejectSponsorship = asyncHandler(async (req, res) => { res.json({ message: "Rejected" }); });
 
+// 👇 CLEAN EXPORTS (Jaise User Controller mein kiya tha)
 module.exports = {
   getEvents, getEventById, createEvent, deleteEvent,
   sponsorEvent, requestRefund, approveRefund, rejectRefund,
