@@ -16,24 +16,39 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminRefunds from './pages/AdminRefunds';
 import Verify from './pages/Verify';
 import Profile from './pages/Profile';
-import NotFound from './pages/NotFound'; // 👈 1. IMPORT THIS
+import NotFound from './pages/NotFound';
 
+// 👇 UPDATED USER SYNC (CRITICAL FIX)
 const UserSync = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
   useEffect(() => {
     const checkStatus = async () => {
       const storedUser = JSON.parse(localStorage.getItem('user'));
       if (!storedUser || !storedUser.token) return;
+
       try {
         const config = { headers: { Authorization: `Bearer ${storedUser.token}` } };
         const res = await axios.get('/api/users/me', config);
         const serverUser = res.data;
-        if (serverUser.isVerified !== storedUser.isVerified || serverUser.role !== storedUser.role) {
-            const updatedUser = { ...storedUser, isVerified: serverUser.isVerified, role: serverUser.role };
+
+        // 👇 CHECK: Agar Status, Role, ya Doc Server par alag hai, toh sync karo
+        if (
+            serverUser.isVerified !== storedUser.isVerified || 
+            serverUser.role !== storedUser.role ||
+            serverUser.verificationDoc !== storedUser.verificationDoc // 👈 Ye Line Missing Thi
+        ) {
+            const updatedUser = { 
+                ...storedUser, 
+                isVerified: serverUser.isVerified, 
+                role: serverUser.role,
+                verificationDoc: serverUser.verificationDoc // Doc bhi update karo
+            };
             localStorage.setItem('user', JSON.stringify(updatedUser));
             window.dispatchEvent(new Event("storage"));
         }
+
       } catch (error) {
         if (error.response && error.response.status === 401) {
             localStorage.clear();
@@ -41,10 +56,13 @@ const UserSync = () => {
         }
       }
     };
-    const interval = setInterval(checkStatus, 5000); 
-    checkStatus(); 
+
+    const interval = setInterval(checkStatus, 5000); // Har 5 sec check
+    checkStatus(); // First load check
+
     return () => clearInterval(interval);
   }, [navigate, location]);
+
   return null;
 };
 
@@ -68,10 +86,7 @@ function App() {
                 <Route path="/admin/refunds" element={<AdminRefunds />} />
                 <Route path="/verify" element={<Verify />} />
                 <Route path="/profile" element={<Profile />} />
-
-                {/* 👇 2. CATCH-ALL ROUTE (Hamesha Last Mein Rakhna) */}
                 <Route path="*" element={<NotFound />} />
-            
             </Routes>
         </div>
 

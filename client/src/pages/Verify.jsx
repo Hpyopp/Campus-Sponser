@@ -10,13 +10,19 @@ const Verify = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user'));
-    if (!user) { navigate('/login'); return; }
+    // LocalStorage se user uthao (UserSync isko update rakhega)
+    const loadUser = () => {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) { navigate('/login'); return; }
+        if (user.isVerified) { navigate('/'); return; }
+        setCurrentUser(user);
+    };
+
+    loadUser();
     
-    // Agar pehle se verified hai, toh home bhej do
-    if (user.isVerified) { navigate('/'); return; }
-    
-    setCurrentUser(user);
+    // Listen for updates from UserSync
+    window.addEventListener('storage', loadUser);
+    return () => window.removeEventListener('storage', loadUser);
   }, [navigate]);
 
   const handleUpload = async (e) => {
@@ -31,6 +37,7 @@ const Verify = () => {
       const config = { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${currentUser.token}` } };
       const res = await axios.post('/api/users/upload-doc', formData, config);
       
+      // Update Local immediately
       const updatedUser = { ...currentUser, verificationDoc: res.data.docUrl, isVerified: false };
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setCurrentUser(updatedUser);
@@ -38,7 +45,6 @@ const Verify = () => {
 
       toast.success("Document Uploaded! Redirecting...");
       
-      // 👇 UPLOAD HONE KE BAAD DIRECT HOME PAGE
       setTimeout(() => {
           navigate('/');
       }, 1500);
@@ -69,7 +75,7 @@ const Verify = () => {
                     You have already submitted your document. It is currently under review by the Admin.
                 </p>
 
-                {/* 👇 SHOW UPLOADED DOCUMENT PREVIEW */}
+                {/* SHOW PREVIEW */}
                 <div style={{marginBottom:'20px', border:'1px dashed #ccc', padding:'10px', background:'white', borderRadius:'8px'}}>
                     <p style={{fontSize:'0.8rem', fontWeight:'bold', margin:'0 0 5px 0', color:'#475569'}}>Your Uploaded Document:</p>
                     {currentUser.verificationDoc.endsWith('.pdf') ? (
@@ -80,13 +86,13 @@ const Verify = () => {
                 </div>
 
                 <div style={{ fontSize: '0.85rem', color:'#dc2626', background:'#fee2e2', padding:'10px', borderRadius:'5px' }}>
-                    <strong>Note:</strong> You cannot change this document until the Admin reviews it. If rejected, you will be able to upload again.
+                    <strong>Note:</strong> You cannot change this document until the Admin reviews it. If rejected, the lock will open.
                 </div>
                 
                 <button onClick={() => navigate('/')} style={{marginTop:'20px', padding:'10px 20px', background:'#334155', color:'white', border:'none', borderRadius:'5px', cursor:'pointer'}}>Go to Home</button>
             </div>
         ) : (
-            /* 👇 UPLOAD STATE: Sirf tab dikhega jab Doc NULL ho */
+            /* 👇 UPLOAD STATE: Sirf tab jab Doc NULL ho (New user or Rejected user) */
             <>
                 <p style={{ color: '#64748b', marginBottom: '25px', lineHeight: '1.6' }}>
                 To ensure trust, please upload a valid College ID (for Students) or Company Registration/Visiting Card (for Sponsors).
