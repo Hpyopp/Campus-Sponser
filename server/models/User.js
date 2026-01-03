@@ -1,46 +1,22 @@
 const mongoose = require('mongoose');
 
 const userSchema = mongoose.Schema({
-  name: {
-    type: String,
-    required: [true, 'Please add a name'],
-  },
-  email: {
-    type: String,
-    required: [true, 'Please add an email'],
-    unique: true,
-  },
-  password: {
-    type: String,
-    required: [true, 'Please add a password'],
-  },
-  phone: {
-    type: String,
-    required: [true, 'Please add a phone number'],
-  },
-  role: {
-    type: String,
-    enum: ['student', 'sponsor', 'admin'],
-    default: 'student',
-  },
-  phone: { type: String, required: true },
-  // Specific Fields
-  companyName: { type: String, default: '' },
-  collegeName: { type: String, default: '' },
-
-  // OTP & Verification
-  otp: { type: String },
-  otpExpires: { type: Date },
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
   
-  // 👇 YE SABSE ZAROORI HAI: Default FALSE hi hona chahiye
-  isVerified: { 
-    type: Boolean, 
-    default: false 
-  },
+  // 👇 PHONE FIELD ZAROORI HAI
+  phone: { type: String, required: true }, 
 
-  verificationDoc: { type: String, default: null }
-}, {
-  timestamps: true,
-});
+  role: { type: String, enum: ['student', 'sponsor', 'admin'], default: 'student' },
+  companyName: { type: String }, 
+  collegeName: { type: String }, 
+  
+  verificationDoc: { type: String }, 
+  isVerified: { type: Boolean, default: false }, // 👈 By default FALSE rahega
+  
+  otp: { type: String },
+  otpExpires: { type: Date }
+}, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

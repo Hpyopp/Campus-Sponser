@@ -73,7 +73,7 @@ const AdminDashboard = () => {
             <tr key={u._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                 <td style={{padding:'15px'}}><strong>{u.name}</strong><br/><span style={{fontSize:'0.8rem', color:'#666'}}>{u.email}</span></td>
                 
-                {/* 👇 DESIGN MAST: Phone Column */}
+                {/* 👇 PHONE NUMBER DISPLAY */}
                 <td style={{padding:'15px'}}>
                     {u.phone ? <a href={`tel:${u.phone}`} style={{color:'#2563eb', fontWeight:'bold', textDecoration:'none', display:'flex', alignItems:'center', gap:'5px'}}>📞 {u.phone}</a> : <span style={{color:'#ccc'}}>No Phone</span>}
                 </td>
@@ -86,7 +86,7 @@ const AdminDashboard = () => {
         </table>
       </div>
 
-      {/* EVENTS TABLE */}
+      {/* EVENTS TABLE (Same) */}
       <h3 style={{ color: '#1e293b', borderLeft:'5px solid #ec4899', paddingLeft:'10px', marginTop:'40px' }}>🎉 Event Requests</h3>
       <div style={{ background: 'white', borderRadius: '15px', overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -95,7 +95,6 @@ const AdminDashboard = () => {
         </table>
       </div>
 
-      {/* MODAL (Same) */}
       {showModal && (<div style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.5)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:1000}}><div style={{background:'white', padding:'30px', borderRadius:'15px', width:'90%', maxWidth:'400px', boxShadow:'0 10px 30px rgba(0,0,0,0.2)'}}><div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px', borderBottom:'1px solid #eee', paddingBottom:'10px'}}><h3 style={{margin:0}}>👁️ Interested Users</h3><button onClick={() => setShowModal(false)} style={{background:'none', border:'none', fontSize:'1.2rem', cursor:'pointer'}}>✖</button></div><div style={{maxHeight:'300px', overflowY:'auto'}}>{selectedViewers.length > 0 ? (selectedViewers.map((v, i) => (<div key={i} style={{marginBottom:'10px', padding:'12px', background:'#f8fafc', borderRadius:'8px', border:'1px solid #e2e8f0', display:'flex', alignItems:'center', gap:'10px'}}><div style={{background:'#3b82f6', color:'white', width:'30px', height:'30px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'bold'}}>{v.name?.charAt(0).toUpperCase()}</div><div><div style={{fontWeight:'bold', color:'#334155', fontSize:'0.95rem'}}>{v.name}</div><div style={{fontSize:'0.8rem', color:'#64748b'}}>{v.email}</div></div></div>))) : (<p style={{color:'#94a3b8', textAlign:'center', fontStyle:'italic'}}>No one has viewed this yet.</p>)}</div><button onClick={() => setShowModal(false)} style={{width:'100%', marginTop:'20px', padding:'10px', background:'#2563eb', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold'}}>Close List</button></div></div>)}
       <style>{`@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); } 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); } }`}</style>
     </div>

@@ -7,7 +7,6 @@ const Register = () => {
   const [step, setStep] = useState(1);
   const [role, setRole] = useState('student');
   
-  // 👇 Phone added to state
   const [formData, setFormData] = useState({ name: '', email: '', password: '', phone: '', companyName: '', collegeName: '' });
   const [otp, setOtp] = useState('');
   const [developerOtp, setDeveloperOtp] = useState(null);
@@ -17,15 +16,13 @@ const Register = () => {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    
-    // 👇 Phone Validation
-    if(formData.phone.length < 10) return toast.error("Please enter a valid 10-digit Phone Number");
+    if(formData.phone.length < 10) return toast.error("Invalid Phone Number");
     
     setLoading(true);
     try {
       const res = await axios.post('/api/users', { ...formData, role });
       setDeveloperOtp(res.data.debugOtp);
-      toast.success("OTP Sent!");
+      toast.success("OTP Sent! Check Green Box");
       setStep(2);
     } catch (error) {
       toast.error(error.response?.data?.message || "Error Occurred");
@@ -37,10 +34,20 @@ const Register = () => {
     setLoading(true);
     try {
       const res = await axios.post('/api/users/verify-otp', { email: formData.email, otp });
+      
+      // Store user and redirect
       localStorage.setItem('user', JSON.stringify(res.data));
       window.dispatchEvent(new Event("storage"));
-      toast.success("Account Verified!");
-      navigate('/verify');
+      
+      toast.success("✅ Account Verified & Logged In!");
+      
+      // Agar Doc upload baki hai (Student ke liye) toh Verify page, nahi toh Home
+      if (res.data.role !== 'admin' && !res.data.verificationDoc) {
+          navigate('/verify');
+      } else {
+          navigate('/');
+      }
+      
     } catch (error) {
       toast.error("Invalid OTP");
     } finally { setLoading(false); }
@@ -55,7 +62,6 @@ const Register = () => {
         {step === 1 && (
           <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop:'20px' }}>
             
-            {/* ROLE SELECTION */}
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginBottom:'10px' }}>
               <button type="button" onClick={() => setRole('student')} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: role === 'student' ? '2px solid #2563eb' : '1px solid #ccc', background: role === 'student' ? '#eff6ff' : 'white', fontWeight: 'bold', cursor: 'pointer', color:'#1e293b' }}>Student</button>
               <button type="button" onClick={() => setRole('sponsor')} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: role === 'sponsor' ? '2px solid #2563eb' : '1px solid #ccc', background: role === 'sponsor' ? '#eff6ff' : 'white', fontWeight: 'bold', cursor: 'pointer', color:'#1e293b' }}>Sponsor</button>
@@ -64,8 +70,8 @@ const Register = () => {
             <input type="text" placeholder="Full Name" value={formData.name} onChange={e=>setFormData({...formData, name:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
             <input type="email" placeholder="Email Address" value={formData.email} onChange={e=>setFormData({...formData, email:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
             
-            {/* 👇 PHONE INPUT */}
-            <input type="number" placeholder="Mobile Number (e.g. 9876543210)" value={formData.phone} onChange={e=>setFormData({...formData, phone:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
+            {/* Phone Input */}
+            <input type="number" placeholder="Mobile Number" value={formData.phone} onChange={e=>setFormData({...formData, phone:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
 
             <input type="password" placeholder="Password" value={formData.password} onChange={e=>setFormData({...formData, password:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
 
