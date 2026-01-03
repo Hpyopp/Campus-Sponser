@@ -10,7 +10,7 @@ const userSchema = mongoose.Schema({
   companyName: { type: String }, 
   collegeName: { type: String }, 
   
-  // 👇 YE MISSING THA - AB FIX HO GAYA
+  // 👇 YE MISSING HOGA TOH REFRESH KE BAAD GAYAB HO JAYEGA
   verificationDoc: { type: String }, 
   
   isVerified: { type: Boolean, default: false },

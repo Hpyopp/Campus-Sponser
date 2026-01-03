@@ -7,44 +7,44 @@ const sendEmail = require('../utils/sendEmail');
 // 1. REGISTER
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone, role, companyName, collegeName } = req.body;
-  if (!name || !email || !password || !phone) { res.status(400); throw new Error('Please fill all fields'); }
-  
+  if (!name || !email || !password || !phone) { res.status(400); throw new Error('Fill all fields'); }
   const cleanEmail = email.toLowerCase().trim();
   const userExists = await User.findOne({ email: cleanEmail });
-  if (userExists) { res.status(400); throw new Error('User already exists'); }
-  
+  if (userExists) { res.status(400); throw new Error('User exists'); }
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   
-  // Create User (verificationDoc empty string rakha hai shuru mein)
   const user = await User.create({
-    name, email: cleanEmail, password: hashedPassword, phone, 
-    role: role || 'student', 
+    name, email: cleanEmail, password: hashedPassword, phone, role: role || 'student', 
     companyName: (role === 'sponsor' && companyName) ? companyName : '', 
     collegeName: (role === 'student' && collegeName) ? collegeName : '', 
     otp, otpExpires: Date.now() + 10 * 60 * 1000, 
-    isVerified: false, 
-    verificationDoc: null 
+    isVerified: false, verificationDoc: null 
   });
   
   sendEmail({ email: user.email, subject: 'Verify Account', message: `OTP: ${otp}` }).catch(err => console.log("Email skipped"));
   res.status(200).json({ message: 'OTP Generated', email: user.email, debugOtp: otp });
 });
 
-// 2. UPLOAD DOC (Ab DB mein pakka save hoga)
+// 2. UPLOAD DOC (Critical Fix)
 const uploadDoc = asyncHandler(async (req, res) => {
-  if (!req.file || !req.file.path) { res.status(400); throw new Error('Upload failed'); }
+  console.log("📂 Upload Request Recieved:", req.file); // Debug Log
+
+  if (!req.file) { res.status(400); throw new Error('Upload failed - No File'); }
   
   const user = await User.findById(req.user.id);
   if (user) {
-    user.verificationDoc = req.file.path; // Save Path
-    user.isVerified = false; // Keep Pending
-    await user.save(); // Save to DB
+    // Save Path (Cloudinary URL or Local Path)
+    user.verificationDoc = req.file.path || req.file.url; 
+    user.isVerified = false; // Status Pending
     
+    const updatedUser = await user.save(); // 🔥 Save to DB
+    console.log("✅ Document Saved to DB:", updatedUser.verificationDoc); // Debug Log
+
     res.status(200).json({ 
-        message: 'Uploaded', 
-        docUrl: req.file.path, 
+        message: 'Uploaded successfully', 
+        docUrl: updatedUser.verificationDoc, 
         isVerified: false 
     });
   } else {
@@ -52,17 +52,18 @@ const uploadDoc = asyncHandler(async (req, res) => {
   }
 });
 
-// 3. GET ME (Data fetch karne ke liye)
+// 3. GET ME (Refresh fix)
 const getMe = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
   if (user) {
+    // console.log("🔍 Fetching User Data:", user.verificationDoc); // Debug Log
     res.status(200).json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
         isVerified: user.isVerified,
-        verificationDoc: user.verificationDoc, // Frontend yahan se check karega
+        verificationDoc: user.verificationDoc, // Check ye value aa rahi hai ya nahi
         companyName: user.companyName
     });
   } else {
@@ -70,14 +71,13 @@ const getMe = asyncHandler(async (req, res) => {
   }
 });
 
-// 4. UNVERIFY / REJECT (Isse Lock Khulega)
+// 4. ADMIN REJECT (Reset Doc)
 const unverifyUser = asyncHandler(async (req, res) => { 
-  // Doc ko NULL kar rahe hain taaki banda phir se upload kar sake
   await User.findByIdAndUpdate(req.params.id, { isVerified: false, verificationDoc: null }); 
-  res.status(200).json({ message: 'Rejected & Doc Reset' }); 
+  res.status(200).json({ message: 'Rejected & Reset' }); 
 });
 
-// ... (Shortened Common Functions) ...
+// ... (Shortened Common Functions - Copy Paste as is) ...
 const verifyRegisterOTP = asyncHandler(async (req, res) => { const { email, otp } = req.body; const user = await User.findOne({ email: email.toLowerCase().trim() }); if (user && user.otp === otp.toString().trim()) { user.isVerified = user.role === 'admin' ? true : false; user.otp = undefined; user.otpExpires = undefined; await user.save(); res.status(200).json({ _id: user.id, name: user.name, email: user.email, role: user.role, token: generateToken(user._id), isVerified: user.isVerified, verificationDoc: user.verificationDoc }); } else { res.status(400); throw new Error('Invalid OTP'); } });
 const loginUser = asyncHandler(async (req, res) => { const { email, password } = req.body; const user = await User.findOne({ email: email.toLowerCase().trim() }); if (user && (await bcrypt.compare(password, user.password))) { res.json({ _id: user.id, name: user.name, email: user.email, role: user.role, isVerified: user.isVerified, verificationDoc: user.verificationDoc, token: generateToken(user._id) }); } else { res.status(401); throw new Error('Invalid Credentials'); } });
 const getAllUsers = asyncHandler(async (req, res) => { const users = await User.find().sort({ createdAt: -1 }); res.status(200).json(users); });
