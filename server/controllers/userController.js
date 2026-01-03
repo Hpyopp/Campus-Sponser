@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const mongoose = require('mongoose'); // 👈 YE LINE ZAROORI HAI
+const mongoose = require('mongoose'); // 👈 Ye import zaroori hai
 const asyncHandler = require('express-async-handler');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -28,59 +28,50 @@ const registerUser = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'OTP Generated', email: user.email, debugOtp: otp });
 });
 
-// 👇 2. UPLOAD DOC (NUCLEAR FIX - RAW DB WRITE)
+// 👇 2. UPLOAD DOC (RAW WRITE)
 const uploadDoc = asyncHandler(async (req, res) => {
-  // Check File
-  if (!req.file) { 
-      res.status(400); throw new Error('No file uploaded'); 
-  }
+  if (!req.file) { res.status(400); throw new Error('No file uploaded'); }
   
-  // URL Nikalo
   const fileUrl = req.file.path || req.file.url;
-  console.log("🔥 RAW WRITE STARTING:", fileUrl);
+  console.log("🔥 RAW WRITE:", fileUrl);
 
-  try {
-      // ⚠️ MAGIC LINE: Mongoose Schema Bypass karke seedha DB mein likho
-      await mongoose.connection.db.collection('users').updateOne(
-          { _id: new mongoose.Types.ObjectId(req.user.id) },
-          { 
-              $set: { 
-                  verificationDoc: fileUrl, // Force Write
-                  isVerified: false 
-              } 
-          }
-      );
+  // Mongoose Schema Bypass karke seedha DB mein likho
+  await mongoose.connection.db.collection('users').updateOne(
+      { _id: new mongoose.Types.ObjectId(req.user.id) },
+      { 
+          $set: { 
+              verificationDoc: fileUrl, 
+              isVerified: false 
+          } 
+      }
+  );
 
-      console.log("✅ RAW WRITE SUCCESS");
-
-      res.status(200).json({ 
-          message: 'Saved via Raw Driver', 
-          docUrl: fileUrl, 
-          isVerified: false 
-      });
-
-  } catch (error) {
-      console.error("❌ RAW WRITE FAILED:", error);
-      res.status(500).json({ message: 'DB Error' });
-  }
+  res.status(200).json({ 
+      message: 'Saved via Raw Driver', 
+      docUrl: fileUrl, 
+      isVerified: false 
+  });
 });
 
-// 3. GET ME (Raw Read to Confirm)
+// 👇 3. GET ME (RAW READ - Ye sabse zaroori hai)
+// Pehle ye Mongoose use kar raha tha, jo field ko chupa deta tha.
+// Ab ye raw data layega.
 const getMe = asyncHandler(async (req, res) => {
-  // Fetch directly from collection
   const user = await mongoose.connection.db.collection('users').findOne({ 
       _id: new mongoose.Types.ObjectId(req.user.id) 
   });
 
   if (user) {
-    // console.log("🔍 FETCHING RAW DATA:", user.verificationDoc);
+    console.log(`🔍 RAW FETCH: Doc exists? ${!!user.verificationDoc}`); 
+    
     res.status(200).json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
         isVerified: user.isVerified,
-        verificationDoc: user.verificationDoc || "", // Ensure string return
+        // Ensure property exists
+        verificationDoc: user.verificationDoc || "", 
         companyName: user.companyName
     });
   } else {
@@ -97,7 +88,7 @@ const unverifyUser = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'Rejected' }); 
 });
 
-// ... (Baaki Functions same rahenge)
+// ... (Baaki Functions - Copy Paste as is) ...
 const verifyRegisterOTP = asyncHandler(async (req, res) => { const { email, otp } = req.body; const user = await User.findOne({ email: email.toLowerCase().trim() }); if (user && user.otp === otp.toString().trim()) { user.isVerified = user.role === 'admin' ? true : false; user.otp = undefined; user.otpExpires = undefined; await user.save(); res.status(200).json({ _id: user.id, name: user.name, email: user.email, role: user.role, token: generateToken(user._id), isVerified: user.isVerified, verificationDoc: user.verificationDoc }); } else { res.status(400); throw new Error('Invalid OTP'); } });
 const loginUser = asyncHandler(async (req, res) => { const { email, password } = req.body; const user = await User.findOne({ email: email.toLowerCase().trim() }); if (user && (await bcrypt.compare(password, user.password))) { res.json({ _id: user.id, name: user.name, email: user.email, role: user.role, isVerified: user.isVerified, verificationDoc: user.verificationDoc, token: generateToken(user._id) }); } else { res.status(401); throw new Error('Invalid Credentials'); } });
 const getAllUsers = asyncHandler(async (req, res) => { const users = await User.find().sort({ createdAt: -1 }); res.status(200).json(users); });
