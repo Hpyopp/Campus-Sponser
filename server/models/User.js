@@ -7,7 +7,7 @@ const userSchema = mongoose.Schema({
   phone: { type: String, required: true }, 
   role: { type: String, enum: ['student', 'sponsor', 'admin'], default: 'student' },
   
-  // 👇 Isko 'String' rakha hai aur default empty
+  // 👇 Ye field clear define kiya hai
   verificationDoc: { type: String, default: "" }, 
   
   companyName: { type: String }, 
@@ -18,7 +18,7 @@ const userSchema = mongoose.Schema({
   otpExpires: { type: Date }
 }, { 
   timestamps: true, 
-  strict: false // 👈 YE MAGIC KEY HAI (Isse data zabardasti save hoga)
+  strict: false // 👈 BRAHMASTRA: Ye DB ko bolega "Dimaag mat lagao, jo aya hai save karo"
 });
 
 module.exports = mongoose.model('User', userSchema);

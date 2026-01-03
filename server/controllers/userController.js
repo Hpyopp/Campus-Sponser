@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const sendEmail = require('../utils/sendEmail'); 
 
-// 1. REGISTER
+// ... (Register same rahega) ...
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone, role, companyName, collegeName } = req.body;
   if (!name || !email || !password || !phone) { res.status(400); throw new Error('Fill all fields'); }
@@ -22,25 +22,19 @@ const registerUser = asyncHandler(async (req, res) => {
     otp, otpExpires: Date.now() + 10 * 60 * 1000, 
     isVerified: false, verificationDoc: "" 
   });
-  
   sendEmail({ email: user.email, subject: 'Verify Account', message: `OTP: ${otp}` }).catch(err => console.log("Email skipped"));
   res.status(200).json({ message: 'OTP Generated', email: user.email, debugOtp: otp });
 });
 
-// 👇 2. UPLOAD DOC (DEBUG MODE)
+// 👇 UPLOAD DOC (THE FINAL FIX)
 const uploadDoc = asyncHandler(async (req, res) => {
-  console.log("🚀 UPLOAD STARTED FOR:", req.user.email);
-
   if (!req.file) { 
-      console.log("❌ ERROR: No file received");
       res.status(400); throw new Error('No file uploaded'); 
   }
   
-  // File Path Nikalo
-  const fileUrl = req.file.path || req.file.url; 
-  console.log("📂 File Path Detected:", fileUrl);
-
-  // 🔥 FORCE DB UPDATE
+  const fileUrl = req.file.path || req.file.url;
+  
+  // 🔥 BRAHMASTRA QUERY: strict: false yahan bhi laga diya
   const updatedUser = await User.findByIdAndUpdate(
     req.user.id,
     { 
@@ -49,13 +43,14 @@ const uploadDoc = asyncHandler(async (req, res) => {
         isVerified: false 
       } 
     },
-    { new: true } // Return updated doc
+    { 
+      new: true, 
+      strict: false // 👈 FORCE SAVE: Schema ignore karke save karega
+    } 
   );
 
-  // LOG KRO KI KYA SAVE HUA
-  console.log("💾 DB SAVE RESULT:", updatedUser.verificationDoc); 
-
   if (updatedUser) {
+    console.log("✅ DB FORCE SAVED:", updatedUser.verificationDoc); 
     res.status(200).json({ 
         message: 'Saved Successfully', 
         docUrl: updatedUser.verificationDoc, 
@@ -66,12 +61,11 @@ const uploadDoc = asyncHandler(async (req, res) => {
   }
 });
 
-// 👇 3. GET ME (CHECK DATA)
+// 👇 GET ME (Confirm Data)
 const getMe = asyncHandler(async (req, res) => {
+  // .lean() hata diya taaki proper mongoose object mile
   const user = await User.findById(req.user.id);
   if (user) {
-    console.log(`👀 GET ME: User ${user.email} | Doc Saved: ${user.verificationDoc}`); // Check this log
-    
     res.status(200).json({
         _id: user._id,
         name: user.name,
@@ -86,13 +80,8 @@ const getMe = asyncHandler(async (req, res) => {
   }
 });
 
-// 4. REJECT
-const unverifyUser = asyncHandler(async (req, res) => { 
-  await User.findByIdAndUpdate(req.params.id, { $set: { isVerified: false, verificationDoc: "" } }); 
-  res.status(200).json({ message: 'Rejected' }); 
-});
-
-// ... (Baaki Functions - Same as before)
+// ... (Baaki Admin Reject wagera same) ...
+const unverifyUser = asyncHandler(async (req, res) => { await User.findByIdAndUpdate(req.params.id, { $set: { isVerified: false, verificationDoc: "" } }); res.status(200).json({ message: 'Rejected' }); });
 const verifyRegisterOTP = asyncHandler(async (req, res) => { const { email, otp } = req.body; const user = await User.findOne({ email: email.toLowerCase().trim() }); if (user && user.otp === otp.toString().trim()) { user.isVerified = user.role === 'admin' ? true : false; user.otp = undefined; user.otpExpires = undefined; await user.save(); res.status(200).json({ _id: user.id, name: user.name, email: user.email, role: user.role, token: generateToken(user._id), isVerified: user.isVerified, verificationDoc: user.verificationDoc }); } else { res.status(400); throw new Error('Invalid OTP'); } });
 const loginUser = asyncHandler(async (req, res) => { const { email, password } = req.body; const user = await User.findOne({ email: email.toLowerCase().trim() }); if (user && (await bcrypt.compare(password, user.password))) { res.json({ _id: user.id, name: user.name, email: user.email, role: user.role, isVerified: user.isVerified, verificationDoc: user.verificationDoc, token: generateToken(user._id) }); } else { res.status(401); throw new Error('Invalid Credentials'); } });
 const getAllUsers = asyncHandler(async (req, res) => { const users = await User.find().sort({ createdAt: -1 }); res.status(200).json(users); });
