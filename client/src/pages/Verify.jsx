@@ -31,14 +31,17 @@ const Verify = () => {
       const config = { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${currentUser.token}` } };
       const res = await axios.post('/api/users/upload-doc', formData, config);
       
-      // Update Local Storage to reflect uploaded doc but NOT verified yet
       const updatedUser = { ...currentUser, verificationDoc: res.data.docUrl, isVerified: false };
       localStorage.setItem('user', JSON.stringify(updatedUser));
-      setCurrentUser(updatedUser); // Update local state to refresh UI
+      setCurrentUser(updatedUser);
       window.dispatchEvent(new Event("storage"));
 
-      // 👇 CLEAR MESSAGE
-      toast.success("🎉 Document Uploaded! Status: Pending Admin Approval (Approx 24 hrs).");
+      toast.success("Document Uploaded! Redirecting...");
+      
+      // 👇 UPLOAD HONE KE BAAD DIRECT HOME PAGE
+      setTimeout(() => {
+          navigate('/');
+      }, 1500);
 
     } catch (error) {
       toast.error(error.response?.data?.message || "Upload Failed");
@@ -56,21 +59,34 @@ const Verify = () => {
         <h1 style={{ fontSize: '3rem', marginBottom: '10px' }}>🛡️</h1>
         <h2 style={{ color: '#1e293b', margin: '0 0 15px 0' }}>Account Verification</h2>
 
-        {/* 👇 STATE 1: Document Uploaded but PENDING */}
-        {currentUser.verificationDoc && !currentUser.isVerified ? (
-            <div style={{ background: '#fff7ed', border: '2px solid #f59e0b', padding: '25px', borderRadius: '10px', color: '#92400e' }}>
-                <h3 style={{ margin: '0 0 10px 0', display:'flex', alignItems:'center', justifyContent:'center', gap:'10px' }}>
-                    ⏳ Status: Pending Approval
-                </h3>
-                <p style={{ fontSize: '1rem', lineHeight: '1.5' }}>
-                    Your document has been submitted successfully. Our Admin team will verify your details within <strong>24 hours</strong>.
+        {/* 👇 LOCKED STATE: Agar Doc Uploaded hai, toh Lock dikhao */}
+        {currentUser.verificationDoc ? (
+            <div style={{ background: '#f8fafc', border: '2px solid #cbd5e1', padding: '25px', borderRadius: '10px' }}>
+                <div style={{fontSize:'3rem', marginBottom:'10px'}}>🔒</div>
+                <h3 style={{ margin: '0 0 10px 0', color: '#334155' }}>Submission Locked</h3>
+                
+                <p style={{ fontSize: '0.9rem', color:'#64748b', marginBottom:'20px' }}>
+                    You have already submitted your document. It is currently under review by the Admin.
                 </p>
-                <p style={{ fontSize: '0.9rem', marginTop:'15px', color:'#78350f' }}>
-                    You will get full access once approved. Please check back later.
-                </p>
+
+                {/* 👇 SHOW UPLOADED DOCUMENT PREVIEW */}
+                <div style={{marginBottom:'20px', border:'1px dashed #ccc', padding:'10px', background:'white', borderRadius:'8px'}}>
+                    <p style={{fontSize:'0.8rem', fontWeight:'bold', margin:'0 0 5px 0', color:'#475569'}}>Your Uploaded Document:</p>
+                    {currentUser.verificationDoc.endsWith('.pdf') ? (
+                        <a href={currentUser.verificationDoc} target="_blank" rel="noreferrer" style={{color:'#2563eb', fontWeight:'bold'}}>📄 View PDF</a>
+                    ) : (
+                        <img src={currentUser.verificationDoc} alt="ID Proof" style={{width:'100%', maxHeight:'150px', objectFit:'contain', borderRadius:'5px'}} />
+                    )}
+                </div>
+
+                <div style={{ fontSize: '0.85rem', color:'#dc2626', background:'#fee2e2', padding:'10px', borderRadius:'5px' }}>
+                    <strong>Note:</strong> You cannot change this document until the Admin reviews it. If rejected, you will be able to upload again.
+                </div>
+                
+                <button onClick={() => navigate('/')} style={{marginTop:'20px', padding:'10px 20px', background:'#334155', color:'white', border:'none', borderRadius:'5px', cursor:'pointer'}}>Go to Home</button>
             </div>
         ) : (
-            /* 👇 STATE 2: Document NOT Uploaded Yet */
+            /* 👇 UPLOAD STATE: Sirf tab dikhega jab Doc NULL ho */
             <>
                 <p style={{ color: '#64748b', marginBottom: '25px', lineHeight: '1.6' }}>
                 To ensure trust, please upload a valid College ID (for Students) or Company Registration/Visiting Card (for Sponsors).
