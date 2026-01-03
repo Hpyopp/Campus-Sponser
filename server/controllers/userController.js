@@ -1,65 +1,89 @@
 const User = require('../models/User');
-const mongoose = require('mongoose'); // 👈 Ye line add karna zaroori hai
 const asyncHandler = require('express-async-handler');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const sendEmail = require('../utils/sendEmail'); 
 
-// ... (Register, Login, OTP functions same rahenge - unhe mat chhedna)
+// 1. REGISTER
+const registerUser = asyncHandler(async (req, res) => {
+  const { name, email, password, phone, role, companyName, collegeName } = req.body;
+  if (!name || !email || !password || !phone) { res.status(400); throw new Error('Fill all fields'); }
+  const cleanEmail = email.toLowerCase().trim();
+  const userExists = await User.findOne({ email: cleanEmail });
+  if (userExists) { res.status(400); throw new Error('User exists'); }
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  const user = await User.create({
+    name, email: cleanEmail, password: hashedPassword, phone, role: role || 'student', 
+    companyName: (role === 'sponsor' && companyName) ? companyName : '', 
+    collegeName: (role === 'student' && collegeName) ? collegeName : '', 
+    otp, otpExpires: Date.now() + 10 * 60 * 1000, 
+    isVerified: false, verificationDoc: "" 
+  });
+  
+  sendEmail({ email: user.email, subject: 'Verify Account', message: `OTP: ${otp}` }).catch(err => console.log("Email skipped"));
+  res.status(200).json({ message: 'OTP Generated', email: user.email, debugOtp: otp });
+});
 
-const registerUser = asyncHandler(async (req, res) => { const { name, email, password, phone, role, companyName, collegeName } = req.body; if (!name || !email || !password || !phone) { res.status(400); throw new Error('Fill all fields'); } const cleanEmail = email.toLowerCase().trim(); const userExists = await User.findOne({ email: cleanEmail }); if (userExists) { res.status(400); throw new Error('User exists'); } const salt = await bcrypt.genSalt(10); const hashedPassword = await bcrypt.hash(password, salt); const otp = Math.floor(100000 + Math.random() * 900000).toString(); const user = await User.create({ name, email: cleanEmail, password: hashedPassword, phone, role: role || 'student', companyName: (role === 'sponsor' && companyName) ? companyName : '', collegeName: (role === 'student' && collegeName) ? collegeName : '', otp, otpExpires: Date.now() + 10 * 60 * 1000, isVerified: false, verificationDoc: "" }); sendEmail({ email: user.email, subject: 'Verify Account', message: `OTP: ${otp}` }).catch(err => console.log("Email skipped")); res.status(200).json({ message: 'OTP Generated', email: user.email, debugOtp: otp }); });
-
-// 👇👇👇 ALTERNATE METHOD (RAW MONGO UPDATE) 👇👇👇
+// 👇 2. UPLOAD DOC (THE FINAL FIX)
 const uploadDoc = asyncHandler(async (req, res) => {
+  // 1. Check if file exists
   if (!req.file) { 
+      console.log("❌ No file received");
       res.status(400); throw new Error('No file uploaded'); 
   }
-  
-  const fileUrl = req.file.path || req.file.url;
-  console.log("🔥 RAW UPDATE: Saving URL:", fileUrl);
 
-  // 1. DIRECT COLLECTION UPDATE (Mongoose Schema Bypass)
-  // Ye seedha database ki "users" collection mein jaake write karega
-  await User.collection.updateOne(
-    { _id: new mongoose.Types.ObjectId(req.user.id) },
+  // 🔍 DEBUGGING: Pura file object print karo terminal mein
+  console.log("📂 FILE OBJECT:", req.file);
+
+  // 2. URL EXTRACTOR (Har tarah ka link try karo)
+  const fileUrl = req.file.path || req.file.url || req.file.secure_url || req.file.location;
+
+  // 3. AGAR URL NAHI MILA TOH ERROR FEKO (Empty save mat hone do)
+  if (!fileUrl) {
+      console.log("❌ CRITICAL: File uploaded but NO URL found!");
+      res.status(500); throw new Error('File upload failed: No URL generated');
+  }
+
+  console.log("✅ FOUND URL:", fileUrl);
+
+  // 4. DATABASE UPDATE
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user.id,
     { 
       $set: { 
         verificationDoc: fileUrl, 
         isVerified: false 
       } 
-    }
+    },
+    { new: true, strict: false } // Force Save
   );
 
-  // 2. FETCH UPDATED USER (Confirm Save)
-  // Ab wapas DB se pucho ki kya save hua?
-  const updatedUser = await User.findById(req.user.id);
-  
-  console.log("✅ DB CONFIRMED:", updatedUser.verificationDoc);
-
-  if (updatedUser && updatedUser.verificationDoc) {
+  if (updatedUser) {
+    console.log("💾 SAVED TO DB:", updatedUser.verificationDoc);
     res.status(200).json({ 
-        message: 'Force Saved', 
+        message: 'Saved Successfully', 
         docUrl: updatedUser.verificationDoc, 
         isVerified: false 
     });
   } else {
-    res.status(500); throw new Error('Database Write Failed');
+    res.status(404); throw new Error('Database Update Failed');
   }
 });
-// 👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆
 
-// 3. GET ME (Debugging)
+// 3. GET ME (Check Data)
 const getMe = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
   if (user) {
-    console.log(`👀 GET ME: Doc is -> ${user.verificationDoc}`); // Check this log
     res.status(200).json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
         isVerified: user.isVerified,
-        verificationDoc: user.verificationDoc || "", // Ensure string
+        verificationDoc: user.verificationDoc || "", // Ensure it sends string
         companyName: user.companyName
     });
   } else {
@@ -67,8 +91,13 @@ const getMe = asyncHandler(async (req, res) => {
   }
 });
 
-// ... (Baaki Functions - Copy as is)
-const unverifyUser = asyncHandler(async (req, res) => { await User.collection.updateOne({ _id: new mongoose.Types.ObjectId(req.params.id) }, { $set: { isVerified: false, verificationDoc: "" } }); res.status(200).json({ message: 'Rejected' }); });
+// 4. REJECT
+const unverifyUser = asyncHandler(async (req, res) => { 
+  await User.findByIdAndUpdate(req.params.id, { $set: { isVerified: false, verificationDoc: "" } }); 
+  res.status(200).json({ message: 'Rejected' }); 
+});
+
+// ... (Copy baaki functions same as always) ...
 const verifyRegisterOTP = asyncHandler(async (req, res) => { const { email, otp } = req.body; const user = await User.findOne({ email: email.toLowerCase().trim() }); if (user && user.otp === otp.toString().trim()) { user.isVerified = user.role === 'admin' ? true : false; user.otp = undefined; user.otpExpires = undefined; await user.save(); res.status(200).json({ _id: user.id, name: user.name, email: user.email, role: user.role, token: generateToken(user._id), isVerified: user.isVerified, verificationDoc: user.verificationDoc }); } else { res.status(400); throw new Error('Invalid OTP'); } });
 const loginUser = asyncHandler(async (req, res) => { const { email, password } = req.body; const user = await User.findOne({ email: email.toLowerCase().trim() }); if (user && (await bcrypt.compare(password, user.password))) { res.json({ _id: user.id, name: user.name, email: user.email, role: user.role, isVerified: user.isVerified, verificationDoc: user.verificationDoc, token: generateToken(user._id) }); } else { res.status(401); throw new Error('Invalid Credentials'); } });
 const getAllUsers = asyncHandler(async (req, res) => { const users = await User.find().sort({ createdAt: -1 }); res.status(200).json(users); });
