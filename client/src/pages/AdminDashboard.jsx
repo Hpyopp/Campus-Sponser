@@ -29,11 +29,11 @@ const AdminDashboard = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  const handleAction = async (url, method, msg) => {
+  const handleAction = async (url, method, msg, body = {}) => {
     try {
       const user = JSON.parse(localStorage.getItem('user'));
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      method === 'delete' ? await axios.delete(url, config) : await axios.put(url, {}, config);
+      method === 'delete' ? await axios.delete(url, config) : await axios.put(url, body, config);
       toast.success(msg);
       fetchData();
     } catch (e) { toast.error("Command Failed!"); }
@@ -41,7 +41,13 @@ const AdminDashboard = () => {
 
   // Logic to extract refund requests
   const refundReqs = [];
-  events.forEach(e => e.sponsors?.forEach(s => s.status === 'refund_requested' && refundReqs.push({...s, eventId: e._id, eventTitle: e.title})));
+  events.forEach(e => {
+      e.sponsors?.forEach(s => {
+          if (s.status === 'refund_requested') {
+              refundReqs.push({...s, eventId: e._id, eventTitle: e.title});
+          }
+      });
+  });
 
   const filteredUsers = users.filter(u => 
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -78,25 +84,30 @@ const AdminDashboard = () => {
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead style={{ background: '#334155', color: '#cbd5e1', fontSize: '0.85rem' }}>
                 <tr>
-                    {/* DYNAMIC HEADERS BASED ON VIEW */}
-                    <th style={{ padding: '20px' }}>{view === 'refunds' ? 'Sponsor & Amount' : (view === 'pending_events' ? 'Event Info' : 'Identity')}</th>
-                    <th style={{ padding: '20px' }}>{view === 'refunds' ? 'Event Name' : 'Role/Organizer'}</th>
-                    <th style={{ padding: '20px' }}>{view === 'refunds' ? 'Agreement Doc' : 'Proof/Status'}</th>
+                    {/* 👇 DYNAMIC HEADERS (Ye change honge tab ke hisaab se) */}
+                    <th style={{ padding: '20px' }}>
+                        {view === 'refunds' ? 'Sponsor Info' : (view === 'pending_events' ? 'Event Info' : 'User Info')}
+                    </th>
+                    <th style={{ padding: '20px' }}>
+                        {view === 'refunds' ? 'Event Name' : 'Role/Organizer'}
+                    </th>
+                    <th style={{ padding: '20px' }}>
+                        {view === 'refunds' ? 'Agreement Doc' : 'Proof/Status'}
+                    </th>
                     <th style={{ padding: '20px' }}>GOD ACTIONS</th>
                 </tr>
             </thead>
             <tbody>
-                {/* 1. REFUNDS VIEW (FIXED) */}
+                {/* 1. REFUNDS VIEW */}
                 {view === 'refunds' && refundReqs.map((r, i) => (
                     <tr key={i} style={{ borderBottom: '1px solid #334155' }}>
                         <td style={{ padding: '20px' }}>
                             <div style={{fontWeight:'bold', fontSize:'1rem'}}>{r.name}</div>
-                            <div style={{color:'#f87171'}}>Refund: ₹{r.amount}</div>
+                            <div style={{color:'#f87171', fontWeight:'bold'}}>Refund: ₹{r.amount}</div>
                             <div style={{fontSize:'0.75rem', color:'#94a3b8'}}>{r.companyName}</div>
                         </td>
                         <td style={{ padding: '20px', color:'#38bdf8' }}>{r.eventTitle}</td>
                         <td style={{ padding: '20px' }}>
-                            {/* 👇 AGREEMENT BUTTON ADDED HERE */}
                             <button 
                                 onClick={() => navigate(`/agreement/${r.eventId}?sponsorId=${r.sponsorId}`)} 
                                 style={linkBtn}
@@ -153,6 +164,7 @@ const AdminDashboard = () => {
                 ))}
             </tbody>
         </table>
+        
         {/* Empty State Message */}
         {view === 'refunds' && refundReqs.length === 0 && <div style={{padding:'40px', textAlign:'center', color:'#94a3b8'}}>No refund requests pending.</div>}
       </div>
