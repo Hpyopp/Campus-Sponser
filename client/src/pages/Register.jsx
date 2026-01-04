@@ -18,8 +18,12 @@ const Register = () => {
     
     setLoading(true);
     try {
-      // Backend ab OTP return nahi karega
-      await axios.post('/api/users', { ...formData, role });
+      // API call to Register
+      await axios.post('https://campus-sponser-api.onrender.com/api/users', { 
+        ...formData, 
+        email: formData.email.trim(), // Fix: Trim spaces
+        role 
+      });
       toast.success("📧 OTP Sent to Email! Check Spam too.");
       setStep(2);
     } catch (error) {
@@ -32,25 +36,33 @@ const Register = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await axios.post('/api/users/verify-otp', { email: formData.email, otp });
+      // API call to Verify
+      const res = await axios.post('https://campus-sponser-api.onrender.com/api/users/verify-otp', { 
+        email: formData.email.trim(), 
+        otp: otp.trim() 
+      });
+      
       const { token, role: userRole } = res.data;
 
+      // Token header set karke User Details lao
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const meRes = await axios.get('/api/users/me', config);
+      const meRes = await axios.get('https://campus-sponser-api.onrender.com/api/users/me', config);
       
+      // Save full user data
       const completeUser = { token, ...meRes.data }; 
       localStorage.setItem('user', JSON.stringify(completeUser));
       window.dispatchEvent(new Event("storage"));
       
       toast.success("✅ Logged In!");
       
+      // Verification Status Check
       if (userRole !== 'admin' && !meRes.data.verificationDoc) {
           navigate('/verify'); 
       } else {
           navigate('/'); 
       }
     } catch (error) {
-      toast.error("Invalid OTP");
+      toast.error(error.response?.data?.message || "Invalid OTP");
     } finally { setLoading(false); }
   };
 
@@ -78,7 +90,7 @@ const Register = () => {
                 <input type="text" placeholder="College Name" value={formData.collegeName} onChange={e=>setFormData({...formData, collegeName:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
             )}
 
-            <button type="submit" disabled={loading} style={{ padding: '12px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>{loading ? 'Sending...' : 'Get OTP'}</button>
+            <button type="submit" disabled={loading} style={{ padding: '12px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', opacity: loading ? 0.7 : 1 }}>{loading ? 'Sending...' : 'Get OTP'}</button>
             <div style={{ textAlign: 'center', marginTop: '10px' }}>Already have account? <Link to="/login" style={{ color: '#2563eb', fontWeight: 'bold' }}>Login</Link></div>
           </form>
         )}
@@ -90,7 +102,7 @@ const Register = () => {
             </p>
             <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <input type="text" placeholder="Enter OTP" value={otp} onChange={e=>setOtp(e.target.value)} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc', letterSpacing:'5px', textAlign:'center', fontSize:'1.2rem' }} />
-              <button type="submit" disabled={loading} style={{ padding: '12px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>{loading ? 'Verifying...' : 'Verify & Login'}</button>
+              <button type="submit" disabled={loading} style={{ padding: '12px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', opacity: loading ? 0.7 : 1 }}>{loading ? 'Verifying...' : 'Verify & Login'}</button>
             </form>
           </div>
         )}

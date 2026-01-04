@@ -2,14 +2,14 @@ const User = require('../models/User');
 const asyncHandler = require('express-async-handler');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const sendEmail = require('../utils/sendEmail'); // ✅ Ye line zaroori hai
+const sendEmail = require('../utils/sendEmail'); // ✅ Uses Brevo
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
 // ======================================================
-// 1. REGISTER
+// 1. REGISTER (✅ WORKING)
 // ======================================================
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone, role, companyName, collegeName } = req.body;
@@ -22,17 +22,24 @@ const registerUser = asyncHandler(async (req, res) => {
   const userExists = await User.findOne({ email: cleanEmail });
   if (userExists) { res.status(400); throw new Error('User already exists'); }
 
+  // Generate OTP
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // Email Logic (Uses sendEmail.js - Brevo)
   try {
+    console.log(`Sending Register OTP to ${cleanEmail}...`);
     await sendEmail({
       email: cleanEmail,
       subject: "Verify Account - CampusSponsor",
-      html: `<h1>Welcome ${name}!</h1><p>Your OTP is: <b>${otp}</b></p>`
+      html: `<div style="padding:20px; border:1px solid #ddd;">
+              <h2>Welcome, ${name}!</h2>
+              <p>Your OTP is:</p>
+              <h1 style="color:#2563eb; letter-spacing:5px;">${otp}</h1>
+              <p>Valid for 10 minutes.</p>
+             </div>`
     });
+    console.log("Register Email Sent!");
   } catch (error) {
-    console.error("Register Email Error:", error);
+    console.error("Register Email Failed:", error);
     res.status(500); throw new Error("Email sending failed. Check email address.");
   }
 
@@ -67,35 +74,52 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 // ======================================================
-// 3. FORGOT PASSWORD (✅ ISME ERROR THA, AB FIXED HAI)
+// 3. FORGOT PASSWORD (✅ FULLY FIXED)
 // ======================================================
 const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
-  const user = await User.findOne({ email: email.toLowerCase().trim() });
+  const cleanEmail = email.toLowerCase().trim();
+  
+  console.log(`Forgot Password Request for: ${cleanEmail}`); // Log 1
 
-  if (!user) { res.status(404); throw new Error('User not found'); }
+  const user = await User.findOne({ email: cleanEmail });
+
+  if (!user) { 
+    console.log("User not found in DB");
+    res.status(404); throw new Error('User not found'); 
+  }
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   
-  // Ab ye 'sendEmail' function use karega (Jo Brevo se connect hai)
-  // Pehle ye khud Gmail se connect karne ki koshish kar raha tha
   try {
+    console.log("Attempting to send Reset Email..."); // Log 2
+    
+    // Send Email
     await sendEmail({
         email: user.email,
         subject: "Reset Password - CampusSponsor",
-        html: `<h1>Reset OTP: <b>${otp}</b></h1><p>Valid for 10 minutes.</p>`
+        html: `<div style="padding:20px; border:1px solid #ddd;">
+                <h2 style="color:red;">Reset Password</h2>
+                <p>Your OTP to reset password is:</p>
+                <h1 style="color:red; letter-spacing:5px;">${otp}</h1>
+                <p>If you didn't request this, ignore it.</p>
+               </div>`
     });
     
-    // Email gaya tabhi OTP save hoga
+    console.log("Reset Email Sent Successfully!"); // Log 3
+
+    // ✅ FIX: Update OTP AND Expiry
     user.otp = otp;
+    user.otpExpires = Date.now() + 10 * 60 * 1000; // 10 Minutes from now
     await user.save();
     
+    console.log("User OTP updated in DB"); // Log 4
+
     res.json({ success: true, message: "OTP sent to your email." });
 
   } catch (error) {
-    console.error("Forgot Password Error:", error);
-    // Agar ye error aaye, matlab Brevo connect nahi hua
-    res.status(500); throw new Error("Email service failed. Try again.");
+    console.error("Forgot Password Failed:", error); // Log Error
+    res.status(500); throw new Error(`Server Error: ${error.message}`);
   }
 });
 
@@ -104,10 +128,19 @@ const forgotPassword = asyncHandler(async (req, res) => {
 // ======================================================
 const verifyRegisterOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email: email.toLowerCase().trim() });
+  
   if (user && user.otp === otp) {
-    user.isVerified = (user.role === 'admin'); user.otp = undefined;
+    // Check Expiry
+    if (user.otpExpires < Date.now()) {
+        res.status(400); throw new Error('OTP Expired');
+    }
+
+    user.isVerified = (user.role === 'admin'); 
+    user.otp = undefined;
+    user.otpExpires = undefined;
     await user.save();
+    
     res.json({ _id: user.id, token: generateToken(user._id), role: user.role });
   } else { res.status(400); throw new Error('Invalid OTP'); }
 });
@@ -117,11 +150,20 @@ const verifyRegisterOTP = asyncHandler(async (req, res) => {
 // ======================================================
 const resetPassword = asyncHandler(async (req, res) => { 
   const { email, otp, newPassword } = req.body;
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email: email.toLowerCase().trim() });
+  
   if (user && user.otp === otp) {
+    // Check Expiry
+    if (user.otpExpires < Date.now()) {
+        res.status(400); throw new Error('OTP Expired');
+    }
+
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
-    user.otp = undefined; await user.save();
+    user.otp = undefined; 
+    user.otpExpires = undefined;
+    await user.save();
+    
     res.json({ message: "Password Reset Successful" });
   } else { res.status(400); throw new Error('Invalid OTP'); }
 });
