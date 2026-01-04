@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
@@ -42,9 +43,7 @@ const AdminDashboard = () => {
   const refundReqs = [];
   events.forEach(e => {
       e.sponsors?.forEach(s => {
-          if (s.status === 'refund_requested') {
-              refundReqs.push({...s, eventId: e._id, eventTitle: e.title});
-          }
+          if (s.status === 'refund_requested') refundReqs.push({...s, eventId: e._id, eventTitle: e.title});
       });
   });
 
@@ -53,10 +52,22 @@ const AdminDashboard = () => {
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // 📊 CHART DATA PREPARATION
+  const userStats = [
+    { name: 'Students', value: users.filter(u => u.role === 'student').length, color: '#3b82f6' },
+    { name: 'Sponsors', value: users.filter(u => u.role === 'sponsor').length, color: '#f59e0b' },
+    { name: 'Admins', value: users.filter(u => u.role === 'admin').length, color: '#ef4444' }
+  ];
+
+  const eventStats = [
+    { name: 'Approved', count: events.filter(e => e.isApproved).length },
+    { name: 'Pending', count: events.filter(e => !e.isApproved).length }
+  ];
+
   return (
     <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white', fontFamily: 'Poppins', padding: '20px' }}>
       
-      {/* HEADER: Flex Wrap Added */}
+      {/* HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px', borderBottom: '1px solid #334155', paddingBottom: '20px', marginBottom: '30px' }}>
         <h1 style={{ color: '#38bdf8', margin: 0 }}>⚡ GOD MODE PANEL</h1>
         <div style={{ display: 'flex', gap: '15px' }}>
@@ -64,6 +75,43 @@ const AdminDashboard = () => {
             <Stat n={refundReqs.length} label="REFUNDS" color="#ef4444" />
             <button onClick={()=>{localStorage.removeItem('user'); navigate('/login');}} style={logoutBtn}>LOGOUT</button>
         </div>
+      </div>
+
+      {/* 📊 CHARTS SECTION (Only Visible on All Users Tab or Default) */}
+      <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          
+          {/* Pie Chart: User Roles */}
+          <div style={{ background: '#1e293b', padding: '20px', borderRadius: '15px', width: '100%', maxWidth: '400px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
+              <h3 style={{ textAlign: 'center', marginBottom: '10px', color: '#cbd5e1' }}>User Distribution</h3>
+              <div style={{ height: '250px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                        <Pie data={userStats} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                            {userStats.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                        </Pie>
+                        <Tooltip contentStyle={{background:'#334155', border:'none', color:'white'}} />
+                        <Legend />
+                    </PieChart>
+                </ResponsiveContainer>
+              </div>
+          </div>
+
+          {/* Bar Chart: Events Status */}
+          <div style={{ background: '#1e293b', padding: '20px', borderRadius: '15px', width: '100%', maxWidth: '500px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
+              <h3 style={{ textAlign: 'center', marginBottom: '10px', color: '#cbd5e1' }}>Event Statistics</h3>
+              <div style={{ height: '250px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={eventStats}>
+                        <XAxis dataKey="name" stroke="#cbd5e1" />
+                        <YAxis stroke="#cbd5e1" />
+                        <Tooltip cursor={{fill: '#334155'}} contentStyle={{background:'#1e293b', border:'1px solid #475569', color:'white'}} />
+                        <Bar dataKey="count" fill="#38bdf8" barSize={50} radius={[5, 5, 0, 0]} />
+                    </BarChart>
+                </ResponsiveContainer>
+              </div>
+          </div>
       </div>
 
       {/* TABS */}
@@ -78,7 +126,7 @@ const AdminDashboard = () => {
           <input type="text" placeholder="Search by name or email..." value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} style={searchInput} />
       )}
 
-      {/* TABLE CONTAINER: Scrollable Wrapper */}
+      {/* TABLE */}
       <div style={{ background: '#1e293b', borderRadius: '15px', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}>
         <div style={{ overflowX: 'auto', width: '100%' }}> 
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
@@ -91,7 +139,7 @@ const AdminDashboard = () => {
                     </tr>
                 </thead>
                 <tbody>
-                    {/* 1. REFUNDS */}
+                    {/* REFUNDS */}
                     {view === 'refunds' && refundReqs.map((r, i) => (
                         <tr key={i} style={{ borderBottom: '1px solid #334155' }}>
                             <td style={{ padding: '20px' }}>
@@ -103,7 +151,7 @@ const AdminDashboard = () => {
                             <td style={{ padding: '20px' }}><button onClick={()=>handleAction(`/api/events/${r.eventId}/process-refund`, 'put', "Refunded!", {sponsorId: r.sponsorId})} style={actionBtn('#ef4444')}>REFUND</button></td>
                         </tr>
                     ))}
-                    {/* 2. PENDING EVENTS */}
+                    {/* PENDING EVENTS */}
                     {view === 'pending_events' && events.filter(e=>!e.isApproved).map(e => (
                         <tr key={e._id} style={{ borderBottom: '1px solid #334155' }}>
                             <td style={{ padding: '20px' }}><strong>{e.title}</strong><br/>Budget: ₹{e.budget}</td>
@@ -112,7 +160,7 @@ const AdminDashboard = () => {
                             <td style={{ padding: '20px' }}><button onClick={()=>handleAction(`/api/events/${e._id}/approve`, 'put', "Approved!")} style={actionBtn('#16a34a')}>APPROVE</button></td>
                         </tr>
                     ))}
-                    {/* 3. PENDING USERS */}
+                    {/* PENDING USERS */}
                     {view === 'pending_users' && users.filter(u=>!u.isVerified).map(u => (
                         <tr key={u._id} style={{ borderBottom: '1px solid #334155' }}>
                             <td style={{ padding: '20px' }}><strong>{u.name}</strong><br/>{u.email}</td>
@@ -121,7 +169,7 @@ const AdminDashboard = () => {
                             <td style={{ padding: '20px' }}><button onClick={()=>handleAction(`/api/users/${u._id}/approve`, 'put', "Verified!")} style={actionBtn('#16a34a')}>APPROVE</button></td>
                         </tr>
                     ))}
-                    {/* 4. ALL USERS */}
+                    {/* ALL USERS */}
                     {view === 'all_users' && filteredUsers.map(u => (
                         <tr key={u._id} style={{ borderBottom: '1px solid #334155' }}>
                             <td style={{ padding: '20px' }}><strong>{u.name}</strong><br/>{u.email}</td>
