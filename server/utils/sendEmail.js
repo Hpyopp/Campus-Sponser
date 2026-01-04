@@ -1,40 +1,47 @@
 const nodemailer = require('nodemailer');
 
 const sendEmail = async (options) => {
-  // 1. Credentials Check
+  // 1. Credentials Validation
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
     console.log("❌ ERROR: Email Credentials Missing in .env");
-    return;
+    throw new Error("Email Credentials Missing");
   }
 
-  // 2. Transporter Setup (Gmail Secure Port 465)
+  // 2. Auto-Fix Password (Spaces Hatao Logic)
+  // Ye line tere 'ksgl rilw...' ko 'ksglrilw...' bana degi automatically
+  const cleanPassword = process.env.EMAIL_PASS.replace(/\s+/g, '');
+
+  // 3. Transporter Setup (Standard Gmail Settings)
   const transporter = nodemailer.createTransport({
+    service: 'gmail',
     host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // SSL True
+    port: 587, // Port 587 is best for TLS
+    secure: false, // TLS ke liye false rakhte hain
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+      pass: cleanPassword, // 👈 Clean Password Use Hoga
     },
+    tls: {
+      rejectUnauthorized: false // Server certificate issues ko ignore karega
+    }
   });
 
-  // 3. Email Content (Smart Logic)
-  // Agar HTML message aaya hai toh wo use karega (Admin actions ke liye)
-  // Agar plain text hai toh wo use karega (OTP ke liye)
+  // 4. Email Template
   const mailOptions = {
-    from: '"CampusSponsor Team" <noreply@campussponsor.com>',
+    from: `"CampusSponsor Team" <${process.env.EMAIL_USER}>`,
     to: options.email,
     subject: options.subject,
-    html: options.html ? options.html : `<div style="font-family: Arial, sans-serif; padding: 20px;"><h3>Message:</h3><p>${options.message}</p></div>`
+    html: options.html ? options.html : `<div style="font-family: Arial, sans-serif; padding: 20px;"><h3>${options.subject}</h3><p>${options.message}</p></div>`
   };
 
-  // 4. Send
+  // 5. Send Email
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`✅ Email Sent to: ${options.email}`);
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✅ Email Sent Successfully to: ${options.email} (ID: ${info.messageId})`);
+    return true;
   } catch (error) {
-    console.error("🔥 Email Failed:", error.message);
-    // Error aane par server crash nahi karega
+    console.error("🔥 Email Failed:", error);
+    throw new Error(error.message);
   }
 };
 
