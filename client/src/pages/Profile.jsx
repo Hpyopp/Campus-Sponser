@@ -6,8 +6,8 @@ import toast from 'react-hot-toast';
 const Profile = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
-  const [myEvents, setMyEvents] = useState([]); // For Student
-  const [sponsoredEvents, setSponsoredEvents] = useState([]); // For Sponsor
+  const [myEvents, setMyEvents] = useState([]); 
+  const [sponsoredEvents, setSponsoredEvents] = useState([]); 
 
   useEffect(() => {
     if (!user) navigate('/login');
@@ -19,15 +19,27 @@ const Profile = () => {
         const { data: allEvents } = await axios.get('/api/events');
         
         if (user.role === 'student') {
-            // Student: Show events created by me
             const mine = allEvents.filter(e => e.user?._id === user._id || e.user === user._id);
             setMyEvents(mine);
         } else if (user.role === 'sponsor') {
-            // Sponsor: Show events where I paid
+            // Find events where this user is a sponsor
             const sponsored = allEvents.filter(e => e.sponsors.some(s => s.sponsorId === user._id));
             setSponsoredEvents(sponsored);
         }
     } catch (error) { console.error(error); }
+  };
+
+  const handleRefundRequest = async (eventId) => {
+      if(!window.confirm("Are you sure you want to request a refund? This will cancel your sponsorship.")) return;
+      
+      try {
+          const config = { headers: { Authorization: `Bearer ${user.token}` } };
+          await axios.put(`/api/events/${eventId}/refund-request`, {}, config);
+          toast.success("Refund Requested! Admin will verify.");
+          fetchData(); // Refresh UI
+      } catch (error) {
+          toast.error("Request Failed");
+      }
   };
 
   const handleLogout = () => {
@@ -38,7 +50,7 @@ const Profile = () => {
   return (
     <div style={{ maxWidth: '1000px', margin: '40px auto', padding: '20px', fontFamily:'Poppins' }}>
       
-      {/* PROFILE HEADER */}
+      {/* HEADER */}
       <div style={{ background: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap:'wrap', gap:'20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             <div style={{ width: '80px', height: '80px', background: '#2563eb', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', fontWeight: 'bold' }}>
@@ -55,9 +67,9 @@ const Profile = () => {
         <button onClick={handleLogout} style={{ padding: '10px 20px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Logout</button>
       </div>
 
-      {/* DASHBOARD SECTION */}
       <h2 style={{ marginTop: '40px', color: '#334155' }}>My Dashboard</h2>
       
+      {/* STUDENT VIEW */}
       {user.role === 'student' && (
         <div style={{ display: 'grid', gap: '20px' }}>
             {myEvents.map(event => (
@@ -67,13 +79,12 @@ const Profile = () => {
                         <span>Raised: ₹{event.raisedAmount || 0} / ₹{event.budget}</span>
                         <span>Sponsors: {event.sponsors.length}</span>
                     </div>
-                    {/* SHOW SPONSORS LIST */}
                     {event.sponsors.length > 0 && (
                         <div style={{background:'#f8fafc', padding:'10px', borderRadius:'8px'}}>
                             <strong>Recent Sponsors:</strong>
                             {event.sponsors.map((s, i) => (
-                                <div key={i} style={{fontSize:'0.9rem', marginTop:'5px', color:'#16a34a'}}>
-                                    + ₹{s.amount} from {s.companyName} ({s.name})
+                                <div key={i} style={{fontSize:'0.9rem', marginTop:'5px', color: s.status === 'refunded' ? '#ef4444' : '#16a34a'}}>
+                                    {s.status === 'refunded' ? '🚫 Refunded: ' : '+ '} ₹{s.amount} from {s.companyName}
                                 </div>
                             ))}
                         </div>
@@ -84,21 +95,33 @@ const Profile = () => {
         </div>
       )}
 
+      {/* SPONSOR VIEW (Refund Button Here) */}
       {user.role === 'sponsor' && (
         <div style={{ display: 'grid', gap: '20px' }}>
-            {sponsoredEvents.map(event => (
-                <div key={event._id} style={{ background: 'white', padding: '20px', borderRadius: '10px', borderLeft: '5px solid #16a34a', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
-                    <h3 style={{ margin: '0 0 5px 0' }}>{event.title}</h3>
-                    <p style={{color:'#64748b', fontSize:'0.9rem'}}>Paid: ₹{event.sponsors.find(s => s.sponsorId === user._id)?.amount} ✅</p>
-                    <button onClick={() => navigate(`/event/${event._id}`)} style={{marginTop:'10px', background:'#e2e8f0', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer', fontSize:'0.85rem'}}>
-                        View & Download Agreement
-                    </button>
-                </div>
-            ))}
+            {sponsoredEvents.map(event => {
+                const mySponsorship = event.sponsors.find(s => s.sponsorId === user._id);
+                return (
+                    <div key={event._id} style={{ background: 'white', padding: '20px', borderRadius: '10px', borderLeft: `5px solid ${mySponsorship.status === 'verified' ? '#16a34a' : '#ef4444'}`, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+                        <h3 style={{ margin: '0 0 5px 0' }}>{event.title}</h3>
+                        <p style={{color:'#64748b', fontSize:'0.9rem'}}>Paid: ₹{mySponsorship.amount} | Status: <strong style={{textTransform:'uppercase'}}>{mySponsorship.status}</strong></p>
+                        
+                        <div style={{display:'flex', gap:'10px', marginTop:'15px'}}>
+                            <button onClick={() => navigate(`/event/${event._id}`)} style={{background:'#e2e8f0', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer', fontSize:'0.85rem'}}>
+                                View Details / Agreement
+                            </button>
+                            
+                            {mySponsorship.status === 'verified' && (
+                                <button onClick={() => handleRefundRequest(event._id)} style={{background:'#fee2e2', color:'#dc2626', border:'1px solid #dc2626', padding:'8px 15px', borderRadius:'5px', cursor:'pointer', fontSize:'0.85rem'}}>
+                                    Request Refund ↩️
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )
+            })}
             {sponsoredEvents.length === 0 && <p>You haven't sponsored any events yet.</p>}
         </div>
       )}
-
     </div>
   );
 };
