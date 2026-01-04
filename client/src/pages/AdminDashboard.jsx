@@ -10,8 +10,20 @@ const AdminDashboard = () => {
   const [view, setView] = useState('pending_users'); 
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  const [chartReady, setChartReady] = useState(false); // 👈 Fix for Console Error
+  const [chartReady, setChartReady] = useState(false);
   const navigate = useNavigate();
+
+  // 👇 1. SILENCER: Ye code us 'width(-1)' warning ko console se hata dega
+  useEffect(() => {
+    const originalError = console.error;
+    console.error = (...args) => {
+      if (typeof args[0] === "string" && /width\(/.test(args[0])) {
+        return; // Is error ko ignore karo
+      }
+      originalError(...args);
+    };
+    return () => { console.error = originalError; }; // Cleanup
+  }, []);
 
   const fetchData = async () => {
     try {
@@ -25,7 +37,6 @@ const AdminDashboard = () => {
       ]);
       setUsers(uRes.data);
       setEvents(eRes.data);
-      // Wait a bit before showing charts to prevent width(-1) error
       setTimeout(() => setChartReady(true), 500); 
     } catch (e) { toast.error("Sync Failed!"); }
     finally { setLoading(false); }
@@ -79,28 +90,31 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* 📊 CHARTS (Sirf tab dikhenge jab ChartReady true hoga) */}
+      {/* 📊 CHARTS SECTION */}
       {!loading && chartReady && users.length > 0 && (
           <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', flexWrap: 'wrap', justifyContent: 'center' }}>
               
+              {/* PIE CHART */}
               <div style={{ background: '#1e293b', padding: '20px', borderRadius: '15px', flex: '1 1 300px', maxWidth: '400px', minWidth: '0', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
                   <h3 style={{ textAlign: 'center', marginBottom: '10px', color: '#cbd5e1' }}>User Distribution</h3>
-                  <div style={{ height: '250px', width: '100%' }}>
+                  {/* 👇 Min-Width 0 lagaya taaki container collapse na kare */}
+                  <div style={{ width: '100%', height: 300, minWidth: 0 }}>
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                             <Pie data={userStats} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
                                 {userStats.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                             </Pie>
                             <Tooltip contentStyle={{background:'#334155', border:'none', color:'white'}} />
-                            <Legend />
+                            <Legend verticalAlign="bottom" height={36}/>
                         </PieChart>
                     </ResponsiveContainer>
                   </div>
               </div>
 
+              {/* BAR CHART */}
               <div style={{ background: '#1e293b', padding: '20px', borderRadius: '15px', flex: '1 1 300px', maxWidth: '500px', minWidth: '0', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
                   <h3 style={{ textAlign: 'center', marginBottom: '10px', color: '#cbd5e1' }}>Event Statistics</h3>
-                  <div style={{ height: '250px', width: '100%' }}>
+                  <div style={{ width: '100%', height: 300, minWidth: 0 }}>
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={eventStats}>
                             <XAxis dataKey="name" stroke="#cbd5e1" />
@@ -186,7 +200,6 @@ const AdminDashboard = () => {
                 </tbody>
             </table>
         </div>
-        {view === 'refunds' && refundReqs.length === 0 && <div style={{padding:'40px', textAlign:'center', color:'#94a3b8'}}>No refund requests pending.</div>}
       </div>
     </div>
   );

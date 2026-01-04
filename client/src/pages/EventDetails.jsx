@@ -23,7 +23,7 @@ const EventDetails = () => {
     fetchEvent();
   }, [id]);
 
-  // 👇 FRESH SERVER CHECK LOGIC
+  // 👇 SPONSOR LOGIC WITH VERIFICATION CHECK
   const handleSponsor = async (e) => {
     e.preventDefault();
     if (!user) return navigate('/login');
@@ -33,14 +33,14 @@ const EventDetails = () => {
     try {
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
         
-        // 1. Fresh Check from Server (Sabse Safe Tarika)
+        // 1. Fresh Server Check (Kyunki localStorage purana ho sakta hai)
         const meRes = await axios.get('/api/users/me', config);
         
-        // 2. Agar Verified nahi hai, toh rok do
+        // 2. Agar Verified nahi hai -> STOP
         if (!meRes.data.isVerified) {
             toast.error("🚫 You are NOT Verified by Admin yet!");
             
-            // LocalStorage bhi update kar do taaki user ko pata chale
+            // LocalStorage update kar do taaki UI sync ho jaye
             const updatedUser = { ...user, isVerified: false };
             localStorage.setItem('user', JSON.stringify(updatedUser));
             window.dispatchEvent(new Event("storage"));
@@ -49,12 +49,13 @@ const EventDetails = () => {
             return;
         }
 
-        // 3. Agar Verified hai, toh Pledge karo
+        // 3. Agar Verified hai -> PLEDGE
         await axios.put(`/api/events/${id}/sponsor`, { amount, comment }, config);
         toast.success("🎉 Thank you for Pledging!");
         navigate('/');
 
     } catch (error) {
+      console.error(error);
       toast.error("Transaction Failed");
     } finally { setLoading(false); }
   };
@@ -106,7 +107,6 @@ const EventDetails = () => {
                 <input type="number" placeholder="Enter Amount (₹)" value={amount} onChange={e=>setAmount(e.target.value)} required style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ccc' }} />
                 <textarea placeholder="Message for Organizer (Optional)" value={comment} onChange={e=>setComment(e.target.value)} style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ccc', height: '80px' }} />
                 
-                {/* Button Logic */}
                 <button type="submit" disabled={loading} style={{ padding: '15px', background: '#f59e0b', color: 'black', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}>
                     {loading ? 'Processing...' : 'Pledge Support'}
                 </button>
