@@ -1,25 +1,30 @@
 const nodemailer = require('nodemailer');
 
 const sendEmail = async (options) => {
+  // 1. Credentials Check
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    throw new Error("Email Credentials Missing in .env");
+    console.log("❌ Credentials Missing");
+    throw new Error("Email Credentials Missing");
   }
 
-  // Auto-Fix Password (Spaces Hatao)
+  // 2. Password Auto-Fix (Spaces Hatao)
   const cleanPassword = process.env.EMAIL_PASS.replace(/\s+/g, '');
 
-  // 👇 PORT CHANGE: 465 (SSL) - Ye Fast Connect Hota Hai
+  // 3. Transporter Setup (Port 587 - Best for Render)
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
     host: 'smtp.gmail.com',
-    port: 465, 
-    secure: true, // SSL ke liye True
+    port: 587,              // 👈 Port change kiya (465 hata diya)
+    secure: false,          // 👈 587 ke liye ye false hona chahiye
     auth: {
       user: process.env.EMAIL_USER,
-      pass: cleanPassword, 
+      pass: cleanPassword,
+    },
+    tls: {
+      rejectUnauthorized: false // 👈 Ye zaroori hai taaki Render block na ho
     }
   });
 
+  // 4. Send Email
   const mailOptions = {
     from: `"CampusSponsor" <${process.env.EMAIL_USER}>`,
     to: options.email,
@@ -27,7 +32,6 @@ const sendEmail = async (options) => {
     html: options.html
   };
 
-  // Error ko yahan catch nahi karenge, Controller ko bhejenge
   const info = await transporter.sendMail(mailOptions);
   console.log(`✅ Email Sent: ${info.messageId}`);
   return info;
