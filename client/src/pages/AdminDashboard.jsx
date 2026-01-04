@@ -10,6 +10,7 @@ const AdminDashboard = () => {
   const [view, setView] = useState('pending_users'); 
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [chartReady, setChartReady] = useState(false); // 👈 Fix for Console Error
   const navigate = useNavigate();
 
   const fetchData = async () => {
@@ -24,6 +25,8 @@ const AdminDashboard = () => {
       ]);
       setUsers(uRes.data);
       setEvents(eRes.data);
+      // Wait a bit before showing charts to prevent width(-1) error
+      setTimeout(() => setChartReady(true), 500); 
     } catch (e) { toast.error("Sync Failed!"); }
     finally { setLoading(false); }
   };
@@ -52,7 +55,6 @@ const AdminDashboard = () => {
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // CHART DATA
   const userStats = [
     { name: 'Students', value: users.filter(u => u.role === 'student').length, color: '#3b82f6' },
     { name: 'Sponsors', value: users.filter(u => u.role === 'sponsor').length, color: '#f59e0b' },
@@ -77,13 +79,13 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* 📊 CHARTS (Fixed: Only render when data is ready) */}
-      {!loading && users.length > 0 && (
+      {/* 📊 CHARTS (Sirf tab dikhenge jab ChartReady true hoga) */}
+      {!loading && chartReady && users.length > 0 && (
           <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', flexWrap: 'wrap', justifyContent: 'center' }}>
               
-              <div style={{ background: '#1e293b', padding: '20px', borderRadius: '15px', width: '100%', maxWidth: '400px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
+              <div style={{ background: '#1e293b', padding: '20px', borderRadius: '15px', flex: '1 1 300px', maxWidth: '400px', minWidth: '0', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
                   <h3 style={{ textAlign: 'center', marginBottom: '10px', color: '#cbd5e1' }}>User Distribution</h3>
-                  <div style={{ height: '250px', width: '100%' }}> {/* Explicit Width/Height */}
+                  <div style={{ height: '250px', width: '100%' }}>
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                             <Pie data={userStats} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
@@ -96,7 +98,7 @@ const AdminDashboard = () => {
                   </div>
               </div>
 
-              <div style={{ background: '#1e293b', padding: '20px', borderRadius: '15px', width: '100%', maxWidth: '500px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
+              <div style={{ background: '#1e293b', padding: '20px', borderRadius: '15px', flex: '1 1 300px', maxWidth: '500px', minWidth: '0', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
                   <h3 style={{ textAlign: 'center', marginBottom: '10px', color: '#cbd5e1' }}>Event Statistics</h3>
                   <div style={{ height: '250px', width: '100%' }}>
                     <ResponsiveContainer width="100%" height="100%">
@@ -184,6 +186,7 @@ const AdminDashboard = () => {
                 </tbody>
             </table>
         </div>
+        {view === 'refunds' && refundReqs.length === 0 && <div style={{padding:'40px', textAlign:'center', color:'#94a3b8'}}>No refund requests pending.</div>}
       </div>
     </div>
   );

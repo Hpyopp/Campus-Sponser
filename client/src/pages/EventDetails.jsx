@@ -23,30 +23,39 @@ const EventDetails = () => {
     fetchEvent();
   }, [id]);
 
-  // 👇 MAIN FIX: VERIFICATION CHECK
+  // 👇 FRESH SERVER CHECK LOGIC
   const handleSponsor = async (e) => {
     e.preventDefault();
-    
-    // 1. Login Check
     if (!user) return navigate('/login');
-    
-    // 2. Role Check
     if (user.role !== 'sponsor') return toast.error("Only Sponsors can pledge!");
-
-    // 3. 🛡️ VERIFICATION CHECK (Ye Missing Tha)
-    if (!user.isVerified) {
-        toast.error("🚫 Account Not Verified! Please wait for Admin approval.");
-        return; // Yahi se wapas, Loading true nahi hoga
-    }
 
     setLoading(true);
     try {
-      const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      await axios.put(`/api/events/${id}/sponsor`, { amount, comment }, config);
-      toast.success("🎉 Thank you for Pledging!");
-      navigate('/');
+        const config = { headers: { Authorization: `Bearer ${user.token}` } };
+        
+        // 1. Fresh Check from Server (Sabse Safe Tarika)
+        const meRes = await axios.get('/api/users/me', config);
+        
+        // 2. Agar Verified nahi hai, toh rok do
+        if (!meRes.data.isVerified) {
+            toast.error("🚫 You are NOT Verified by Admin yet!");
+            
+            // LocalStorage bhi update kar do taaki user ko pata chale
+            const updatedUser = { ...user, isVerified: false };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            window.dispatchEvent(new Event("storage"));
+            
+            setLoading(false);
+            return;
+        }
+
+        // 3. Agar Verified hai, toh Pledge karo
+        await axios.put(`/api/events/${id}/sponsor`, { amount, comment }, config);
+        toast.success("🎉 Thank you for Pledging!");
+        navigate('/');
+
     } catch (error) {
-      toast.error("Failed to pledge");
+      toast.error("Transaction Failed");
     } finally { setLoading(false); }
   };
 
@@ -97,11 +106,10 @@ const EventDetails = () => {
                 <input type="number" placeholder="Enter Amount (₹)" value={amount} onChange={e=>setAmount(e.target.value)} required style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ccc' }} />
                 <textarea placeholder="Message for Organizer (Optional)" value={comment} onChange={e=>setComment(e.target.value)} style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ccc', height: '80px' }} />
                 
-                {/* BUTTON (Disabled if not verified for visual cue) */}
-                <button type="submit" disabled={loading} style={{ padding: '15px', background: user.isVerified ? '#f59e0b' : '#94a3b8', color: user.isVerified ? 'black' : 'white', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', cursor: user.isVerified ? 'pointer' : 'not-allowed' }}>
-                    {loading ? 'Processing...' : (user.isVerified ? 'Pledge Support' : 'Verification Pending 🔒')}
+                {/* Button Logic */}
+                <button type="submit" disabled={loading} style={{ padding: '15px', background: '#f59e0b', color: 'black', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                    {loading ? 'Processing...' : 'Pledge Support'}
                 </button>
-                {!user.isVerified && <p style={{color:'#ef4444', textAlign:'center', fontSize:'0.9rem'}}>* You need Admin approval to sponsor.</p>}
             </form>
         ) : (
             <div style={{ textAlign: 'center', marginTop: '20px', color: '#64748b' }}>
