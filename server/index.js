@@ -15,12 +15,14 @@ app.use(cors());
 // --- IMPORTS ---
 const userRoutes = require('./routes/userRoutes');
 const eventRoutes = require('./routes/eventRoutes');
+const paymentRoutes = require('./routes/paymentRoutes'); // 👈 NEW ADDITION (Payment Route)
 
 // --- DEBUGGING LOGS (Terminal mein dikhenge) ---
 console.log("------------------------------------------------");
 console.log("🛠️  ROUTE CHECK:");
 console.log("User Routes Type:", typeof userRoutes === 'function' ? '✅ Function (Correct)' : '❌ Object (WRONG!)');
 console.log("Event Routes Type:", typeof eventRoutes === 'function' ? '✅ Function (Correct)' : '❌ Object (WRONG!)');
+console.log("Payment Routes Type:", typeof paymentRoutes === 'function' ? '✅ Function (Correct)' : '❌ Object (WRONG!)'); // 👈 Check Payment Route
 console.log("------------------------------------------------");
 
 // --- MOUNT ROUTES ---
@@ -37,6 +39,13 @@ if (typeof eventRoutes === 'function') {
     app.use('/api/events', eventRoutes);
 } else {
     console.error("🚨 CRITICAL ERROR: eventRoutes.js is not exporting a router function!");
+}
+
+// 3. Payment Routes (👈 NEW ADDITION)
+if (typeof paymentRoutes === 'function') {
+    app.use('/api/payment', paymentRoutes);
+} else {
+    console.error("🚨 CRITICAL ERROR: paymentRoutes.js is not exporting a router function! Check file path.");
 }
 
 // Upload Folder Static Access

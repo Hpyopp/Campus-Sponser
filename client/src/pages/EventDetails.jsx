@@ -23,41 +23,79 @@ const EventDetails = () => {
     fetchEvent();
   }, [id]);
 
-  // 👇 SPONSOR LOGIC WITH VERIFICATION CHECK
-  const handleSponsor = async (e) => {
+  // 👇 RAZORPAY PAYMENT LOGIC
+  const handlePayment = async (e) => {
     e.preventDefault();
     if (!user) return navigate('/login');
-    if (user.role !== 'sponsor') return toast.error("Only Sponsors can pledge!");
-
-    setLoading(true);
+    if (user.role !== 'sponsor') return toast.error("Only Sponsors can pay!");
+    
+    // 1. Fresh Verification Check
     try {
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
-        
-        // 1. Fresh Server Check (Kyunki localStorage purana ho sakta hai)
         const meRes = await axios.get('/api/users/me', config);
-        
-        // 2. Agar Verified nahi hai -> STOP
         if (!meRes.data.isVerified) {
-            toast.error("🚫 You are NOT Verified by Admin yet!");
-            
-            // LocalStorage update kar do taaki UI sync ho jaye
-            const updatedUser = { ...user, isVerified: false };
-            localStorage.setItem('user', JSON.stringify(updatedUser));
-            window.dispatchEvent(new Event("storage"));
-            
-            setLoading(false);
+            toast.error("🚫 Account Not Verified! Wait for Admin approval.");
             return;
         }
+    } catch (err) { return; }
 
-        // 3. Agar Verified hai -> PLEDGE
-        await axios.put(`/api/events/${id}/sponsor`, { amount, comment }, config);
-        toast.success("🎉 Thank you for Pledging!");
-        navigate('/');
+    if (!amount || amount < 1) return toast.error("Enter valid amount");
+
+    setLoading(true);
+    
+    try {
+        // 2. Order Create
+        const { data: order } = await axios.post('/api/payment/order', { amount });
+
+        // 3. Razorpay Options
+        const options = {
+            key: "rzp_test_RzpjqjoYNvSTMY", // 👈 TERA KEY ID (Hardcoded for easy setup)
+            amount: order.amount,
+            currency: "INR",
+            name: "CampusSponsor",
+            description: `Sponsorship for ${event.title}`,
+            image: "https://cdn-icons-png.flaticon.com/512/476/476863.png",
+            order_id: order.id,
+            handler: async function (response) {
+                // 4. Verify Payment on Backend
+                try {
+                    const verifyData = {
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature,
+                        eventId: id,
+                        amount: amount,
+                        userId: user._id,
+                        userName: user.name,
+                        userEmail: user.email,
+                        companyName: user.companyName,
+                        comment: comment
+                    };
+                    
+                    await axios.post('/api/payment/verify', verifyData);
+                    toast.success("🎉 Payment Successful! Agreement Generated.");
+                    navigate('/'); 
+                } catch (error) {
+                    toast.error("Payment Verification Failed");
+                }
+            },
+            prefill: {
+                name: user.name,
+                email: user.email,
+                contact: user.phone
+            },
+            theme: { color: "#2563eb" }
+        };
+
+        const rzp1 = new window.Razorpay(options);
+        rzp1.open();
 
     } catch (error) {
-      console.error(error);
-      toast.error("Transaction Failed");
-    } finally { setLoading(false); }
+        console.error(error);
+        toast.error("Payment Init Failed");
+    } finally {
+        setLoading(false);
+    }
   };
 
   const shareOnWhatsApp = () => {
@@ -71,49 +109,40 @@ const EventDetails = () => {
   return (
     <div style={{ maxWidth: '800px', margin: '40px auto', padding: '20px' }}>
       
-      {/* HEADER SECTION */}
+      {/* HEADER */}
       <div style={{ background: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
         <h1 style={{ fontSize: '2.5rem', color: '#1e293b', marginBottom: '10px' }}>{event.title}</h1>
-        
         <div style={{ display: 'flex', gap: '15px', color: '#64748b', fontSize: '0.9rem', marginBottom: '20px', flexWrap: 'wrap' }}>
             <span>📅 {new Date(event.date).toLocaleDateString()}</span>
             <span>📍 {event.location}</span>
             <span>💰 Budget: ₹{event.budget}</span>
         </div>
-
         <p style={{ fontSize: '1.1rem', lineHeight: '1.6', color: '#334155', marginBottom: '30px' }}>{event.description}</p>
 
         <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-            <button 
-                onClick={shareOnWhatsApp}
-                style={{ flex: 1, padding: '12px', background: '#25D366', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:'10px' }}
-            >
-                <span>📲 Share on WhatsApp</span>
-            </button>
-
-            {event.permissionLetter && (
-                <a href={event.permissionLetter} target="_blank" rel="noreferrer" style={{ flex: 1, padding: '12px', background: '#3b82f6', color: 'white', borderRadius: '8px', textAlign: 'center', textDecoration: 'none', fontWeight: 'bold' }}>
-                    📄 View Permission
-                </a>
-            )}
+            <button onClick={shareOnWhatsApp} style={{ flex: 1, padding: '12px', background: '#25D366', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer' }}>📲 Share on WhatsApp</button>
+            {event.permissionLetter && <a href={event.permissionLetter} target="_blank" rel="noreferrer" style={{ flex: 1, padding: '12px', background: '#3b82f6', color: 'white', borderRadius: '8px', textAlign: 'center', textDecoration: 'none', fontWeight: 'bold' }}>📄 View Permission</a>}
         </div>
       </div>
 
-      {/* SPONSOR FORM */}
+      {/* PAYMENT FORM */}
       <div style={{ marginTop: '30px', background: '#f8fafc', padding: '30px', borderRadius: '15px', border: '2px dashed #cbd5e1' }}>
-        <h2 style={{ textAlign: 'center', color: '#1e293b' }}>🤝 Become a Sponsor</h2>
+        <h2 style={{ textAlign: 'center', color: '#1e293b' }}>💳 Make a Secure Payment</h2>
+        <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.9rem', marginBottom: '20px' }}>Payment is secured by Razorpay. Agreement will be generated automatically.</p>
+        
         {user?.role === 'sponsor' ? (
-            <form onSubmit={handleSponsor} style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
+            <form onSubmit={handlePayment} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 <input type="number" placeholder="Enter Amount (₹)" value={amount} onChange={e=>setAmount(e.target.value)} required style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ccc' }} />
-                <textarea placeholder="Message for Organizer (Optional)" value={comment} onChange={e=>setComment(e.target.value)} style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ccc', height: '80px' }} />
+                <textarea placeholder="Message (Optional)" value={comment} onChange={e=>setComment(e.target.value)} style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ccc', height: '80px' }} />
                 
-                <button type="submit" disabled={loading} style={{ padding: '15px', background: '#f59e0b', color: 'black', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}>
-                    {loading ? 'Processing...' : 'Pledge Support'}
+                <button type="submit" disabled={loading} style={{ padding: '15px', background: user.isVerified ? '#2563eb' : '#94a3b8', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', cursor: user.isVerified ? 'pointer' : 'not-allowed' }}>
+                    {loading ? 'Processing...' : (user.isVerified ? 'Pay Now & Generate Agreement' : 'Verification Pending 🔒')}
                 </button>
+                {!user.isVerified && <p style={{color:'#ef4444', textAlign:'center', fontSize:'0.9rem'}}>* You need Admin approval to pay.</p>}
             </form>
         ) : (
             <div style={{ textAlign: 'center', marginTop: '20px', color: '#64748b' }}>
-                {user ? "Only Sponsors can pledge." : <span onClick={() => navigate('/login')} style={{color:'#2563eb', cursor:'pointer', fontWeight:'bold', textDecoration:'underline'}}>Login as Sponsor to Support</span>}
+                {user ? "Only Sponsors can pay." : <span onClick={() => navigate('/login')} style={{color:'#2563eb', cursor:'pointer', fontWeight:'bold', textDecoration:'underline'}}>Login as Sponsor to Support</span>}
             </div>
         )}
       </div>

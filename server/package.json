@@ -15,6 +15,7 @@
     "cloudinary": "^1.41.3",
     "colors": "^1.4.0",
     "cors": "^2.8.5",
+    "crypto": "^1.0.1",
     "dotenv": "^16.6.1",
     "express": "^4.22.1",
     "express-async-handler": "^1.2.0",
@@ -25,7 +26,8 @@
     "mongoose": "^8.21.0",
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^4.0.0",
-    "nodemailer": "^7.0.12"
+    "nodemailer": "^7.0.12",
+    "razorpay": "^2.9.6"
   },
   "devDependencies": {
     "babel-plugin-react-compiler": "^1.0.0",
