@@ -1,43 +1,45 @@
 const nodemailer = require('nodemailer');
 
 const sendEmail = async (options) => {
-  // 1. Credentials Check
+  // 1. Check Credentials
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.log("❌ Credentials Missing");
+    console.log("❌ Error: Email Credentials Missing");
     throw new Error("Email Credentials Missing");
   }
 
-  // 2. Password Auto-Fix (Spaces Hatao)
-  const cleanPassword = process.env.EMAIL_PASS.replace(/\s+/g, '');
-
-  // 3. Transporter Setup
+  // 2. Transporter Setup (BREVO with Backup Port 2525)
   const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com', 
-    port: 587,              
-    secure: false,          
+    host: 'smtp-relay.brevo.com', 
+    port: 2525,              // 👈 MAGIC FIX: 587 ki jagah 2525 use kar rahe hain
+    secure: false,           // Port 2525 ke liye false hi rehta hai
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: cleanPassword,
+      user: process.env.EMAIL_USER, // Render Env se Login lega
+      pass: process.env.EMAIL_PASS, // Render Env se Key lega
     },
     tls: {
-      rejectUnauthorized: false 
+      rejectUnauthorized: false // Certificate errors ignore karega
     },
-    // 👇 YE HAI MAGIC LINE (Network Timeout Fix)
-    // Ye Render ko bolega ki seedha IPv4 rasta pakad, jo kabhi block nahi hota
-    family: 4 
+    family: 4 // 👈 IPv4 Force kiya taaki connection fast ho
   });
 
-  // 4. Send Email
+  // 3. Email Details
   const mailOptions = {
-    from: `"CampusSponsor" <${process.env.EMAIL_USER}>`,
+    // "From" mein apna asli naam dikhana taaki user confuse na ho
+    from: `"CampusSponsor" <${process.env.EMAIL_USER}>`, 
     to: options.email,
     subject: options.subject,
     html: options.html
   };
 
-  const info = await transporter.sendMail(mailOptions);
-  console.log(`✅ Email Sent: ${info.messageId}`);
-  return info;
+  // 4. Send with Error Logging
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✅ Brevo Email Sent Successfully: ${info.messageId}`);
+    return info;
+  } catch (error) {
+    console.error("❌ Brevo Connection Failed:", error);
+    throw error; // Error frontend ko bhejo taaki pata chale
+  }
 };
 
 module.exports = sendEmail;
