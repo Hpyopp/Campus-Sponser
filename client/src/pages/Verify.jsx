@@ -10,65 +10,41 @@ const Verify = () => {
   const [userData, setUserData] = useState(null);
   const navigate = useNavigate();
 
-  // 1. PAGE LOAD: Server Check
   useEffect(() => {
     const checkServerStatus = async () => {
       const storedUser = JSON.parse(localStorage.getItem('user'));
-      
       if (!storedUser || !storedUser.token) {
         navigate('/login');
         return;
       }
-
       try {
         const config = { headers: { Authorization: `Bearer ${storedUser.token}` } };
         const res = await axios.get('/api/users/me', config);
-        
         setUserData(res.data);
         localStorage.setItem('user', JSON.stringify({ ...storedUser, ...res.data }));
-
-        if (res.data.isVerified) {
-          navigate('/');
-        }
-      } catch (error) {
-        console.error("Sync Error:", error);
-      } finally {
-        setChecking(false);
-      }
+        if (res.data.isVerified) { navigate('/'); }
+      } catch (error) { console.error("Sync Error:", error); } 
+      finally { setChecking(false); }
     };
-
     checkServerStatus();
   }, [navigate]);
 
-  // 2. UPLOAD HANDLER
   const handleUpload = async (e) => {
     e.preventDefault();
     if (!file) return toast.error("Select file!");
-
     const storedUser = JSON.parse(localStorage.getItem('user'));
     const formData = new FormData();
     formData.append('verificationDoc', file);
-
     setUploading(true);
     try {
       const config = { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${storedUser.token}` } };
       const res = await axios.post('/api/users/upload-doc', formData, config);
-      
-      const updatedData = { 
-          ...userData, 
-          verificationDoc: res.data.docUrl, 
-          isVerified: false 
-      };
-      
+      const updatedData = { ...userData, verificationDoc: res.data.docUrl, isVerified: false };
       setUserData(updatedData);
       localStorage.setItem('user', JSON.stringify({ ...storedUser, ...updatedData }));
       toast.success("✅ Uploaded! Waiting for Admin.");
-
-    } catch (error) {
-      toast.error("Upload Failed");
-    } finally {
-      setUploading(false);
-    }
+    } catch (error) { toast.error("Upload Failed"); } 
+    finally { setUploading(false); }
   };
 
   if (checking) return <div style={{textAlign:'center', marginTop:'100px'}}>Checking Status...</div>;
@@ -77,7 +53,8 @@ const Verify = () => {
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh', fontFamily: 'Poppins', padding: '20px' }}>
-      <div style={{ background: 'white', padding: '40px', borderRadius: '15px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', maxWidth: '500px', width: '100%', textAlign: 'center' }}>
+      {/* 👇 MOBILE RESPONSIVE CONTAINER */}
+      <div style={{ background: 'white', padding: '25px', borderRadius: '15px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', maxWidth: '500px', width: '90%', textAlign: 'center' }}>
         
         <h1 style={{ fontSize: '3rem', marginBottom: '10px' }}>🛡️</h1>
         <h2 style={{ color: '#1e293b', margin: '0 0 15px 0' }}>Account Verification</h2>
@@ -87,9 +64,7 @@ const Verify = () => {
                 <div style={{fontSize:'3rem', marginBottom:'10px'}}>🔒</div>
                 <h3 style={{ margin: '0 0 10px 0', color: '#334155' }}>Submission Locked</h3>
                 <p style={{ fontSize: '0.9rem', color:'#64748b', marginBottom:'20px' }}>Document submitted. Waiting for Admin approval.</p>
-                
                 <a href={userData.verificationDoc} target="_blank" rel="noreferrer" style={{color:'#2563eb', fontWeight:'bold', display:'block', marginBottom:'15px'}}>📄 View Uploaded Document</a>
-                
                 <button onClick={() => navigate('/')} style={{padding:'10px 20px', background:'#334155', color:'white', border:'none', borderRadius:'5px', cursor:'pointer'}}>Go Home</button>
             </div>
         ) : (
@@ -107,5 +82,4 @@ const Verify = () => {
     </div>
   );
 };
-
 export default Verify;

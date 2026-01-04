@@ -30,16 +30,13 @@ const Login = () => {
     } finally { setLoading(false); }
   };
 
-  // 2. FORGOT PASSWORD (Get OTP)
+  // 2. FORGOT PASSWORD
   const handleForgot = async (e) => { 
       e.preventDefault(); 
       setLoading(true); 
       try { 
           const res = await axios.post('/api/users/forgot-password', { email: resetData.email }); 
-          
-          // 👇 YAHAN GALTI THI (Ab Fix Hai)
-          setDeveloperOtp(res.data.otp); // Backend 'otp' bhej raha hai
-          
+          setDeveloperOtp(res.data.otp);
           toast.success("OTP Generated! Check Green Box."); 
           setView('reset'); 
       } catch (error) { 
@@ -66,10 +63,11 @@ const Login = () => {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f8fafc', fontFamily: 'Poppins' }}>
-      <div style={{ background: 'white', padding: '40px', borderRadius: '15px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', width: '100%', maxWidth: '400px' }}>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f8fafc', fontFamily: 'Poppins', padding: '20px' }}>
+      
+      {/* 👇 MOBILE RESPONSIVE CONTAINER */}
+      <div style={{ background: 'white', padding: '25px', borderRadius: '15px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', width: '90%', maxWidth: '400px' }}>
         
-        {/* LOGIN VIEW */}
         {view === 'login' && (
           <>
             <h2 style={{ textAlign: 'center', color: '#1e293b', marginBottom: '20px' }}>👋 Welcome Back</h2>
@@ -83,7 +81,6 @@ const Login = () => {
           </>
         )}
 
-        {/* FORGOT PASSWORD VIEW */}
         {view === 'forgot' && (
             <>
                 <h2 style={{ textAlign: 'center', color: '#1e293b' }}>🔐 Reset Password</h2>
@@ -96,11 +93,9 @@ const Login = () => {
             </>
         )}
 
-        {/* RESET PASSWORD VIEW (WITH GREEN BOX) */}
         {view === 'reset' && (
             <>
                 <h2 style={{ textAlign: 'center', color: '#1e293b' }}>🔓 Enter OTP</h2>
-                {/* 👇 GREEN BOX */}
                 {developerOtp && (
                     <div style={{background: '#dcfce7', border: '2px dashed #16a34a', padding: '15px', borderRadius: '8px', textAlign: 'center', marginBottom: '20px', animation: 'fadeIn 0.5s'}}>
                         <span style={{color: '#166534', fontSize: '0.9rem', display: 'block', marginBottom: '5px'}}>Developer Code:</span>

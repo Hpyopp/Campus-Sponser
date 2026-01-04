@@ -184,3 +184,28 @@ a {
   outline: none;
   border-color: #2563eb;
 }
+
+/* 👇 MOBILE RESPONSIVE MEDIA QUERY (Add this at bottom) */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+    padding: 0;
+    margin: 0;
+  }
+
+  h1 { font-size: 1.8rem !important; }
+  h2 { font-size: 1.5rem !important; }
+  h3 { font-size: 1.2rem !important; }
+
+  /* Navbar padding Adjust */
+  .navbar {
+    padding: 10px 15px;
+  }
+
+  /* Table Scroll Fix */
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}

@@ -22,9 +22,7 @@ const Register = () => {
     setLoading(true);
     try {
       const res = await axios.post('/api/users', { ...formData, role });
-      
-      setDeveloperOtp(res.data.otp); // Green Box OTP
-      
+      setDeveloperOtp(res.data.otp);
       toast.success("OTP Sent! Check Green Box");
       setStep(2);
     } catch (error) {
@@ -32,33 +30,28 @@ const Register = () => {
     } finally { setLoading(false); }
   };
 
-  // 2. VERIFY OTP (🛠️ FIXED CRASH HERE)
+  // 2. VERIFY OTP (Updated Logic)
   const handleVerify = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      // Step A: Verify OTP & Get Token
       const res = await axios.post('/api/users/verify-otp', { email: formData.email, otp });
       const { token, _id, role: userRole } = res.data;
 
-      // Step B: Fetch Full Profile using Token (Taaki Name mil jaye)
       const config = { headers: { Authorization: `Bearer ${token}` } };
       const meRes = await axios.get('/api/users/me', config);
       
-      // Step C: Save COMPLETE Data (Token + Name + Email + Doc)
       const completeUser = { token, ...meRes.data }; 
       localStorage.setItem('user', JSON.stringify(completeUser));
       
-      // Step D: Update App State
       window.dispatchEvent(new Event("storage"));
       
       toast.success("✅ Verified & Logged In!");
       
-      // Step E: Navigate based on status
       if (userRole !== 'admin' && !meRes.data.verificationDoc) {
-          navigate('/verify'); // Upload Doc Page
+          navigate('/verify'); 
       } else {
-          navigate('/'); // Home
+          navigate('/'); 
       }
       
     } catch (error) {
@@ -69,7 +62,9 @@ const Register = () => {
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f8fafc', fontFamily: 'Poppins', padding:'20px' }}>
-      <div style={{ background: 'white', padding: '40px', borderRadius: '15px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', width: '100%', maxWidth: '400px' }}>
+      
+      {/* 👇 MOBILE RESPONSIVE CONTAINER */}
+      <div style={{ background: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', width: '90%', maxWidth: '400px' }}>
         
         <h2 style={{ textAlign: 'center', color: '#1e293b' }}>{step === 1 ? '🚀 Create Account' : '🔐 Verify OTP'}</h2>
 
@@ -99,7 +94,6 @@ const Register = () => {
 
         {step === 2 && (
           <div style={{marginTop:'20px'}}>
-             {/* 👇 GREEN BOX DISPLAY */}
              {developerOtp && (
                 <div style={{background: '#dcfce7', border: '2px dashed #16a34a', padding: '15px', borderRadius: '8px', textAlign: 'center', marginBottom: '20px', animation: 'fadeIn 0.5s'}}>
                     <span style={{color: '#166534', fontSize: '0.9rem', display: 'block', marginBottom: '5px'}}>Developer Code:</span>
@@ -112,7 +106,6 @@ const Register = () => {
             </form>
           </div>
         )}
-
       </div>
     </div>
   );
