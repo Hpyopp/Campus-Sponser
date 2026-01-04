@@ -69,7 +69,7 @@ const AdminDashboard = () => {
       doc.text(`Sponsor: ${s.companyName} (${s.name})`, 20, 40);
       doc.text(`Event: ${eventTitle}`, 20, 50);
       doc.text(`Amount: INR ${s.amount}`, 20, 60);
-      doc.text(`Payment ID: ${s.paymentId}`, 20, 70);
+      doc.text(`Payment ID: ${s.paymentId || 'N/A'}`, 20, 70);
       doc.text(`Status: ${s.status.toUpperCase()}`, 20, 80);
       window.open(doc.output('bloburl'), '_blank');
   };
@@ -182,13 +182,24 @@ const AdminDashboard = () => {
                         </tr>
                     ))}
 
-                    {/* 2. HISTORY VIEW */}
+                    {/* 2. HISTORY VIEW (FIXED for Missing ID) */}
                     {view === 'history' && allPayments.map((r, i) => (
                         <tr key={i} style={{ borderBottom: '1px solid #334155' }}>
-                            <td style={{ padding: '20px' }}><div style={{fontWeight:'bold'}}>{r.name}</div><div style={{color:'#4ade80'}}>Paid: ₹{r.amount}</div></td>
+                            <td style={{ padding: '20px' }}>
+                                <div style={{fontWeight:'bold'}}>{r.name}</div>
+                                <div style={{color:'#4ade80'}}>Paid: ₹{r.amount}</div>
+                            </td>
                             <td style={{ padding: '20px' }}>{r.eventTitle}</td>
-                            <td style={{ padding: '20px' }}><button onClick={() => viewAgreement(r, r.eventTitle)} style={linkBtn}>📄 View</button></td>
-                            <td style={{ padding: '20px', fontSize:'0.8rem', color:'#94a3b8' }}>ID: {r.paymentId}</td>
+                            <td style={{ padding: '20px' }}>
+                                <button onClick={() => viewAgreement(r, r.eventTitle)} style={linkBtn}>📄 View</button>
+                            </td>
+                            <td style={{ padding: '20px', fontSize:'0.8rem', color:'#94a3b8' }}>
+                                {r.paymentId ? (
+                                    <span style={{fontFamily:'monospace', background:'#0f172a', padding:'5px', borderRadius:'4px', color:'#fff'}}>ID: {r.paymentId}</span>
+                                ) : (
+                                    <span style={{opacity:0.5, fontStyle:'italic'}}>Test Transaction</span>
+                                )}
+                            </td>
                         </tr>
                     ))}
 
@@ -215,7 +226,7 @@ const AdminDashboard = () => {
                         </tr>
                     ))}
 
-                    {/* 5. ALL USERS (NEW FIX: List all + Delete) */}
+                    {/* 5. ALL USERS (List all + Delete) */}
                     {view === 'all_users' && filteredUsers.map(u => (
                         <tr key={u._id} style={{ borderBottom: '1px solid #334155' }}>
                             <td style={{ padding: '20px' }}>
