@@ -24,16 +24,17 @@ const registerUser = asyncHandler(async (req, res) => {
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // Send Email (Brevo)
   try {
+    console.log("➡️ Register: Attempting to send email via Brevo...");
     await sendEmail({
       email: cleanEmail,
       subject: "Verify Account - CampusSponsor",
-      html: `<h1>Welcome ${name}!</h1><p>Your OTP is: <b style="font-size: 24px; color: blue;">${otp}</b></p>`
+      html: `<h1>Welcome ${name}!</h1><p>Your OTP is: <b>${otp}</b></p>`
     });
+    console.log("✅ Register: Email Sent Successfully!");
   } catch (error) {
-    console.error("Register Email Failed:", error);
-    res.status(500); throw new Error("Email sending failed. Please check the email address.");
+    console.error("❌ Register Failed:", error);
+    res.status(500); throw new Error("Email sending failed.");
   }
 
   const salt = await bcrypt.genSalt(10);
@@ -67,23 +68,32 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 // ======================================================
-// 3. FORGOT PASSWORD (✅ FIXED - REMOVED GMAIL LOGIC)
+// 3. FORGOT PASSWORD (✅ DEBUGGING MODE ON)
 // ======================================================
 const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
+  console.log(`🔍 Forgot Password Request for: ${email}`); // LOG CHECK 1
+
   const user = await User.findOne({ email: email.toLowerCase().trim() });
 
-  if (!user) { res.status(404); throw new Error('User not found'); }
+  if (!user) { 
+    console.log("❌ User Not Found");
+    res.status(404); throw new Error('User not found'); 
+  }
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
   try {
-    // 👇 AB YE SEEDHA BREVO USE KAREGA
+    console.log("🚀 USING BREVO FORGOT PASSWORD FUNCTION..."); // LOG CHECK 2 (Ye aana chahiye)
+    
+    // THIS CALLS sendEmail.js (BREVO)
     await sendEmail({
       email: user.email,
       subject: "Reset Password - CampusSponsor",
-      html: `<h1>Reset Password</h1><p>Your OTP is: <b style="font-size: 24px; color: red;">${otp}</b></p>`
+      html: `<h1>Reset Password</h1><p>Your OTP is: <b style="color:red;">${otp}</b></p>`
     });
+
+    console.log("✅ Brevo Email Sent for Forgot Password"); // LOG CHECK 3
 
     user.otp = otp;
     user.otpExpires = Date.now() + 10 * 60 * 1000;
@@ -91,8 +101,9 @@ const forgotPassword = asyncHandler(async (req, res) => {
 
     res.json({ success: true, message: "OTP sent to your email." });
   } catch (error) {
-    console.error("Forgot Password Failed:", error);
-    res.status(500); throw new Error("Email service failed. Try again.");
+    console.error("❌ Forgot Password Failed (Check Error Below):");
+    console.error(error);
+    res.status(500); throw new Error("Email service failed.");
   }
 });
 
@@ -102,10 +113,8 @@ const forgotPassword = asyncHandler(async (req, res) => {
 const verifyRegisterOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   const user = await User.findOne({ email });
-  
   if (user && user.otp === otp) {
-    user.isVerified = (user.role === 'admin'); 
-    user.otp = undefined;
+    user.isVerified = (user.role === 'admin'); user.otp = undefined;
     await user.save();
     res.json({ _id: user.id, token: generateToken(user._id), role: user.role });
   } else { res.status(400); throw new Error('Invalid OTP'); }
@@ -117,7 +126,6 @@ const verifyRegisterOTP = asyncHandler(async (req, res) => {
 const resetPassword = asyncHandler(async (req, res) => { 
   const { email, otp, newPassword } = req.body;
   const user = await User.findOne({ email });
-  
   if (user && user.otp === otp) {
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
