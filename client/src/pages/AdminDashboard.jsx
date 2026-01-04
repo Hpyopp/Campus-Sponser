@@ -190,4 +190,10 @@ const AdminDashboard = () => {
 };
 
 const Stat = ({n, label, color}) => (<div style={{textAlign:'right'}}><div style={{fontSize:'1.5rem', fontWeight:'bold', color}}>{n}</div><div style={{fontSize:'0.7rem', color:'#94a3b8'}}>{label}</div></div>);
-const Tab = ({active, onClick, label, color}) => (<button onClick={onClick} style={{padding:'10px 15px', borderRadius:'8px', background: active ? `${color}20` : '#1e293b', border: active ? `2px solid ${color}` : 'none', color
+const Tab = ({active, onClick, label, color}) => (<button onClick={onClick} style={{padding:'10px 15px', borderRadius:'8px', background: active ? `${color}20` : '#1e293b', border: active ? `2px solid ${color}` : 'none', color: active ? color : '#94a3b8', cursor:'pointer', fontWeight:'bold', fontSize:'0.9rem'}}>{label}</button>);
+const actionBtn = (bg) => ({ padding:'8px 10px', background:bg, color:'white', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold', fontSize:'0.75rem' });
+const linkBtn = { color: '#38bdf8', background:'transparent', border: '1px solid #38bdf8', padding: '5px 8px', borderRadius: '5px', cursor:'pointer', textDecoration:'none', fontSize:'0.75rem', fontWeight:'bold' };
+const logoutBtn = { background:'#ef4444', color:'white', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer', fontWeight:'bold', fontSize:'0.8rem' };
+const searchInput = { width: '100%', padding: '12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '10px', color: 'white', marginBottom: '20px', outline: 'none' };
+
+export default AdminDashboard;
