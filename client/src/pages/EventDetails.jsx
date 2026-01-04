@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { jsPDF } from "jspdf";
 
 const EventDetails = () => {
   const { id } = useParams();
@@ -13,51 +14,64 @@ const EventDetails = () => {
   
   const user = JSON.parse(localStorage.getItem('user'));
 
-  useEffect(() => {
-    const fetchEvent = async () => {
-      try {
-        const { data } = await axios.get(`/api/events/${id}`);
-        setEvent(data);
-      } catch (error) { toast.error("Event not found"); }
-    };
-    fetchEvent();
-  }, [id]);
+  const fetchEvent = async () => {
+    try {
+      const { data } = await axios.get(`/api/events/${id}`);
+      setEvent(data);
+    } catch (error) { toast.error("Event not found"); }
+  };
 
-  // 👇 RAZORPAY PAYMENT LOGIC
+  useEffect(() => { fetchEvent(); }, [id]);
+
+  // Check if current user is already a sponsor
+  const mySponsorship = event?.sponsors?.find(s => s.sponsorId === user?._id && s.status === 'verified');
+  const isFullyFunded = event?.raisedAmount >= event?.budget;
+
+  // 👇 GENERATE AGREEMENT PDF logic
+  const downloadAgreement = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(22);
+    doc.text("Sponsorship Agreement", 20, 20);
+    doc.setFontSize(12);
+    doc.text(`This agreement is between ${user.companyName} and ${event.user?.name || 'College Representative'}.`, 20, 40);
+    doc.text(`Event: ${event.title}`, 20, 50);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 60);
+    doc.text(`Sponsorship Amount: INR ${mySponsorship.amount}`, 20, 70);
+    doc.text(`Transaction ID: ${mySponsorship.paymentId}`, 20, 80);
+    doc.text("------------------------------------------------", 20, 90);
+    doc.text("Terms: The sponsor agrees to support the event in exchange for branding.", 20, 100);
+    doc.text("Status: PAID & VERIFIED ✅", 20, 120);
+    doc.save(`${event.title}_Agreement.pdf`);
+    toast.success("Agreement Downloaded!");
+  };
+
   const handlePayment = async (e) => {
     e.preventDefault();
     if (!user) return navigate('/login');
     if (user.role !== 'sponsor') return toast.error("Only Sponsors can pay!");
     
-    // 1. Fresh Verification Check
+    // Verification Check
     try {
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
         const meRes = await axios.get('/api/users/me', config);
-        if (!meRes.data.isVerified) {
-            toast.error("🚫 Account Not Verified! Wait for Admin approval.");
-            return;
-        }
+        if (!meRes.data.isVerified) return toast.error("🚫 Not Verified by Admin!");
     } catch (err) { return; }
 
     if (!amount || amount < 1) return toast.error("Enter valid amount");
 
     setLoading(true);
-    
     try {
-        // 2. Order Create
-        const { data: order } = await axios.post('/api/payment/order', { amount });
+        // Create Order (Sends EventID to check budget)
+        const { data: order } = await axios.post('/api/payment/order', { amount, eventId: id });
 
-        // 3. Razorpay Options
         const options = {
-            key: "rzp_test_RzpjqjoYNvSTMY", // 👈 TERA KEY ID (Hardcoded for easy setup)
+            key: "rzp_test_RzpjqjoYNvSTMY", // 👈 TERA KEY
             amount: order.amount,
             currency: "INR",
             name: "CampusSponsor",
-            description: `Sponsorship for ${event.title}`,
-            image: "https://cdn-icons-png.flaticon.com/512/476/476863.png",
+            description: `Sponsoring ${event.title}`,
             order_id: order.id,
             handler: async function (response) {
-                // 4. Verify Payment on Backend
                 try {
                     const verifyData = {
                         razorpay_order_id: response.razorpay_order_id,
@@ -71,79 +85,79 @@ const EventDetails = () => {
                         companyName: user.companyName,
                         comment: comment
                     };
-                    
                     await axios.post('/api/payment/verify', verifyData);
-                    toast.success("🎉 Payment Successful! Agreement Generated.");
-                    navigate('/'); 
-                } catch (error) {
-                    toast.error("Payment Verification Failed");
-                }
+                    toast.success("🎉 Payment Successful!");
+                    fetchEvent(); // Refresh data to show Agreement button
+                } catch (error) { toast.error("Verification Failed"); }
             },
-            prefill: {
-                name: user.name,
-                email: user.email,
-                contact: user.phone
-            },
+            prefill: { name: user.name, email: user.email, contact: user.phone },
             theme: { color: "#2563eb" }
         };
-
         const rzp1 = new window.Razorpay(options);
         rzp1.open();
-
     } catch (error) {
         console.error(error);
-        toast.error("Payment Init Failed");
-    } finally {
-        setLoading(false);
-    }
-  };
-
-  const shareOnWhatsApp = () => {
-      const message = `Check out this amazing event: *${event?.title}* on CampusSponsor! \n\nHelp us make it happen: ${window.location.href}`;
-      const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
-      window.open(url, '_blank');
+        toast.error(error.response?.data?.message || "Payment Failed");
+    } finally { setLoading(false); }
   };
 
   if (!event) return <div style={{textAlign:'center', marginTop:'50px'}}>Loading...</div>;
 
+  // Progress Calculation
+  const percent = Math.min((event.raisedAmount / event.budget) * 100, 100);
+
   return (
-    <div style={{ maxWidth: '800px', margin: '40px auto', padding: '20px' }}>
+    <div style={{ maxWidth: '800px', margin: '40px auto', padding: '20px', fontFamily:'Poppins' }}>
       
       {/* HEADER */}
       <div style={{ background: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
         <h1 style={{ fontSize: '2.5rem', color: '#1e293b', marginBottom: '10px' }}>{event.title}</h1>
-        <div style={{ display: 'flex', gap: '15px', color: '#64748b', fontSize: '0.9rem', marginBottom: '20px', flexWrap: 'wrap' }}>
-            <span>📅 {new Date(event.date).toLocaleDateString()}</span>
-            <span>📍 {event.location}</span>
-            <span>💰 Budget: ₹{event.budget}</span>
+        
+        {/* 📊 PROGRESS BAR */}
+        <div style={{background:'#e2e8f0', borderRadius:'10px', height:'20px', width:'100%', marginBottom:'10px', overflow:'hidden'}}>
+            <div style={{width: `${percent}%`, background: isFullyFunded ? '#22c55e' : '#3b82f6', height:'100%', transition:'0.5s'}}></div>
         </div>
-        <p style={{ fontSize: '1.1rem', lineHeight: '1.6', color: '#334155', marginBottom: '30px' }}>{event.description}</p>
+        <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.9rem', color:'#64748b', marginBottom:'20px'}}>
+            <span>Raised: ₹{event.raisedAmount || 0}</span>
+            <span>Goal: ₹{event.budget}</span>
+        </div>
 
-        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-            <button onClick={shareOnWhatsApp} style={{ flex: 1, padding: '12px', background: '#25D366', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer' }}>📲 Share on WhatsApp</button>
-            {event.permissionLetter && <a href={event.permissionLetter} target="_blank" rel="noreferrer" style={{ flex: 1, padding: '12px', background: '#3b82f6', color: 'white', borderRadius: '8px', textAlign: 'center', textDecoration: 'none', fontWeight: 'bold' }}>📄 View Permission</a>}
-        </div>
+        <p style={{ fontSize: '1.1rem', lineHeight: '1.6', color: '#334155', marginBottom: '30px' }}>{event.description}</p>
       </div>
 
-      {/* PAYMENT FORM */}
+      {/* ACTION SECTION */}
       <div style={{ marginTop: '30px', background: '#f8fafc', padding: '30px', borderRadius: '15px', border: '2px dashed #cbd5e1' }}>
-        <h2 style={{ textAlign: 'center', color: '#1e293b' }}>💳 Make a Secure Payment</h2>
-        <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.9rem', marginBottom: '20px' }}>Payment is secured by Razorpay. Agreement will be generated automatically.</p>
         
-        {user?.role === 'sponsor' ? (
-            <form onSubmit={handlePayment} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <input type="number" placeholder="Enter Amount (₹)" value={amount} onChange={e=>setAmount(e.target.value)} required style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ccc' }} />
-                <textarea placeholder="Message (Optional)" value={comment} onChange={e=>setComment(e.target.value)} style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ccc', height: '80px' }} />
-                
-                <button type="submit" disabled={loading} style={{ padding: '15px', background: user.isVerified ? '#2563eb' : '#94a3b8', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', cursor: user.isVerified ? 'pointer' : 'not-allowed' }}>
-                    {loading ? 'Processing...' : (user.isVerified ? 'Pay Now & Generate Agreement' : 'Verification Pending 🔒')}
+        {mySponsorship ? (
+            // ✅ IF ALREADY PAID -> SHOW AGREEMENT
+            <div style={{textAlign:'center'}}>
+                <h2 style={{color:'#16a34a'}}>✅ You are a Sponsor!</h2>
+                <p style={{color:'#64748b', marginBottom:'20px'}}>Thank you for contributing ₹{mySponsorship.amount}.</p>
+                <button onClick={downloadAgreement} style={{padding:'15px 30px', background:'#334155', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', fontSize:'1rem'}}>
+                    📄 Download Agreement
                 </button>
-                {!user.isVerified && <p style={{color:'#ef4444', textAlign:'center', fontSize:'0.9rem'}}>* You need Admin approval to pay.</p>}
-            </form>
-        ) : (
-            <div style={{ textAlign: 'center', marginTop: '20px', color: '#64748b' }}>
-                {user ? "Only Sponsors can pay." : <span onClick={() => navigate('/login')} style={{color:'#2563eb', cursor:'pointer', fontWeight:'bold', textDecoration:'underline'}}>Login as Sponsor to Support</span>}
             </div>
+        ) : isFullyFunded ? (
+            // 🔒 IF FULLY FUNDED
+            <div style={{textAlign:'center'}}>
+                <h2 style={{color:'#22c55e'}}>🎉 Event Fully Funded!</h2>
+                <p>No more sponsors needed for this event.</p>
+            </div>
+        ) : user?.role === 'sponsor' ? (
+            // 💳 PAY FORM
+            <>
+                <h2 style={{ textAlign: 'center', color: '#1e293b' }}>💳 Make Payment</h2>
+                <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.9rem', marginBottom: '20px' }}>Remaining Need: ₹{event.budget - (event.raisedAmount || 0)}</p>
+                <form onSubmit={handlePayment} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    <input type="number" placeholder="Enter Amount (₹)" value={amount} onChange={e=>setAmount(e.target.value)} required style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ccc' }} />
+                    <textarea placeholder="Message (Optional)" value={comment} onChange={e=>setComment(e.target.value)} style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ccc', height: '80px' }} />
+                    <button type="submit" disabled={loading} style={{ padding: '15px', background: user.isVerified ? '#2563eb' : '#94a3b8', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', cursor: user.isVerified ? 'pointer' : 'not-allowed' }}>
+                        {loading ? 'Processing...' : (user.isVerified ? 'Pay Now & Generate Agreement' : 'Verification Pending 🔒')}
+                    </button>
+                </form>
+            </>
+        ) : (
+            <div style={{ textAlign: 'center', color: '#64748b' }}>Login as Sponsor to Pay.</div>
         )}
       </div>
     </div>

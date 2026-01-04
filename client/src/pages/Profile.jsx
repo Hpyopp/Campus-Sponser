@@ -1,145 +1,103 @@
 import { useEffect, useState } from 'react';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 const Profile = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const user = JSON.parse(localStorage.getItem('user'));
+  const [myEvents, setMyEvents] = useState([]); // For Student
+  const [sponsoredEvents, setSponsoredEvents] = useState([]); // For Sponsor
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    } else {
-      navigate('/login');
-    }
-  }, [navigate]);
+    if (!user) navigate('/login');
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+        const { data: allEvents } = await axios.get('/api/events');
+        
+        if (user.role === 'student') {
+            // Student: Show events created by me
+            const mine = allEvents.filter(e => e.user?._id === user._id || e.user === user._id);
+            setMyEvents(mine);
+        } else if (user.role === 'sponsor') {
+            // Sponsor: Show events where I paid
+            const sponsored = allEvents.filter(e => e.sponsors.some(s => s.sponsorId === user._id));
+            setSponsoredEvents(sponsored);
+        }
+    } catch (error) { console.error(error); }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('user');
-    window.dispatchEvent(new Event("storage"));
     navigate('/login');
   };
 
-  if (!user) return null;
-
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '40px 20px', fontFamily: 'Poppins' }}>
+    <div style={{ maxWidth: '1000px', margin: '40px auto', padding: '20px', fontFamily:'Poppins' }}>
       
-      {/* 1. MAIN PROFILE CARD */}
-      <div style={{ 
-          background: 'white', 
-          maxWidth: '800px', 
-          margin: '0 auto', 
-          borderRadius: '20px', 
-          boxShadow: '0 10px 40px rgba(0,0,0,0.08)', 
-          padding: '40px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '20px'
-      }}>
-        
-        {/* Left Side: Avatar & Info */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-            
-            {/* Avatar Circle */}
-            <div style={{ 
-                width: '100px', height: '100px', 
-                background: 'linear-gradient(135deg, #2563eb, #1e40af)', 
-                borderRadius: '50%', 
-                color: 'white', fontSize: '40px', fontWeight: 'bold', 
-                display: 'flex', justifyContent: 'center', alignItems: 'center',
-                boxShadow: '0 4px 15px rgba(37, 99, 235, 0.3)'
-            }}>
+      {/* PROFILE HEADER */}
+      <div style={{ background: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap:'wrap', gap:'20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <div style={{ width: '80px', height: '80px', background: '#2563eb', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', fontWeight: 'bold' }}>
                 {user.name.charAt(0).toUpperCase()}
             </div>
-
-            {/* Name & Status */}
             <div>
-                <h2 style={{ margin: 0, color: '#1e293b', fontSize: '1.8rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {user.name}
-                    
-                    {/* 👇 STATUS BADGE */}
-                    {user.isVerified ? (
-                        <span style={{ 
-                            fontSize: '0.8rem', background: '#dcfce7', color: '#166534', 
-                            padding: '4px 12px', borderRadius: '20px', border: '1px solid #16a34a',
-                            display: 'flex', alignItems: 'center', gap: '5px' 
-                        }}>
-                            ✅ Verified
-                        </span>
-                    ) : (
-                        <span style={{ 
-                            fontSize: '0.8rem', background: '#fef3c7', color: '#b45309', 
-                            padding: '4px 12px', borderRadius: '20px', border: '1px solid #d97706',
-                            display: 'flex', alignItems: 'center', gap: '5px' 
-                        }}>
-                            ⚠️ Unverified
-                        </span>
-                    )}
-                </h2>
-
+                <h1 style={{ margin: 0, color: '#1e293b' }}>{user.name}</h1>
                 <p style={{ margin: '5px 0', color: '#64748b' }}>{user.email}</p>
-                
-                {/* Role Badge */}
-                <span style={{ 
-                    display: 'inline-block', marginTop: '10px', 
-                    padding: '5px 15px', borderRadius: '6px', 
-                    background: '#f1f5f9', color: '#475569', 
-                    fontWeight: '600', fontSize: '0.85rem', letterSpacing: '1px', textTransform: 'uppercase'
-                }}>
-                    {user.role}
+                <span style={{ background: user.isVerified ? '#dcfce7' : '#fef9c3', color: user.isVerified ? '#166534' : '#854d0e', padding: '5px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                    {user.isVerified ? 'Verified ✅' : 'Pending Verification ⏳'}
                 </span>
-
-                {/* 👇 CHECK STATUS BUTTON (Only if Unverified) */}
-                {!user.isVerified && (
-                    <div style={{ marginTop: '15px' }}>
-                        <button 
-                            onClick={() => navigate('/verify')}
-                            style={{
-                                background: '#e11d48', color: 'white', border: 'none',
-                                padding: '8px 16px', borderRadius: '8px', cursor: 'pointer',
-                                fontSize: '0.9rem', fontWeight: '600', boxShadow: '0 4px 12px rgba(225, 29, 72, 0.3)',
-                                transition: '0.3s'
-                            }}
-                        >
-                            🚀 Complete Verification
-                        </button>
-                    </div>
-                )}
             </div>
         </div>
-
-        {/* Right Side: Logout Button */}
-        <button 
-            onClick={handleLogout} 
-            style={{ 
-                padding: '12px 25px', background: '#cbd5e1', color: '#334155', 
-                border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold',
-                transition: '0.2s'
-            }}
-            onMouseOver={(e) => e.target.style.background = '#94a3b8'}
-            onMouseOut={(e) => e.target.style.background = '#cbd5e1'}
-        >
-            Logout
-        </button>
+        <button onClick={handleLogout} style={{ padding: '10px 20px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Logout</button>
       </div>
 
-      {/* 2. LOWER SECTION (PORTFOLIO / EVENTS) */}
-      <div style={{ maxWidth: '800px', margin: '40px auto' }}>
-          <h3 style={{ borderLeft: '5px solid #2563eb', paddingLeft: '15px', color: '#1e293b' }}>
-              My Dashboard
-          </h3>
-          
-          <div style={{ background: 'white', padding: '30px', borderRadius: '15px', marginTop: '20px', textAlign: 'center', color: '#64748b', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
-              {user.role === 'sponsor' ? (
-                  <p>You haven't sponsored any events yet. <span style={{color:'#2563eb', cursor:'pointer'}} onClick={() => navigate('/')}>Explore Events</span></p>
-              ) : (
-                  <p>You haven't created any events yet. <span style={{color:'#2563eb', cursor:'pointer'}} onClick={() => navigate('/create-event')}>Create Event</span></p>
-              )}
-          </div>
-      </div>
+      {/* DASHBOARD SECTION */}
+      <h2 style={{ marginTop: '40px', color: '#334155' }}>My Dashboard</h2>
+      
+      {user.role === 'student' && (
+        <div style={{ display: 'grid', gap: '20px' }}>
+            {myEvents.map(event => (
+                <div key={event._id} style={{ background: 'white', padding: '20px', borderRadius: '10px', borderLeft: '5px solid #2563eb', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+                    <h3 style={{ margin: '0 0 10px 0' }}>{event.title}</h3>
+                    <div style={{display:'flex', gap:'20px', color:'#64748b', fontSize:'0.9rem', marginBottom:'15px'}}>
+                        <span>Raised: ₹{event.raisedAmount || 0} / ₹{event.budget}</span>
+                        <span>Sponsors: {event.sponsors.length}</span>
+                    </div>
+                    {/* SHOW SPONSORS LIST */}
+                    {event.sponsors.length > 0 && (
+                        <div style={{background:'#f8fafc', padding:'10px', borderRadius:'8px'}}>
+                            <strong>Recent Sponsors:</strong>
+                            {event.sponsors.map((s, i) => (
+                                <div key={i} style={{fontSize:'0.9rem', marginTop:'5px', color:'#16a34a'}}>
+                                    + ₹{s.amount} from {s.companyName} ({s.name})
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            ))}
+            {myEvents.length === 0 && <p>No events created yet.</p>}
+        </div>
+      )}
+
+      {user.role === 'sponsor' && (
+        <div style={{ display: 'grid', gap: '20px' }}>
+            {sponsoredEvents.map(event => (
+                <div key={event._id} style={{ background: 'white', padding: '20px', borderRadius: '10px', borderLeft: '5px solid #16a34a', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+                    <h3 style={{ margin: '0 0 5px 0' }}>{event.title}</h3>
+                    <p style={{color:'#64748b', fontSize:'0.9rem'}}>Paid: ₹{event.sponsors.find(s => s.sponsorId === user._id)?.amount} ✅</p>
+                    <button onClick={() => navigate(`/event/${event._id}`)} style={{marginTop:'10px', background:'#e2e8f0', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer', fontSize:'0.85rem'}}>
+                        View & Download Agreement
+                    </button>
+                </div>
+            ))}
+            {sponsoredEvents.length === 0 && <p>You haven't sponsored any events yet.</p>}
+        </div>
+      )}
 
     </div>
   );
