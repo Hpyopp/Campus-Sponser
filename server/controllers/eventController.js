@@ -1,5 +1,6 @@
 const Event = require('../models/campusEvent'); 
 const asyncHandler = require('express-async-handler');
+const sendEmail = require('../utils/sendEmail'); // 👈 Import Added
 
 // 1. CREATE EVENT
 const createEvent = asyncHandler(async (req, res) => {
@@ -15,7 +16,7 @@ const createEvent = asyncHandler(async (req, res) => {
   res.status(201).json(event);
 });
 
-// 2. GET ALL APPROVED EVENTS (For Home Page)
+// 2. GET ALL APPROVED EVENTS (Public)
 const getEvents = asyncHandler(async (req, res) => {
   const events = await Event.find({ isApproved: true }).populate('user', 'name email').sort({ createdAt: -1 });
   res.json(events);
@@ -28,7 +29,7 @@ const getEventById = asyncHandler(async (req, res) => {
   else { res.status(404); throw new Error('Event not found'); }
 });
 
-// 4. SPONSOR EVENT (Pledge)
+// 4. SPONSOR EVENT
 const sponsorEvent = asyncHandler(async (req, res) => {
   const { amount, comment } = req.body;
   const event = await Event.findById(req.params.id);
@@ -67,17 +68,43 @@ const requestRefund = asyncHandler(async (req, res) => {
   } else { res.status(404); throw new Error('Not found'); }
 });
 
-// 7. PROCESS REFUND (Delete Sponsor)
+// 7. PROCESS REFUND (Updated with Email)
 const processRefund = asyncHandler(async (req, res) => {
     const { sponsorId } = req.body;
     const event = await Event.findById(req.params.id);
+    if (!event) { res.status(404); throw new Error('Event not found'); }
+
+    // Email Data Nikalo
+    const sponsorDetails = event.sponsors.find(s => s.sponsorId.toString() === sponsorId);
+    
+    // Delete Sponsor
     event.sponsors = event.sponsors.filter(s => s.sponsorId.toString() !== sponsorId);
     event.raisedAmount = event.sponsors.filter(s => s.status === 'verified').reduce((acc, curr) => acc + curr.amount, 0);
     await event.save();
+
+    // 👇 Send Email
+    if (sponsorDetails) {
+        const emailContent = `
+            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #dc2626; border-radius: 10px; background-color: #fef2f2;">
+                <h2 style="color: #dc2626;">💰 Refund Processed</h2>
+                <p>Hello <strong>${sponsorDetails.name}</strong>,</p>
+                <p>Your refund request for the event <strong>"${event.title}"</strong> has been processed.</p>
+                <p><strong>Amount Refunded:</strong> ₹${sponsorDetails.amount}</p>
+                <p style="font-size: 12px; color: #666;">CampusSponsor Admin Team</p>
+            </div>
+        `;
+        // Background me email bhejo (await mat karo agar fast response chahiye)
+        sendEmail({
+            email: sponsorDetails.email,
+            subject: 'Refund Processed - CampusSponsor',
+            html: emailContent
+        });
+    }
+
     res.json({ message: 'Refunded' });
 });
 
-// 8. REJECT/DECLINE OFFER
+// 8. REJECT OFFER
 const rejectSponsorship = asyncHandler(async (req, res) => {
   const { sponsorId } = req.body;
   const event = await Event.findById(req.params.id);
@@ -100,7 +127,7 @@ const deleteEvent = asyncHandler(async (req, res) => {
   await event.deleteOne(); res.json({ message: 'Deleted' });
 });
 
-// 👇 NAYA: 10. ADMIN: Get All Events for Verification
+// 10. ADMIN: Get All Events
 const getAllEventsForAdmin = asyncHandler(async (req, res) => {
   const events = await Event.find().populate('user', 'name email').sort({ createdAt: -1 });
   res.json(events);
@@ -110,5 +137,5 @@ module.exports = {
   createEvent, getEvents, getEventById, sponsorEvent,
   verifyPayment, requestRefund, processRefund, rejectSponsorship,
   approveEvent, revokeEvent, deleteEvent, 
-  getAllEventsForAdmin // 👈 Added to exports
+  getAllEventsForAdmin
 };
