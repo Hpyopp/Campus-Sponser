@@ -1,5 +1,16 @@
 const mongoose = require('mongoose');
 
+const sponsorSchema = mongoose.Schema({
+  sponsorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  name: { type: String },
+  email: { type: String },
+  companyName: { type: String },
+  amount: { type: Number, required: true },
+  comment: { type: String },
+  status: { type: String, default: 'pending' }, // 'pending' ya 'verified'
+  date: { type: Date, default: Date.now }
+});
+
 const eventSchema = mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'User' },
   title: { type: String, required: true },
@@ -7,25 +18,13 @@ const eventSchema = mongoose.Schema({
   date: { type: Date, required: true },
   location: { type: String, required: true },
   budget: { type: Number, required: true },
-  contactEmail: { type: String, required: true },
-  instagramLink: { type: String, default: '' },
-  permissionLetter: { type: String, required: true },
+  permissionLetter: { type: String }, // File path
   isApproved: { type: Boolean, default: false },
   raisedAmount: { type: Number, default: 0 },
-  
-  // 👇 CHANGED: Views ab ek Array hai jo User IDs store karega
-  views: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], 
-
-  sponsors: [{
-    sponsorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    name: String,
-    email: String,
-    companyName: { type: String, default: '' }, 
-    amount: Number,
-    date: { type: Date, default: Date.now },
-    status: { type: String, default: 'confirmed' },
-    comment: { type: String, default: '' } 
-  }]
-}, { timestamps: true });
+  sponsors: [sponsorSchema], // 👈 Ye zaroori hai sponsorship ke liye
+  views: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+}, {
+  timestamps: true
+});
 
 module.exports = mongoose.model('Event', eventSchema);

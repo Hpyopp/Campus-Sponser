@@ -1,4 +1,5 @@
-const Event = require('../models/Event');
+// 👇 FIX: Yahan 'Event' ki jagah 'campusEvent' kar diya
+const Event = require('../models/campusEvent'); 
 const asyncHandler = require('express-async-handler');
 const path = require('path');
 
@@ -36,7 +37,7 @@ const getEventById = asyncHandler(async (req, res) => {
   else { res.status(404); throw new Error('Event not found'); }
 });
 
-// 4. SPONSOR EVENT (Pledge)
+// 4. SPONSOR EVENT
 const sponsorEvent = asyncHandler(async (req, res) => {
   const { amount, comment } = req.body;
   const event = await Event.findById(req.params.id);
@@ -52,7 +53,7 @@ const sponsorEvent = asyncHandler(async (req, res) => {
       companyName: req.user.companyName,
       amount: Number(amount),
       comment,
-      status: 'pending', // Default status
+      status: 'pending',
       date: Date.now()
     };
 
@@ -62,14 +63,14 @@ const sponsorEvent = asyncHandler(async (req, res) => {
   } else { res.status(404); throw new Error('Event not found'); }
 });
 
-// 5. VERIFY PAYMENT (✅ FIXED FOR STUDENT/ADMIN)
+// 5. VERIFY PAYMENT (✅ FIXED)
 const verifyPayment = asyncHandler(async (req, res) => {
   const { sponsorId } = req.body;
   const event = await Event.findById(req.params.id);
 
   if (!event) { res.status(404); throw new Error('Event not found'); }
 
-  // Check: Sirf Owner (Student) ya Admin hi verify kar sakta hai
+  // Check: Organizer or Admin
   if (event.user.toString() !== req.user.id && req.user.role !== 'admin') {
     res.status(401); throw new Error('Not authorized to verify');
   }
@@ -78,7 +79,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
   if (sponsor) {
     sponsor.status = 'verified';
     
-    // Total Raised Update karo
+    // Update Total Raised
     event.raisedAmount = event.sponsors
       .filter(s => s.status === 'verified')
       .reduce((acc, curr) => acc + curr.amount, 0);
@@ -90,7 +91,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
   }
 });
 
-// 6. REJECT SPONSORSHIP (❌ FIXED FOR DECLINE BUTTON)
+// 6. REJECT SPONSORSHIP (✅ FIXED)
 const rejectSponsorship = asyncHandler(async (req, res) => {
   const { sponsorId } = req.body;
   const event = await Event.findById(req.params.id);
@@ -102,7 +103,6 @@ const rejectSponsorship = asyncHandler(async (req, res) => {
     res.status(401); throw new Error('Not authorized to reject');
   }
 
-  // Sponsor ko array se filter out (delete) kar do
   const initialLength = event.sponsors.length;
   event.sponsors = event.sponsors.filter(s => s.sponsorId.toString() !== sponsorId);
 
@@ -114,7 +114,7 @@ const rejectSponsorship = asyncHandler(async (req, res) => {
   res.json({ message: 'Sponsorship Offer Rejected/Deleted' });
 });
 
-// --- ADMIN ONLY CONTROLLERS ---
+// --- ADMIN ONLY ---
 const approveEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
   if (event) { event.isApproved = true; await event.save(); res.json({ message: 'Event Approved' }); } 
@@ -135,7 +135,6 @@ const deleteEvent = asyncHandler(async (req, res) => {
 
 module.exports = {
   createEvent, getEvents, getEventById, sponsorEvent,
-  verifyPayment,    // ✅ Added
-  rejectSponsorship, // ✅ Added
+  verifyPayment, rejectSponsorship,
   approveEvent, revokeEvent, deleteEvent
 };
