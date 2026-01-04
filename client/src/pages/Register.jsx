@@ -9,7 +9,7 @@ const Register = () => {
   
   const [formData, setFormData] = useState({ name: '', email: '', password: '', phone: '', companyName: '', collegeName: '' });
   const [otp, setOtp] = useState('');
-  const [developerOtp, setDeveloperOtp] = useState(null); // Green Box Variable
+  const [developerOtp, setDeveloperOtp] = useState(null); 
   
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -23,8 +23,7 @@ const Register = () => {
     try {
       const res = await axios.post('/api/users', { ...formData, role });
       
-      // 👇 YAHAN GALTI THI (Ab Fix Hai)
-      setDeveloperOtp(res.data.otp); // Backend 'otp' bhej raha hai
+      setDeveloperOtp(res.data.otp); // Green Box OTP
       
       toast.success("OTP Sent! Check Green Box");
       setStep(2);
@@ -33,26 +32,38 @@ const Register = () => {
     } finally { setLoading(false); }
   };
 
-  // 2. VERIFY OTP
+  // 2. VERIFY OTP (🛠️ FIXED CRASH HERE)
   const handleVerify = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
+      // Step A: Verify OTP & Get Token
       const res = await axios.post('/api/users/verify-otp', { email: formData.email, otp });
+      const { token, _id, role: userRole } = res.data;
+
+      // Step B: Fetch Full Profile using Token (Taaki Name mil jaye)
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const meRes = await axios.get('/api/users/me', config);
       
-      localStorage.setItem('user', JSON.stringify(res.data));
+      // Step C: Save COMPLETE Data (Token + Name + Email + Doc)
+      const completeUser = { token, ...meRes.data }; 
+      localStorage.setItem('user', JSON.stringify(completeUser));
+      
+      // Step D: Update App State
       window.dispatchEvent(new Event("storage"));
       
-      toast.success("✅ Account Verified & Logged In!");
+      toast.success("✅ Verified & Logged In!");
       
-      if (res.data.role !== 'admin' && !res.data.verificationDoc) {
-          navigate('/verify');
+      // Step E: Navigate based on status
+      if (userRole !== 'admin' && !meRes.data.verificationDoc) {
+          navigate('/verify'); // Upload Doc Page
       } else {
-          navigate('/');
+          navigate('/'); // Home
       }
       
     } catch (error) {
-      toast.error("Invalid OTP");
+      console.error(error);
+      toast.error("Invalid OTP or Server Error");
     } finally { setLoading(false); }
   };
 
