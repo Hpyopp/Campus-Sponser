@@ -4,19 +4,17 @@ const eventController = require('../controllers/eventController');
 const { protect, admin } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 
-// 1. PUBLIC (Sabke liye)
 router.get('/', eventController.getEvents);
 router.get('/:id', eventController.getEventById);
-
-// 2. PROTECTED (Login Zaroori)
 router.post('/', protect, upload.single('permissionLetter'), eventController.createEvent);
 router.put('/:id/sponsor', protect, eventController.sponsorEvent);
 
-// 👇 IMPORTANT: Verify aur Reject ke Raste (Routes)
+// 👇 Verify, Reject aur Refund ke Routes
 router.put('/:id/verify-payment', protect, eventController.verifyPayment);
 router.put('/:id/reject-sponsor', protect, eventController.rejectSponsorship);
+router.put('/:id/request-refund', protect, eventController.requestRefund);
+router.put('/:id/process-refund', protect, eventController.processRefund); // Admin/Organizer only
 
-// 3. ADMIN ROUTES
 router.put('/:id/approve', protect, admin, eventController.approveEvent);
 router.put('/:id/revoke', protect, admin, eventController.revokeEvent);
 router.delete('/:id', protect, admin, eventController.deleteEvent);

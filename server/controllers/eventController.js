@@ -1,140 +1,58 @@
-// 👇 FIX: Yahan 'Event' ki jagah 'campusEvent' kar diya
 const Event = require('../models/campusEvent'); 
 const asyncHandler = require('express-async-handler');
 const path = require('path');
 
-// 1. CREATE EVENT
-const createEvent = asyncHandler(async (req, res) => {
-  const { title, description, date, location, budget } = req.body;
-  if (!title || !description || !date || !location || !budget) {
-    res.status(400); throw new Error('Please fill all fields');
-  }
+// ... (Upar ke createEvent, getEvents, getEventById, sponsorEvent same rahenge) ...
 
-  let permissionLetter = "";
-  if (req.file) {
-    permissionLetter = req.file.path || req.file.url; 
-  }
-
-  const event = await Event.create({
-    user: req.user.id,
-    title, description, date, location, budget,
-    permissionLetter,
-    sponsors: []
-  });
-  res.status(201).json(event);
-});
-
-// 2. GET ALL EVENTS
-const getEvents = asyncHandler(async (req, res) => {
-  const events = await Event.find().populate('user', 'name email').sort({ createdAt: -1 });
-  res.json(events);
-});
-
-// 3. GET SINGLE EVENT
-const getEventById = asyncHandler(async (req, res) => {
-  const event = await Event.findById(req.params.id).populate('user', 'name email');
-  if (event) res.json(event);
-  else { res.status(404); throw new Error('Event not found'); }
-});
-
-// 4. SPONSOR EVENT
-const sponsorEvent = asyncHandler(async (req, res) => {
-  const { amount, comment } = req.body;
-  const event = await Event.findById(req.params.id);
-
-  if (event) {
-    const alreadySponsored = event.sponsors.find(s => s.sponsorId.toString() === req.user.id.toString());
-    if (alreadySponsored) { res.status(400); throw new Error('You have already pledged for this event'); }
-
-    const sponsorship = {
-      sponsorId: req.user.id,
-      name: req.user.name,
-      email: req.user.email,
-      companyName: req.user.companyName,
-      amount: Number(amount),
-      comment,
-      status: 'pending',
-      date: Date.now()
-    };
-
-    event.sponsors.push(sponsorship);
-    await event.save();
-    res.status(201).json({ message: 'Sponsorship pledged' });
-  } else { res.status(404); throw new Error('Event not found'); }
-});
-
-// 5. VERIFY PAYMENT (✅ FIXED)
+// 5. VERIFY PAYMENT (UPDATED: Refund request ke baad bhi verify kar sakein)
 const verifyPayment = asyncHandler(async (req, res) => {
   const { sponsorId } = req.body;
   const event = await Event.findById(req.params.id);
-
   if (!event) { res.status(404); throw new Error('Event not found'); }
-
-  // Check: Organizer or Admin
   if (event.user.toString() !== req.user.id && req.user.role !== 'admin') {
     res.status(401); throw new Error('Not authorized to verify');
   }
-
   const sponsor = event.sponsors.find(s => s.sponsorId.toString() === sponsorId);
   if (sponsor) {
     sponsor.status = 'verified';
-    
-    // Update Total Raised
-    event.raisedAmount = event.sponsors
-      .filter(s => s.status === 'verified')
-      .reduce((acc, curr) => acc + curr.amount, 0);
-
+    event.raisedAmount = event.sponsors.filter(s => s.status === 'verified').reduce((acc, curr) => acc + curr.amount, 0);
     await event.save();
     res.json({ message: 'Payment Verified Successfully' });
-  } else {
-    res.status(404); throw new Error('Sponsor not found in this event');
-  }
+  } else { res.status(404); throw new Error('Sponsor not found'); }
 });
 
-// 6. REJECT SPONSORSHIP (✅ FIXED)
-const rejectSponsorship = asyncHandler(async (req, res) => {
-  const { sponsorId } = req.body;
+// 👇 NAYA: 6. REQUEST REFUND (Sponsor ke liye)
+const requestRefund = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
-
   if (!event) { res.status(404); throw new Error('Event not found'); }
-
-  // Check Permission
-  if (event.user.toString() !== req.user.id && req.user.role !== 'admin') {
-    res.status(401); throw new Error('Not authorized to reject');
-  }
-
-  const initialLength = event.sponsors.length;
-  event.sponsors = event.sponsors.filter(s => s.sponsorId.toString() !== sponsorId);
-
-  if (event.sponsors.length === initialLength) {
-     res.status(404); throw new Error('Sponsor not found to delete');
-  }
-
-  await event.save();
-  res.json({ message: 'Sponsorship Offer Rejected/Deleted' });
+  const sponsor = event.sponsors.find(s => s.sponsorId.toString() === req.user.id.toString());
+  if (sponsor) {
+    sponsor.status = 'refund_requested';
+    await event.save();
+    res.json({ message: 'Refund Requested Successfully' });
+  } else { res.status(404); throw new Error('Sponsorship record not found'); }
 });
 
-// --- ADMIN ONLY ---
-const approveEvent = asyncHandler(async (req, res) => {
-  const event = await Event.findById(req.params.id);
-  if (event) { event.isApproved = true; await event.save(); res.json({ message: 'Event Approved' }); } 
-  else { res.status(404); throw new Error('Event not found'); }
+// 👇 NAYA: 7. PROCESS REFUND (Admin/Organizer ke liye - Sponsor hatane ke liye)
+const processRefund = asyncHandler(async (req, res) => {
+    const { sponsorId } = req.body;
+    const event = await Event.findById(req.params.id);
+    if (!event) { res.status(404); throw new Error('Event not found'); }
+    // Check permission
+    if (event.user.toString() !== req.user.id && req.user.role !== 'admin') {
+        res.status(401); throw new Error('Not authorized');
+    }
+    // Remove sponsor and update amount
+    event.sponsors = event.sponsors.filter(s => s.sponsorId.toString() !== sponsorId);
+    event.raisedAmount = event.sponsors.filter(s => s.status === 'verified').reduce((acc, curr) => acc + curr.amount, 0);
+    await event.save();
+    res.json({ message: 'Refund Processed and Sponsor Removed' });
 });
 
-const revokeEvent = asyncHandler(async (req, res) => {
-  const event = await Event.findById(req.params.id);
-  if (event) { event.isApproved = false; await event.save(); res.json({ message: 'Event Revoked' }); } 
-  else { res.status(404); throw new Error('Event not found'); }
-});
-
-const deleteEvent = asyncHandler(async (req, res) => {
-  const event = await Event.findById(req.params.id);
-  if (event) { await event.deleteOne(); res.json({ message: 'Event Deleted' }); } 
-  else { res.status(404); throw new Error('Event not found'); }
-});
+// ... (Baaki approveEvent, revokeEvent, deleteEvent same rahenge) ...
 
 module.exports = {
   createEvent, getEvents, getEventById, sponsorEvent,
-  verifyPayment, rejectSponsorship,
+  verifyPayment, rejectSponsorship, requestRefund, processRefund, // 👈 Added
   approveEvent, revokeEvent, deleteEvent
 };
