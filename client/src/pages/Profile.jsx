@@ -22,7 +22,6 @@ const Profile = () => {
             const mine = allEvents.filter(e => e.user?._id === user._id || e.user === user._id);
             setMyEvents(mine);
         } else if (user.role === 'sponsor') {
-            // Find events where this user is a sponsor
             const sponsored = allEvents.filter(e => e.sponsors.some(s => s.sponsorId === user._id));
             setSponsoredEvents(sponsored);
         }
@@ -30,16 +29,13 @@ const Profile = () => {
   };
 
   const handleRefundRequest = async (eventId) => {
-      if(!window.confirm("Are you sure you want to request a refund? This will cancel your sponsorship.")) return;
-      
+      if(!window.confirm("Are you sure? This will cancel your sponsorship.")) return;
       try {
           const config = { headers: { Authorization: `Bearer ${user.token}` } };
           await axios.put(`/api/events/${eventId}/refund-request`, {}, config);
           toast.success("Refund Requested! Admin will verify.");
-          fetchData(); // Refresh UI
-      } catch (error) {
-          toast.error("Request Failed");
-      }
+          fetchData();
+      } catch (error) { toast.error("Request Failed"); }
   };
 
   const handleLogout = () => {
@@ -95,26 +91,52 @@ const Profile = () => {
         </div>
       )}
 
-      {/* SPONSOR VIEW (Refund Button Here) */}
+      {/* SPONSOR VIEW (Updated Logic) */}
       {user.role === 'sponsor' && (
         <div style={{ display: 'grid', gap: '20px' }}>
             {sponsoredEvents.map(event => {
                 const mySponsorship = event.sponsors.find(s => s.sponsorId === user._id);
+                
+                // 👇 DATE LOGIC START
+                const paymentDate = new Date(mySponsorship.date || Date.now()); // Fallback to now if date missing
+                const eventDate = new Date(event.date);
+                const now = new Date();
+
+                // 1. Hours since payment
+                const hoursSincePayment = (now - paymentDate) / (1000 * 60 * 60);
+                
+                // 2. Days before event (Payment ke time event kitna door tha)
+                const daysBeforeEvent = (eventDate - paymentDate) / (1000 * 60 * 60 * 24);
+
+                // Conditions:
+                // - Paid within last 24 hours
+                // - Payment was made at least 7 days before event
+                const canRequestRefund = mySponsorship.status === 'verified' && 
+                                         hoursSincePayment <= 24 && 
+                                         daysBeforeEvent >= 7;
+                // 👆 DATE LOGIC END
+
                 return (
                     <div key={event._id} style={{ background: 'white', padding: '20px', borderRadius: '10px', borderLeft: `5px solid ${mySponsorship.status === 'verified' ? '#16a34a' : '#ef4444'}`, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
                         <h3 style={{ margin: '0 0 5px 0' }}>{event.title}</h3>
                         <p style={{color:'#64748b', fontSize:'0.9rem'}}>Paid: ₹{mySponsorship.amount} | Status: <strong style={{textTransform:'uppercase'}}>{mySponsorship.status}</strong></p>
-                        
-                        <div style={{display:'flex', gap:'10px', marginTop:'15px'}}>
+                        <p style={{fontSize:'0.8rem', color:'#94a3b8'}}>Payment Date: {paymentDate.toLocaleDateString()}</p>
+
+                        <div style={{display:'flex', gap:'10px', marginTop:'15px', flexWrap:'wrap'}}>
                             <button onClick={() => navigate(`/event/${event._id}`)} style={{background:'#e2e8f0', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer', fontSize:'0.85rem'}}>
                                 View Details / Agreement
                             </button>
                             
-                            {mySponsorship.status === 'verified' && (
+                            {/* Logic Based Button */}
+                            {canRequestRefund ? (
                                 <button onClick={() => handleRefundRequest(event._id)} style={{background:'#fee2e2', color:'#dc2626', border:'1px solid #dc2626', padding:'8px 15px', borderRadius:'5px', cursor:'pointer', fontSize:'0.85rem'}}>
-                                    Request Refund ↩️
+                                    Request Refund (Available for 24h)
                                 </button>
-                            )}
+                            ) : mySponsorship.status === 'verified' ? (
+                                <div style={{fontSize:'0.8rem', color:'#ef4444', fontStyle:'italic', padding:'5px', background:'#fff1f2', borderRadius:'5px'}}>
+                                    * Refund window closed. Please contact college/admin via email for disputes.
+                                </div>
+                            ) : null}
                         </div>
                     </div>
                 )
