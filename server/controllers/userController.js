@@ -9,7 +9,7 @@ const generateToken = (id) => {
 };
 
 // ======================================================
-// 1. REGISTER (✅ WORKING)
+// 1. REGISTER
 // ======================================================
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone, role, companyName, collegeName } = req.body;
@@ -24,16 +24,16 @@ const registerUser = asyncHandler(async (req, res) => {
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // Email Send (Brevo)
+  // Send Email (Brevo)
   try {
     await sendEmail({
       email: cleanEmail,
       subject: "Verify Account - CampusSponsor",
-      html: `<h1>Welcome ${name}!</h1><p>Your OTP is: <b>${otp}</b></p>`
+      html: `<h1>Welcome ${name}!</h1><p>Your OTP is: <b style="font-size: 24px; color: blue;">${otp}</b></p>`
     });
   } catch (error) {
     console.error("Register Email Failed:", error);
-    res.status(500); throw new Error("Email sending failed.");
+    res.status(500); throw new Error("Email sending failed. Please check the email address.");
   }
 
   const salt = await bcrypt.genSalt(10);
@@ -67,7 +67,7 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 // ======================================================
-// 3. FORGOT PASSWORD (✅ FIXED: USES BREVO NOW)
+// 3. FORGOT PASSWORD (✅ FIXED - REMOVED GMAIL LOGIC)
 // ======================================================
 const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
@@ -77,23 +77,22 @@ const forgotPassword = asyncHandler(async (req, res) => {
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // 👇 YAHAN GALTI THI: Ye pehle Gmail dhoond raha tha.
-  // ✅ AB HUMNE ISSE "sendEmail" (Brevo) SE JOD DIYA HAI.
   try {
+    // 👇 AB YE SEEDHA BREVO USE KAREGA
     await sendEmail({
       email: user.email,
       subject: "Reset Password - CampusSponsor",
-      html: `<h1>Reset OTP</h1><p>Your OTP is: <b>${otp}</b></p>`
+      html: `<h1>Reset Password</h1><p>Your OTP is: <b style="font-size: 24px; color: red;">${otp}</b></p>`
     });
 
     user.otp = otp;
-    user.otpExpires = Date.now() + 10 * 60 * 1000; // Expiry Set ki
+    user.otpExpires = Date.now() + 10 * 60 * 1000;
     await user.save();
 
     res.json({ success: true, message: "OTP sent to your email." });
   } catch (error) {
     console.error("Forgot Password Failed:", error);
-    res.status(500); throw new Error("Email service failed.");
+    res.status(500); throw new Error("Email service failed. Try again.");
   }
 });
 
@@ -103,8 +102,10 @@ const forgotPassword = asyncHandler(async (req, res) => {
 const verifyRegisterOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   const user = await User.findOne({ email });
+  
   if (user && user.otp === otp) {
-    user.isVerified = (user.role === 'admin'); user.otp = undefined;
+    user.isVerified = (user.role === 'admin'); 
+    user.otp = undefined;
     await user.save();
     res.json({ _id: user.id, token: generateToken(user._id), role: user.role });
   } else { res.status(400); throw new Error('Invalid OTP'); }
@@ -116,6 +117,7 @@ const verifyRegisterOTP = asyncHandler(async (req, res) => {
 const resetPassword = asyncHandler(async (req, res) => { 
   const { email, otp, newPassword } = req.body;
   const user = await User.findOne({ email });
+  
   if (user && user.otp === otp) {
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
@@ -124,7 +126,7 @@ const resetPassword = asyncHandler(async (req, res) => {
   } else { res.status(400); throw new Error('Invalid OTP'); }
 });
 
-// Helpers (Include these to avoid errors)
+// Helpers
 const approveUser = asyncHandler(async (req, res) => { const user = await User.findById(req.params.id); if (user) { user.isVerified = true; await user.save(); try{await sendEmail({email:user.email,subject:'Approved',html:'<p>Approved</p>'});}catch(e){} res.json({message:'Verified'}); } else { res.status(404); throw new Error('User not found'); } });
 const getMe = asyncHandler(async (req, res) => { const user = await User.findById(req.user.id); if (user) res.json({_id:user._id,name:user.name,email:user.email,role:user.role,isVerified:user.isVerified,verificationDoc:user.verificationDoc||"",companyName:user.companyName}); else {res.status(404);throw new Error('User not found');}});
 const uploadDoc = asyncHandler(async (req, res) => { if (!req.file) {res.status(400);throw new Error('No file');} const fileUrl = req.file.path||req.file.url; const user = await User.findById(req.user.id); if(user){user.verificationDoc=fileUrl;user.isVerified=false;await user.save();res.json({message:'Uploaded',docUrl:fileUrl});}else{res.status(404);throw new Error('User not found');}});
