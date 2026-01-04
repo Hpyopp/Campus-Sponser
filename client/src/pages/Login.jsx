@@ -7,7 +7,6 @@ const Login = () => {
   const [view, setView] = useState('login'); 
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [resetData, setResetData] = useState({ email: '', otp: '', newPassword: '' });
-  const [developerOtp, setDeveloperOtp] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -35,15 +34,12 @@ const Login = () => {
       e.preventDefault(); 
       setLoading(true); 
       try { 
-          const res = await axios.post('/api/users/forgot-password', { email: resetData.email }); 
-          setDeveloperOtp(res.data.otp);
-          toast.success("OTP Generated! Check Green Box."); 
+          await axios.post('/api/users/forgot-password', { email: resetData.email }); 
+          toast.success("📧 OTP Sent! Check your Email."); 
           setView('reset'); 
       } catch (error) { 
           toast.error(error.response?.data?.message || "User not found"); 
-      } finally { 
-          setLoading(false); 
-      } 
+      } finally { setLoading(false); } 
   };
 
   // 3. RESET PASSWORD
@@ -52,20 +48,15 @@ const Login = () => {
       setLoading(true); 
       try { 
           await axios.post('/api/users/reset-password', resetData); 
-          toast.success("Password Changed Successfully! Login now."); 
+          toast.success("Password Changed! Login now."); 
           setView('login'); 
-          setDeveloperOtp(null); 
       } catch (error) { 
           toast.error("Invalid or Expired OTP"); 
-      } finally { 
-          setLoading(false); 
-      } 
+      } finally { setLoading(false); } 
   };
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f8fafc', fontFamily: 'Poppins', padding: '20px' }}>
-      
-      {/* 👇 MOBILE RESPONSIVE CONTAINER */}
       <div style={{ background: 'white', padding: '25px', borderRadius: '15px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', width: '90%', maxWidth: '400px' }}>
         
         {view === 'login' && (
@@ -84,10 +75,10 @@ const Login = () => {
         {view === 'forgot' && (
             <>
                 <h2 style={{ textAlign: 'center', color: '#1e293b' }}>🔐 Reset Password</h2>
-                <p style={{textAlign:'center', color:'#666', fontSize:'0.9rem', marginBottom:'20px'}}>Enter email to receive Developer Code</p>
+                <p style={{textAlign:'center', color:'#666', fontSize:'0.9rem', marginBottom:'20px'}}>Enter email to receive OTP</p>
                 <form onSubmit={handleForgot} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     <input type="email" placeholder="Enter your Email" value={resetData.email} onChange={e=>setResetData({...resetData, email:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
-                    <button type="submit" disabled={loading} style={{ padding: '12px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>{loading ? 'Generating...' : 'Get Instant OTP'}</button>
+                    <button type="submit" disabled={loading} style={{ padding: '12px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>{loading ? 'Sending...' : 'Send OTP'}</button>
                 </form>
                 <button onClick={() => setView('login')} style={{width:'100%', marginTop:'15px', background:'none', border:'none', color:'#64748b', cursor:'pointer'}}>Cancel</button>
             </>
@@ -96,12 +87,7 @@ const Login = () => {
         {view === 'reset' && (
             <>
                 <h2 style={{ textAlign: 'center', color: '#1e293b' }}>🔓 Enter OTP</h2>
-                {developerOtp && (
-                    <div style={{background: '#dcfce7', border: '2px dashed #16a34a', padding: '15px', borderRadius: '8px', textAlign: 'center', marginBottom: '20px', animation: 'fadeIn 0.5s'}}>
-                        <span style={{color: '#166534', fontSize: '0.9rem', display: 'block', marginBottom: '5px'}}>Developer Code:</span>
-                        <strong style={{color: '#16a34a', fontSize: '2rem', letterSpacing: '3px', fontFamily:'monospace'}}>{developerOtp}</strong>
-                    </div>
-                )}
+                <p style={{textAlign:'center', fontSize:'0.9rem', color:'#64748b', marginBottom:'15px'}}>Check your email for code</p>
                 <form onSubmit={handleReset} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     <input type="text" placeholder="Enter OTP" value={resetData.otp} onChange={e=>setResetData({...resetData, otp:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc', letterSpacing:'2px', textAlign:'center', fontSize:'1.1rem' }} />
                     <input type="password" placeholder="New Password" value={resetData.newPassword} onChange={e=>setResetData({...resetData, newPassword:e.target.value})} required style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }} />
