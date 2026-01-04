@@ -1,150 +1,141 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import toast from 'react-hot-toast';
 
 const Agreement = () => {
-  const { id } = useParams();
+  const { id } = useParams(); // Event ID
+  const [searchParams] = useSearchParams();
+  const sponsorId = searchParams.get('sponsorId'); // Specific sponsor (for Admin/Organizer)
+  
   const [event, setEvent] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [sponsor, setSponsor] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const pdfRef = useRef(); // PDF area reference
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
-    // Load Signature Font
-    const link = document.createElement('link'); link.href = "https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap"; link.rel = "stylesheet"; document.head.appendChild(link);
-    
-    const storedUser = JSON.parse(localStorage.getItem('user'));
-    setCurrentUser(storedUser);
-    if (!storedUser) { navigate('/login'); return; }
+    const fetchData = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) return navigate('/login');
 
-    const fetchEvent = async () => {
-      try { 
-          const config = { headers: { Authorization: `Bearer ${storedUser.token}` } };
-          const res = await axios.get(`/api/events/${id}`, config); 
-          setEvent(res.data); 
-      } catch (error) { alert("Error loading agreement."); }
+        const config = { headers: { Authorization: `Bearer ${user.token}` } };
+        const { data } = await axios.get(`/api/events/${id}`, config);
+        setEvent(data);
+
+        // Logic: Kaunsa sponsor dikhana hai?
+        let currentSponsor;
+        if (sponsorId) {
+            // Agar URL mein sponsorId hai (Admin/Organizer view)
+            currentSponsor = data.sponsors.find(s => s.sponsorId === sponsorId);
+        } else {
+            // Agar khud Sponsor dekh raha hai
+            currentSponsor = data.sponsors.find(s => s.sponsorId === user._id);
+        }
+
+        setSponsor(currentSponsor);
+      } catch (error) {
+        toast.error("Could not load agreement data");
+      } finally {
+        setLoading(false);
+      }
     };
-    fetchEvent();
-  }, [id, navigate]);
+    fetchData();
+  }, [id, sponsorId, navigate]);
 
-  if (!event || !currentUser) return null;
+  // 👇 PDF DOWNLOAD MAGIC
+  const downloadPDF = async () => {
+    const element = pdfRef.current;
+    const canvas = await html2canvas(element, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`Sponsorship_Agreement_${event?.title}.pdf`);
+    toast.success("PDF Downloaded! 📄");
+  };
 
-  // Logic to find the correct sponsorship record
-  const queryParams = new URLSearchParams(location.search);
-  const paramSponsorId = queryParams.get('sponsorId');
-  const targetSponsorId = paramSponsorId ? paramSponsorId : currentUser._id;
-  
-  const mySponsorship = event.sponsors?.find(s => s.sponsorId === targetSponsorId);
-
-  if (!mySponsorship) return <div style={{textAlign:'center', padding:'50px', fontFamily:'Poppins'}}><h2>❌ Agreement Not Found</h2><p>Record does not match.</p><button onClick={() => navigate(-1)} style={{padding:'10px 20px', cursor:'pointer'}}>Go Back</button></div>;
-
-  const isOrganizer = event.user._id === currentUser._id;
-  const isAdmin = currentUser.role === 'admin';
-  const isSponsor = currentUser._id === mySponsorship.sponsorId;
-  const canViewComment = isOrganizer || isAdmin || isSponsor;
+  if (loading) return <div style={{textAlign:'center', marginTop:'50px'}}>Loading Agreement...</div>;
+  if (!event || !sponsor) return <div style={{textAlign:'center', marginTop:'50px', color:'red'}}>Agreement Details Not Found</div>;
 
   return (
-    <div style={{ background: '#525659', minHeight: '100vh', padding: '40px 0' }}>
+    <div style={{ minHeight: '100vh', background: '#52525b', padding: '40px 0', fontFamily: 'Times New Roman' }}>
       
-      {(isAdmin || isOrganizer) && <div className="no-print" style={{textAlign:'center', color:'white', marginBottom:'15px', background:'#f97316', padding:'10px'}}>👮 OFFICIAL VIEW MODE</div>}
+      {/* BUTTONS */}
+      <div style={{ maxWidth: '800px', margin: '0 auto 20px', display: 'flex', justifyContent: 'space-between' }}>
+          <button onClick={() => navigate(-1)} style={{ padding: '10px 20px', background: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>⬅ Back</button>
+          <button onClick={downloadPDF} style={{ padding: '10px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 15px rgba(37, 99, 235, 0.4)' }}>⬇ Download PDF</button>
+      </div>
 
-      <div className="print-area" style={{ padding: '60px', fontFamily: '"Times New Roman", Times, serif', maxWidth: '800px', margin: '0 auto', background: '#fff', boxShadow: '0 0 20px rgba(0,0,0,0.3)', minHeight: '1000px', position:'relative' }}>
+      {/* 👇 AGREEMENT PAPER (Iska PDF banega) */}
+      <div ref={pdfRef} style={{ background: 'white', width: '210mm', minHeight: '297mm', margin: '0 auto', padding: '25mm', boxShadow: '0 0 20px rgba(0,0,0,0.3)', position: 'relative' }}>
         
-        {/* HEADER */}
-        <div style={{ textAlign: 'center', marginBottom: '40px', borderBottom: '2px solid #000', paddingBottom: '20px' }}>
-            <h1 style={{ textTransform: 'uppercase', fontSize: '2rem', margin: '0' }}>Sponsorship Agreement</h1>
-            <p style={{ fontStyle: 'italic', margin: '5px 0', fontSize:'1.1rem' }}>Memorandum of Understanding (MoU)</p>
+        {/* Header */}
+        <div style={{ textAlign: 'center', borderBottom: '2px solid #000', paddingBottom: '20px', marginBottom: '30px' }}>
+            <h1 style={{ fontSize: '24pt', margin: 0, textTransform: 'uppercase', letterSpacing: '2px' }}>Sponsorship Agreement</h1>
+            <p style={{ margin: '5px 0 0', fontSize: '12pt' }}>Official Memorandum of Understanding</p>
         </div>
 
-        <div style={{ lineHeight: '1.8', fontSize: '1.1rem', textAlign: 'justify' }}>
-          <p>This Agreement is executed on <strong>{new Date(mySponsorship.date).toLocaleDateString()}</strong> between:</p>
-
-          <div style={{ display:'flex', justifyContent:'space-between', margin:'20px 0', background:'#f8fafc', padding:'20px', border:'1px solid #ddd' }}>
-            <div style={{width:'48%'}}>
-                <strong style={{textDecoration:'underline', color:'#666'}}>THE SPONSOR:</strong><br/>
-                {(isOrganizer || isAdmin) ? (
-                    <span style={{color:'#d97706', fontWeight:'bold', fontSize:'1.1rem'}}>🏢 {mySponsorship.companyName || "Company Name"}</span>
-                ) : (
-                    <span>{mySponsorship.name}</span>
-                )}
-                <br/>
-                <span style={{fontSize:'0.9rem'}}>{mySponsorship.email}</span>
-            </div>
-            <div style={{width:'48%', textAlign:'right'}}>
-                <strong style={{textDecoration:'underline', color:'#666'}}>THE BENEFICIARY (COLLEGE):</strong><br/>
-                <span style={{fontWeight:'bold'}}>Student Committee</span><br/>
-                <span style={{fontSize:'1.1rem', fontWeight:'bold', color:'#1e3a8a'}}>{event.user?.collegeName || "Campus Institute"}</span><br/>
-                <span style={{fontSize:'0.9rem'}}>Event: {event.title}</span>
-            </div>
-          </div>
-
-          <div style={{ textAlign: 'center', margin: '30px 0 10px 0', padding: '20px', border: '3px double #000' }}>
-            <span style={{ textTransform: 'uppercase', letterSpacing: '1px', fontSize:'0.9rem' }}>Committed Sponsorship Amount</span><br/>
-            <strong style={{ fontSize: '2.5rem' }}>₹ {mySponsorship.amount}</strong>
-          </div>
-
-          {canViewComment && mySponsorship.comment && (
-              <div style={{ textAlign:'center', marginBottom:'30px', padding:'15px', background:'#fffbeb', border:'1px dashed #f59e0b', color:'#92400e', fontSize:'0.9rem', borderRadius:'8px' }}>
-                  <strong>Note:</strong> <em>"{mySponsorship.comment}"</em>
-              </div>
-          )}
-
-          <p><strong>TERMS & PAYMENT CONDITIONS:</strong></p>
-          <ol style={{ marginLeft: '20px' }}>
-            <li style={{ marginBottom: '10px' }}>The Organizer agrees to provide branding and promotion to the Sponsor as discussed mutually.</li>
+        {/* Content */}
+        <div style={{ fontSize: '12pt', lineHeight: '1.6' }}>
+            <p>This Agreement is entered into on <strong>{new Date(sponsor.date).toLocaleDateString()}</strong>, by and between:</p>
             
-            {/* 👇 UPDATED LOGIC: 3 DAYS WARNING & DIRECT COLLEGE PAYMENT */}
-            <li style={{ marginBottom: '10px' }}>
-                {mySponsorship.status === 'verified' 
-                    ? <span>✅ <strong>DEAL SEALED:</strong> The Sponsor confirms that the payment has been transferred <strong>DIRECTLY to the College Authority</strong>. The Platform acts only as a connector and holds no funds.</span>
-                    : <span style={{color:'#dc2626', fontWeight:'bold'}}>⚠️ PAYMENT WARNING: The Sponsor agrees to pay the pledged amount DIRECTLY to the College Bank Account within 3 BUSINESS DAYS. Failure to do so will render this deal cancelled.</span>
-                }
-            </li>
-            
-            <li>This document serves as a binding proof of the mutual agreement between the Sponsor and the College Committee.</li>
-          </ol>
+            <p style={{ margin: '20px 0' }}>
+                <strong>1. THE ORGANIZER:</strong><br/>
+                Name: {event.user.name}<br/>
+                Event: {event.title}<br/>
+                Location: {event.location}
+            </p>
+
+            <p style={{ margin: '20px 0' }}>
+                <strong>2. THE SPONSOR:</strong><br/>
+                Company: {sponsor.companyName}<br/>
+                Representative: {sponsor.name}<br/>
+                Email: {sponsor.email}
+            </p>
+
+            <h3 style={{ textDecoration: 'underline', marginTop: '30px' }}>TERMS & CONDITIONS:</h3>
+            <ol style={{ paddingLeft: '20px' }}>
+                <li>The Sponsor agrees to provide a sum of <strong>₹{sponsor.amount}</strong> to the Organizer.</li>
+                <li>The Organizer agrees to use these funds strictly for the purpose of the event <strong>"{event.title}"</strong>.</li>
+                <li>In return, the Organizer will provide branding/marketing exposure as discussed.</li>
+                <li>Refund Policy: Refunds are subject to the approval of the Organizer and Admin platform policies.</li>
+                <li>This agreement is binding and verified digitally by the CampusSponsor Platform.</li>
+            </ol>
         </div>
 
-        {/* ALIGNMENT FIXED SIGNATURES */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '100px', alignItems: 'flex-end' }}>
-          
-          <div style={{ width:'200px', display:'flex', flexDirection:'column', alignItems:'center' }}>
-            <div style={{ fontFamily: '"Dancing Script", cursive', fontSize: '2rem', color: '#1e3a8a', marginBottom: '5px' }}>{mySponsorship.name}</div>
-            <div style={{ borderTop: '1px solid #000', width:'100%', paddingTop:'5px', textAlign:'center' }}>Authorized Signature</div>
-          </div>
-
-          <div style={{ width:'200px', display:'flex', flexDirection:'column', alignItems:'center', position:'relative' }}>
-             
-             {/* STAMPS */}
-             <div style={{ height:'130px', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:'-25px', zIndex:10 }}>
-                {mySponsorship.status === 'verified' ? (
-                     <div style={{ border: '5px double #16a34a', color: '#16a34a', borderRadius: '50%', width: '130px', height: '130px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection:'column', fontWeight: 'bold', fontSize: '0.9rem', textAlign: 'center', transform: 'rotate(-15deg)', background:'rgba(22, 163, 74, 0.05)', boxShadow:'0 0 10px rgba(22, 163, 74, 0.2)' }}>
-                        <span>OFFICIAL</span><span style={{fontSize:'1.2rem', lineHeight:'1'}}>DEAL</span><span>DONE</span>
-                     </div>
-                ) : mySponsorship.status === 'refund_requested' ? (
-                     <div style={{ border: '4px double #dc2626', color: '#dc2626', borderRadius: '8px', width: '140px', height: '70px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection:'column', fontWeight: 'bold', fontSize: '1rem', textAlign: 'center', transform: 'rotate(-10deg)', background:'rgba(220, 38, 38, 0.05)' }}>
-                        REFUND<br/>REQUESTED
-                     </div>
-                ) : (
-                     <div style={{ border: '4px double #2563eb', color: '#2563eb', borderRadius: '50%', width: '130px', height: '130px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection:'column', fontWeight: 'bold', fontSize: '0.8rem', textAlign: 'center', transform: 'rotate(-15deg)', background:'rgba(37, 99, 235, 0.05)' }}>
-                        <span>PLEDGE</span><span style={{fontSize:'1.1rem', lineHeight:'1'}}>RECORDED</span><span style={{fontSize:'0.6rem'}}>(Pending Payment)</span>
-                     </div>
-                )}
-             </div>
-
-            <div style={{ borderTop: '1px solid #000', width:'100%', paddingTop:'5px', textAlign:'center', background:'rgba(255,255,255,0.8)', zIndex:20 }}>Platform Verified</div>
-          </div>
-
+        {/* Digital Stamp */}
+        <div style={{ position: 'absolute', top: '40%', right: '10%', opacity: 0.1, transform: 'rotate(-20deg)', border: '5px solid #000', padding: '10px 30px', fontSize: '4rem', fontWeight: 'bold', color: 'red' }}>
+            {sponsor.status === 'verified' ? 'PAID & VERIFIED' : 'DRAFT / PENDING'}
         </div>
-      </div>
 
-      <div className="no-print" style={{ marginTop: '30px', textAlign: 'center' }}>
-        <button onClick={() => window.print()} style={{ padding: '12px 25px', cursor: 'pointer', fontSize:'1rem' }}>🖨️ Print / Save PDF</button>
-        <button onClick={() => navigate(-1)} style={{ marginLeft:'10px', padding: '12px 25px', cursor: 'pointer', fontSize:'1rem' }}>Go Back</button>
+        {/* Signatures */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '100px', paddingTop: '20px' }}>
+            <div style={{ textAlign: 'center', width: '200px' }}>
+                <div style={{ fontFamily: 'Cursive', fontSize: '1.5rem', color: '#2563eb' }}>{sponsor.name}</div>
+                <div style={{ borderTop: '1px solid #000', marginTop: '5px', paddingTop: '5px' }}>Signature of Sponsor</div>
+            </div>
+
+            <div style={{ textAlign: 'center', width: '200px' }}>
+                <div style={{ fontFamily: 'Cursive', fontSize: '1.5rem', color: '#2563eb' }}>CampusSponsor Auth</div>
+                <div style={{ borderTop: '1px solid #000', marginTop: '5px', paddingTop: '5px' }}>Platform Verification</div>
+            </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ position: 'absolute', bottom: '20mm', left: '0', width: '100%', textAlign: 'center', fontSize: '10pt', color: '#666' }}>
+            Generated via CampusSponsor | Date: {new Date().toLocaleString()} | ID: {sponsor.sponsorId}
+        </div>
+
       </div>
-      
-      <style>{`@media print { body * { visibility: hidden; } .print-area, .print-area * { visibility: visible; } .print-area { position: absolute; left: 0; top: 0; width: 100%; margin:0; padding:40px; } .no-print { display: none; } }`}</style>
     </div>
   );
 };
+
 export default Agreement;
