@@ -1,30 +1,29 @@
 const nodemailer = require('nodemailer');
 
 const sendEmail = async (options) => {
-  // 1. Credentials Check
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.log("❌ Credentials Missing");
     throw new Error("Email Credentials Missing");
   }
 
-  // 2. Password Auto-Fix (Spaces Hatao)
   const cleanPassword = process.env.EMAIL_PASS.replace(/\s+/g, '');
 
-  // 3. Transporter Setup (Port 587 - Best for Render)
   const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 587,              // 👈 Port change kiya (465 hata diya)
-    secure: false,          // 👈 587 ke liye ye false hona chahiye
+    port: 587, // Port 587 Best hai
+    secure: false, 
     auth: {
       user: process.env.EMAIL_USER,
       pass: cleanPassword,
     },
     tls: {
-      rejectUnauthorized: false // 👈 Ye zaroori hai taaki Render block na ho
-    }
+      rejectUnauthorized: false
+    },
+    // 👇 YE HAI MAGIC: 10 Second se zyada wait nahi karega
+    connectionTimeout: 10000, 
+    greetingTimeout: 10000,
+    socketTimeout: 10000
   });
 
-  // 4. Send Email
   const mailOptions = {
     from: `"CampusSponsor" <${process.env.EMAIL_USER}>`,
     to: options.email,
