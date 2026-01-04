@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { jsPDF } from "jspdf"; // 👈 PDF Logic Added
+import { jsPDF } from "jspdf"; 
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -44,70 +44,136 @@ const Profile = () => {
     navigate('/login');
   };
 
-  // 👇 SHARED PDF GENERATOR (Student & Sponsor Dono Use Karenge)
-  const generateAgreement = (event, sponsorData, isStudentView) => {
+  // 👇 FINAL PROFESSIONAL PDF GENERATOR (No Overlap)
+  const generateAgreement = (event, sponsorData) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
 
-    // Header
+    // 1. PAGE BORDER
+    doc.setLineWidth(1);
+    doc.setDrawColor(44, 62, 80); // Dark border
+    doc.rect(5, 5, pageWidth - 10, pageHeight - 10); // Border around page
+
+    // 2. HEADER
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(24);
-    doc.setTextColor(41, 128, 185);
+    doc.setFontSize(22);
+    doc.setTextColor(41, 128, 185); // Blue
     doc.text("SPONSORSHIP AGREEMENT", pageWidth / 2, 25, { align: "center" });
     
-    // Ref ID
+    // Ref & Date
     doc.setFontSize(10);
     doc.setTextColor(100);
-    const refId = sponsorData.paymentId ? sponsorData.paymentId.slice(-8).toUpperCase() : 'GEN-001';
-    doc.text(`Ref: CSP-${refId}`, 150, 15);
-    
-    // Line
-    doc.setLineWidth(0.8);
-    doc.setDrawColor(41, 128, 185);
-    doc.line(20, 32, 190, 32);
+    const txnId = sponsorData.paymentId || "TXN-PENDING";
+    doc.text(`Reference: CSP-${txnId.slice(-6).toUpperCase()}`, 150, 15);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 15);
 
-    // Content
+    // Line Divider
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(200);
+    doc.line(15, 35, 195, 35);
+
+    // 3. PARTIES SECTION (Using Split Text to avoid overlap)
     doc.setFontSize(12);
     doc.setTextColor(0);
     doc.setFont("helvetica", "normal");
+    doc.text("This Agreement is made and entered into by:", 20, 50);
+
+    // -- LEFT SIDE: SPONSOR --
+    doc.setFont("helvetica", "bold");
+    doc.text("THE SPONSOR", 20, 65);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
     
-    // Using Data based on who is viewing
-    const sponsorName = sponsorData.companyName || sponsorData.name;
+    const sponsorName = sponsorData.companyName || sponsorData.name || "Sponsor";
+    const sponsorEmail = sponsorData.email || "N/A";
+    
+    // Wrap text if too long
+    const sponsorLines = doc.splitTextToSize(`${sponsorName}\n${sponsorEmail}`, 80);
+    doc.text(sponsorLines, 20, 75);
+
+    // -- RIGHT SIDE: ORGANIZER --
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("THE ORGANIZER", 120, 65);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    
     const organizerName = event.user?.name || "College Rep";
+    const organizerEmail = event.user?.email || "organizer@college.edu";
 
-    doc.text(`Agreement executed on ${new Date(sponsorData.date || Date.now()).toLocaleDateString()}`, 20, 50);
+    const orgLines = doc.splitTextToSize(`${organizerName}\n${organizerEmail}\nEvent: ${event.title}`, 80);
+    doc.text(orgLines, 120, 75);
+
+    // 4. PAYMENT BOX (Grey Background)
+    doc.setFillColor(245, 247, 250);
+    doc.setDrawColor(220);
+    doc.rect(20, 110, 170, 40, "FD"); // Fill & Draw Border
 
     doc.setFont("helvetica", "bold");
-    doc.text("SPONSOR:", 20, 65);
+    doc.setFontSize(12);
+    doc.setTextColor(44, 62, 80);
+    doc.text("PAYMENT DETAILS", 25, 122);
+
     doc.setFont("helvetica", "normal");
-    doc.text(`${sponsorName} (${sponsorData.email})`, 20, 72);
-
+    doc.setTextColor(0);
+    doc.text(`Amount Received:`, 25, 135);
     doc.setFont("helvetica", "bold");
-    doc.text("ORGANIZER:", 120, 65);
+    doc.setFontSize(14);
+    doc.text(`INR ${sponsorData.amount}/-`, 70, 135);
+
+    doc.setFontSize(11);
     doc.setFont("helvetica", "normal");
-    doc.text(`${organizerName}`, 120, 72);
-    doc.text(`Event: ${event.title}`, 120, 78);
+    doc.text(`Transaction ID: ${txnId}`, 25, 145);
+    doc.text(`Status: VERIFIED`, 140, 135);
 
-    // Grey Box
-    doc.setFillColor(240, 242, 245);
-    doc.rect(20, 95, 170, 30, "F");
+    // 5. TERMS
     doc.setFont("helvetica", "bold");
-    doc.text(`PAID AMOUNT: INR ${sponsorData.amount}/-`, 25, 115);
+    doc.text("TERMS & CONDITIONS", 20, 170);
     doc.setFont("helvetica", "normal");
-    doc.text(`Txn ID: ${sponsorData.paymentId}`, 100, 115);
-
-    // Stamp
-    const stampX = 150;
-    const stampY = 200;
-    doc.setDrawColor(22, 160, 133);
-    doc.setLineWidth(1.5);
-    doc.circle(stampX, stampY, 20, "S");
-    doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.setTextColor(22, 160, 133);
-    doc.text("VERIFIED", stampX, stampY+2, {align:"center"});
+    const terms = [
+        "1. The Organizer acknowledges the receipt of funds for the stated event.",
+        "2. The Sponsor is entitled to the branding benefits as agreed upon.",
+        "3. This document serves as a formal receipt and proof of partnership.",
+        "4. Refunds are subject to the platform's policy (7 days prior notice).",
+        "5. Disputes are to be resolved via CampusSponsor Admin intervention."
+    ];
+    let y = 180;
+    terms.forEach(t => { doc.text(t, 20, y); y += 8; });
 
-    doc.save(`${event.title}_${sponsorName}_Agreement.pdf`);
+    // 6. DIGITAL STAMP (Fixed Layout)
+    const stampX = 160;
+    const stampY = 240;
+    
+    // Outer Circle
+    doc.setDrawColor(22, 160, 133); // Teal Green
+    doc.setLineWidth(1.5);
+    doc.circle(stampX, stampY, 22);
+    
+    // Inner Circle
+    doc.setLineWidth(0.5);
+    doc.circle(stampX, stampY, 19);
+
+    // Text in Stamp
+    doc.setFontSize(8);
+    doc.setTextColor(22, 160, 133);
+    doc.setFont("helvetica", "bold");
+    doc.text("CAMPUS", stampX, stampY - 5, { align: "center" });
+    doc.text("VERIFIED", stampX, stampY + 1, { align: "center" });
+    doc.text("SPONSOR", stampX, stampY + 7, { align: "center" });
+    
+    // Date in Stamp
+    doc.setFontSize(6);
+    doc.text(new Date().toLocaleDateString(), stampX, stampY + 14, { align: "center" });
+
+    // 7. FOOTER
+    doc.setFontSize(9);
+    doc.setTextColor(150);
+    doc.text("System Generated via CampusSponsor | Valid without physical signature.", pageWidth / 2, 280, { align: "center" });
+
+    doc.save(`${event.title}_Agreement.pdf`);
+    toast.success("Professional Agreement Downloaded!");
   };
 
   return (
@@ -132,7 +198,7 @@ const Profile = () => {
 
       <h2 style={{ marginTop: '40px', color: '#334155' }}>My Dashboard</h2>
       
-      {/* 🎓 STUDENT VIEW (Organizer) */}
+      {/* 🎓 STUDENT VIEW */}
       {user.role === 'student' && (
         <div style={{ display: 'grid', gap: '20px' }}>
             {myEvents.map(event => (
@@ -143,7 +209,6 @@ const Profile = () => {
                         <span>Sponsors: {event.sponsors.length}</span>
                     </div>
 
-                    {/* 👇 SPONSORS LIST FOR STUDENT */}
                     {event.sponsors.length > 0 ? (
                         <div style={{background:'#f8fafc', padding:'15px', borderRadius:'8px', border:'1px solid #e2e8f0'}}>
                             <strong style={{color:'#334155'}}>💰 Sponsors & Actions:</strong>
@@ -155,17 +220,10 @@ const Profile = () => {
                                             <div style={{color:'#16a34a', fontSize:'0.9rem'}}>+ ₹{s.amount} • {s.status.toUpperCase()}</div>
                                         </div>
                                         
-                                        {/* ACTION BUTTONS FOR STUDENT */}
                                         <div style={{display:'flex', gap:'10px'}}>
-                                            {/* Contact Button */}
-                                            <a href={`mailto:${s.email}`} style={{textDecoration:'none', background:'#e0f2fe', color:'#0284c7', padding:'5px 10px', borderRadius:'5px', fontSize:'0.8rem', fontWeight:'bold'}}>
-                                                📧 Contact
-                                            </a>
-                                            {/* Agreement Button */}
+                                            <a href={`mailto:${s.email}`} style={{textDecoration:'none', background:'#e0f2fe', color:'#0284c7', padding:'5px 10px', borderRadius:'5px', fontSize:'0.8rem', fontWeight:'bold'}}>📧 Contact</a>
                                             {s.status === 'verified' && (
-                                                <button onClick={() => generateAgreement(event, s, true)} style={{background:'#f1f5f9', border:'1px solid #cbd5e1', padding:'5px 10px', borderRadius:'5px', cursor:'pointer', fontSize:'0.8rem'}}>
-                                                    📄 Agreement
-                                                </button>
+                                                <button onClick={() => generateAgreement(event, s)} style={{background:'#f1f5f9', border:'1px solid #cbd5e1', padding:'5px 10px', borderRadius:'5px', cursor:'pointer', fontSize:'0.8rem'}}>📄 Agreement</button>
                                             )}
                                         </div>
                                     </div>
@@ -186,7 +244,7 @@ const Profile = () => {
         <div style={{ display: 'grid', gap: '20px' }}>
             {sponsoredEvents.map(event => {
                 const mySponsorship = event.sponsors.find(s => s.sponsorId === user._id);
-                // Date Logic for Refund
+                // Date Logic
                 const paymentDate = new Date(mySponsorship.date || Date.now());
                 const eventDate = new Date(event.date);
                 const now = new Date();
@@ -202,7 +260,6 @@ const Profile = () => {
                                 <p style={{color:'#64748b', fontSize:'0.9rem'}}>Paid: ₹{mySponsorship.amount} | Status: <strong>{mySponsorship.status}</strong></p>
                             </div>
                             
-                            {/* 👇 ORGANIZER CONTACT FOR SPONSOR */}
                             <div style={{textAlign:'right'}}>
                                 <div style={{fontSize:'0.8rem', color:'#64748b'}}>Organizer Contact:</div>
                                 <a href={`mailto:${event.user?.email}`} style={{color:'#2563eb', fontWeight:'bold', textDecoration:'none', fontSize:'0.9rem'}}>
@@ -212,8 +269,7 @@ const Profile = () => {
                         </div>
 
                         <div style={{display:'flex', gap:'10px', marginTop:'15px', flexWrap:'wrap'}}>
-                             {/* Agreement Button */}
-                             <button onClick={() => generateAgreement(event, mySponsorship, false)} style={{background:'#1e293b', color:'white', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer', fontSize:'0.85rem'}}>
+                             <button onClick={() => generateAgreement(event, mySponsorship)} style={{background:'#1e293b', color:'white', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer', fontSize:'0.85rem'}}>
                                 📄 Download Agreement
                             </button>
 
