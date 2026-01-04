@@ -52,7 +52,7 @@ const AdminDashboard = () => {
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // 📊 CHART DATA PREPARATION
+  // CHART DATA
   const userStats = [
     { name: 'Students', value: users.filter(u => u.role === 'student').length, color: '#3b82f6' },
     { name: 'Sponsors', value: users.filter(u => u.role === 'sponsor').length, color: '#f59e0b' },
@@ -77,42 +77,40 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* 📊 CHARTS SECTION (Only Visible on All Users Tab or Default) */}
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          
-          {/* Pie Chart: User Roles */}
-          <div style={{ background: '#1e293b', padding: '20px', borderRadius: '15px', width: '100%', maxWidth: '400px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
-              <h3 style={{ textAlign: 'center', marginBottom: '10px', color: '#cbd5e1' }}>User Distribution</h3>
-              <div style={{ height: '250px' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                        <Pie data={userStats} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                            {userStats.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                        </Pie>
-                        <Tooltip contentStyle={{background:'#334155', border:'none', color:'white'}} />
-                        <Legend />
-                    </PieChart>
-                </ResponsiveContainer>
+      {/* 📊 CHARTS (Fixed: Only render when data is ready) */}
+      {!loading && users.length > 0 && (
+          <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              
+              <div style={{ background: '#1e293b', padding: '20px', borderRadius: '15px', width: '100%', maxWidth: '400px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
+                  <h3 style={{ textAlign: 'center', marginBottom: '10px', color: '#cbd5e1' }}>User Distribution</h3>
+                  <div style={{ height: '250px', width: '100%' }}> {/* Explicit Width/Height */}
+                    <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                            <Pie data={userStats} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                                {userStats.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                            </Pie>
+                            <Tooltip contentStyle={{background:'#334155', border:'none', color:'white'}} />
+                            <Legend />
+                        </PieChart>
+                    </ResponsiveContainer>
+                  </div>
               </div>
-          </div>
 
-          {/* Bar Chart: Events Status */}
-          <div style={{ background: '#1e293b', padding: '20px', borderRadius: '15px', width: '100%', maxWidth: '500px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
-              <h3 style={{ textAlign: 'center', marginBottom: '10px', color: '#cbd5e1' }}>Event Statistics</h3>
-              <div style={{ height: '250px' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={eventStats}>
-                        <XAxis dataKey="name" stroke="#cbd5e1" />
-                        <YAxis stroke="#cbd5e1" />
-                        <Tooltip cursor={{fill: '#334155'}} contentStyle={{background:'#1e293b', border:'1px solid #475569', color:'white'}} />
-                        <Bar dataKey="count" fill="#38bdf8" barSize={50} radius={[5, 5, 0, 0]} />
-                    </BarChart>
-                </ResponsiveContainer>
+              <div style={{ background: '#1e293b', padding: '20px', borderRadius: '15px', width: '100%', maxWidth: '500px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
+                  <h3 style={{ textAlign: 'center', marginBottom: '10px', color: '#cbd5e1' }}>Event Statistics</h3>
+                  <div style={{ height: '250px', width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={eventStats}>
+                            <XAxis dataKey="name" stroke="#cbd5e1" />
+                            <YAxis stroke="#cbd5e1" />
+                            <Tooltip cursor={{fill: '#334155'}} contentStyle={{background:'#1e293b', border:'1px solid #475569', color:'white'}} />
+                            <Bar dataKey="count" fill="#38bdf8" barSize={50} radius={[5, 5, 0, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                  </div>
               </div>
           </div>
-      </div>
+      )}
 
       {/* TABS */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '30px', flexWrap:'wrap' }}>
@@ -139,7 +137,7 @@ const AdminDashboard = () => {
                     </tr>
                 </thead>
                 <tbody>
-                    {/* REFUNDS */}
+                    {/* 1. REFUNDS */}
                     {view === 'refunds' && refundReqs.map((r, i) => (
                         <tr key={i} style={{ borderBottom: '1px solid #334155' }}>
                             <td style={{ padding: '20px' }}>
@@ -151,7 +149,7 @@ const AdminDashboard = () => {
                             <td style={{ padding: '20px' }}><button onClick={()=>handleAction(`/api/events/${r.eventId}/process-refund`, 'put', "Refunded!", {sponsorId: r.sponsorId})} style={actionBtn('#ef4444')}>REFUND</button></td>
                         </tr>
                     ))}
-                    {/* PENDING EVENTS */}
+                    {/* 2. PENDING EVENTS */}
                     {view === 'pending_events' && events.filter(e=>!e.isApproved).map(e => (
                         <tr key={e._id} style={{ borderBottom: '1px solid #334155' }}>
                             <td style={{ padding: '20px' }}><strong>{e.title}</strong><br/>Budget: ₹{e.budget}</td>
@@ -160,7 +158,7 @@ const AdminDashboard = () => {
                             <td style={{ padding: '20px' }}><button onClick={()=>handleAction(`/api/events/${e._id}/approve`, 'put', "Approved!")} style={actionBtn('#16a34a')}>APPROVE</button></td>
                         </tr>
                     ))}
-                    {/* PENDING USERS */}
+                    {/* 3. PENDING USERS */}
                     {view === 'pending_users' && users.filter(u=>!u.isVerified).map(u => (
                         <tr key={u._id} style={{ borderBottom: '1px solid #334155' }}>
                             <td style={{ padding: '20px' }}><strong>{u.name}</strong><br/>{u.email}</td>
@@ -169,7 +167,7 @@ const AdminDashboard = () => {
                             <td style={{ padding: '20px' }}><button onClick={()=>handleAction(`/api/users/${u._id}/approve`, 'put', "Verified!")} style={actionBtn('#16a34a')}>APPROVE</button></td>
                         </tr>
                     ))}
-                    {/* ALL USERS */}
+                    {/* 4. ALL USERS */}
                     {view === 'all_users' && filteredUsers.map(u => (
                         <tr key={u._id} style={{ borderBottom: '1px solid #334155' }}>
                             <td style={{ padding: '20px' }}><strong>{u.name}</strong><br/>{u.email}</td>
@@ -186,17 +184,10 @@ const AdminDashboard = () => {
                 </tbody>
             </table>
         </div>
-        {view === 'refunds' && refundReqs.length === 0 && <div style={{padding:'40px', textAlign:'center', color:'#94a3b8'}}>No refund requests pending.</div>}
       </div>
     </div>
   );
 };
 
 const Stat = ({n, label, color}) => (<div style={{textAlign:'right'}}><div style={{fontSize:'1.5rem', fontWeight:'bold', color}}>{n}</div><div style={{fontSize:'0.7rem', color:'#94a3b8'}}>{label}</div></div>);
-const Tab = ({active, onClick, label, color}) => (<button onClick={onClick} style={{padding:'10px 15px', borderRadius:'8px', background: active ? `${color}20` : '#1e293b', border: active ? `2px solid ${color}` : 'none', color: active ? color : '#94a3b8', cursor:'pointer', fontWeight:'bold', fontSize:'0.9rem'}}>{label}</button>);
-const actionBtn = (bg) => ({ padding:'8px 10px', background:bg, color:'white', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold', fontSize:'0.75rem' });
-const linkBtn = { color: '#38bdf8', background:'transparent', border: '1px solid #38bdf8', padding: '5px 8px', borderRadius: '5px', cursor:'pointer', textDecoration:'none', fontSize:'0.75rem', fontWeight:'bold' };
-const logoutBtn = { background:'#ef4444', color:'white', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer', fontWeight:'bold', fontSize:'0.8rem' };
-const searchInput = { width: '100%', padding: '12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '10px', color: 'white', marginBottom: '20px', outline: 'none' };
-
-export default AdminDashboard;
+const Tab = ({active, onClick, label, color}) => (<button onClick={onClick} style={{padding:'10px 15px', borderRadius:'8px', background: active ? `${color}20` : '#1e293b', border: active ? `2px solid ${color}` : 'none', color

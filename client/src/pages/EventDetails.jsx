@@ -23,10 +23,21 @@ const EventDetails = () => {
     fetchEvent();
   }, [id]);
 
+  // 👇 MAIN FIX: VERIFICATION CHECK
   const handleSponsor = async (e) => {
     e.preventDefault();
+    
+    // 1. Login Check
     if (!user) return navigate('/login');
+    
+    // 2. Role Check
     if (user.role !== 'sponsor') return toast.error("Only Sponsors can pledge!");
+
+    // 3. 🛡️ VERIFICATION CHECK (Ye Missing Tha)
+    if (!user.isVerified) {
+        toast.error("🚫 Account Not Verified! Please wait for Admin approval.");
+        return; // Yahi se wapas, Loading true nahi hoga
+    }
 
     setLoading(true);
     try {
@@ -39,9 +50,8 @@ const EventDetails = () => {
     } finally { setLoading(false); }
   };
 
-  // 👇 WHATSAPP SHARE LOGIC
   const shareOnWhatsApp = () => {
-      const message = `Check out this amazing event: *${event.title}* on CampusSponsor! \n\nHelp us make it happen: ${window.location.href}`;
+      const message = `Check out this amazing event: *${event?.title}* on CampusSponsor! \n\nHelp us make it happen: ${window.location.href}`;
       const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
       window.open(url, '_blank');
   };
@@ -64,7 +74,6 @@ const EventDetails = () => {
         <p style={{ fontSize: '1.1rem', lineHeight: '1.6', color: '#334155', marginBottom: '30px' }}>{event.description}</p>
 
         <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-            {/* 👇 WHATSAPP SHARE BUTTON */}
             <button 
                 onClick={shareOnWhatsApp}
                 style={{ flex: 1, padding: '12px', background: '#25D366', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:'10px' }}
@@ -87,9 +96,12 @@ const EventDetails = () => {
             <form onSubmit={handleSponsor} style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
                 <input type="number" placeholder="Enter Amount (₹)" value={amount} onChange={e=>setAmount(e.target.value)} required style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ccc' }} />
                 <textarea placeholder="Message for Organizer (Optional)" value={comment} onChange={e=>setComment(e.target.value)} style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ccc', height: '80px' }} />
-                <button type="submit" disabled={loading} style={{ padding: '15px', background: '#f59e0b', color: 'black', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}>
-                    {loading ? 'Processing...' : 'Pledge Support'}
+                
+                {/* BUTTON (Disabled if not verified for visual cue) */}
+                <button type="submit" disabled={loading} style={{ padding: '15px', background: user.isVerified ? '#f59e0b' : '#94a3b8', color: user.isVerified ? 'black' : 'white', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', cursor: user.isVerified ? 'pointer' : 'not-allowed' }}>
+                    {loading ? 'Processing...' : (user.isVerified ? 'Pledge Support' : 'Verification Pending 🔒')}
                 </button>
+                {!user.isVerified && <p style={{color:'#ef4444', textAlign:'center', fontSize:'0.9rem'}}>* You need Admin approval to sponsor.</p>}
             </form>
         ) : (
             <div style={{ textAlign: 'center', marginTop: '20px', color: '#64748b' }}>
@@ -97,7 +109,6 @@ const EventDetails = () => {
             </div>
         )}
       </div>
-
     </div>
   );
 };
