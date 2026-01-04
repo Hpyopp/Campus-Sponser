@@ -15,9 +15,9 @@ const createEvent = asyncHandler(async (req, res) => {
   res.status(201).json(event);
 });
 
-// 2. GET ALL EVENTS
+// 2. GET ALL APPROVED EVENTS (For Home Page)
 const getEvents = asyncHandler(async (req, res) => {
-  const events = await Event.find().populate('user', 'name email').sort({ createdAt: -1 });
+  const events = await Event.find({ isApproved: true }).populate('user', 'name email').sort({ createdAt: -1 });
   res.json(events);
 });
 
@@ -100,8 +100,15 @@ const deleteEvent = asyncHandler(async (req, res) => {
   await event.deleteOne(); res.json({ message: 'Deleted' });
 });
 
+// 👇 NAYA: 10. ADMIN: Get All Events for Verification
+const getAllEventsForAdmin = asyncHandler(async (req, res) => {
+  const events = await Event.find().populate('user', 'name email').sort({ createdAt: -1 });
+  res.json(events);
+});
+
 module.exports = {
   createEvent, getEvents, getEventById, sponsorEvent,
   verifyPayment, requestRefund, processRefund, rejectSponsorship,
-  approveEvent, revokeEvent, deleteEvent
+  approveEvent, revokeEvent, deleteEvent, 
+  getAllEventsForAdmin // 👈 Added to exports
 };
