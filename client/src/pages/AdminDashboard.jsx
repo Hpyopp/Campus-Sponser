@@ -1,191 +1,250 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { jsPDF } from "jspdf";
 
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
-  const [tab, setTab] = useState('users'); // users, events
-  const [filter, setFilter] = useState('all'); // all, student, sponsor
+  const [events, setEvents] = useState([]);
+  const [view, setView] = useState('pending_users'); 
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [chartReady, setChartReady] = useState(false);
   const navigate = useNavigate();
 
-  // 1. DATA FETCHING
+  // Silence Console Error (Recharts issue)
   useEffect(() => {
-    const fetchData = async () => {
-      const user = JSON.parse(localStorage.getItem('user'));
-      if (!user || user.role !== 'admin') { navigate('/'); return; }
-
-      try {
-        const config = { headers: { Authorization: `Bearer ${user.token}` } };
-        // Sabhi users ko fetch karo
-        const res = await axios.get('https://campus-sponser-api.onrender.com/api/users/all', config);
-        setUsers(res.data);
-      } catch (error) {
-        toast.error("Failed to fetch data");
-      }
+    const originalError = console.error;
+    console.error = (...args) => {
+      if (typeof args[0] === "string" && /width\(/.test(args[0])) return;
+      originalError(...args);
     };
-    fetchData();
-  }, [navigate]);
+    return () => { console.error = originalError; }; 
+  }, []);
 
-  // 2. APPROVE LOGIC
-  const handleApprove = async (id) => {
+  const fetchData = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (!user || user.role !== 'admin') return navigate('/login');
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      
+      const [uRes, eRes] = await Promise.all([
+          axios.get('https://campus-sponser-api.onrender.com/api/users/all', config),
+          axios.get('https://campus-sponser-api.onrender.com/api/events/admin/all', config)
+      ]);
+      setUsers(uRes.data);
+      setEvents(eRes.data);
+      setTimeout(() => setChartReady(true), 500); 
+    } catch (e) { toast.error("Sync Failed!"); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchData(); }, []);
+
+  const handleAction = async (url, method, msg, body = {}) => {
     try {
       const user = JSON.parse(localStorage.getItem('user'));
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      await axios.put(`https://campus-sponser-api.onrender.com/api/users/${id}/approve`, {}, config);
-      
-      toast.success("User Approved! 🎉");
-      // UI update bina refresh kiye
-      setUsers(users.map(u => u._id === id ? { ...u, isVerified: true } : u));
-    } catch (error) { toast.error("Approval Failed"); }
+      method === 'delete' ? await axios.delete(url, config) : await axios.put(url, body, config);
+      toast.success(msg);
+      fetchData(); // Refresh Data
+    } catch (e) { toast.error("Command Failed!"); }
   };
 
-  // 3. DELETE LOGIC (🗑️ NEW)
-  const handleDelete = async (id) => {
-    if(!window.confirm("Are you sure you want to delete this user? This cannot be undone.")) return;
-
-    try {
-      const user = JSON.parse(localStorage.getItem('user'));
-      const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      await axios.delete(`https://campus-sponser-api.onrender.com/api/users/${id}`, config);
-      
-      toast.success("User Deleted Successfully 🗑️");
-      // UI se hatao
-      setUsers(users.filter(u => u._id !== id)); 
-    } catch (error) { toast.error("Delete Failed"); }
+  // 🗑️ DELETE WRAPPER (Safety Check)
+  const confirmDelete = (id) => {
+      if(window.confirm("Are you sure you want to PERMANENTLY delete this user?")) {
+          handleAction(`https://campus-sponser-api.onrender.com/api/users/${id}`, 'delete', "User Deleted Successfully 🗑️");
+      }
   };
 
-  // Filter Logic
-  const filteredUsers = users.filter(user => {
-    if (filter === 'all') return true;
-    return user.role === filter;
+  // Generate Agreement PDF
+  const viewAgreement = (s, eventTitle) => {
+      const doc = new jsPDF();
+      doc.setFontSize(22);
+      doc.text("Sponsorship Agreement (Admin View)", 20, 20);
+      doc.setFontSize(12);
+      doc.text(`Sponsor: ${s.companyName} (${s.name})`, 20, 40);
+      doc.text(`Event: ${eventTitle}`, 20, 50);
+      doc.text(`Amount: INR ${s.amount}`, 20, 60);
+      doc.text(`Payment ID: ${s.paymentId}`, 20, 70);
+      doc.text(`Status: ${s.status.toUpperCase()}`, 20, 80);
+      window.open(doc.output('bloburl'), '_blank');
+  };
+
+  // EXTRACT DATA
+  const refundReqs = [];
+  const allPayments = [];
+
+  events.forEach(e => {
+      e.sponsors?.forEach(s => {
+          if (s.status === 'verified' || s.status === 'refund_requested') {
+              allPayments.push({...s, eventId: e._id, eventTitle: e.title});
+          }
+          if (s.status === 'refund_requested') {
+              refundReqs.push({...s, eventId: e._id, eventTitle: e.title});
+          }
+      });
   });
 
+  const filteredUsers = users.filter(u => 
+    u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    u.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const userStats = [
+    { name: 'Students', value: users.filter(u => u.role === 'student').length, color: '#3b82f6' },
+    { name: 'Sponsors', value: users.filter(u => u.role === 'sponsor').length, color: '#f59e0b' },
+    { name: 'Admins', value: users.filter(u => u.role === 'admin').length, color: '#ef4444' }
+  ];
+
+  const eventStats = [
+    { name: 'Approved', count: events.filter(e => e.isApproved).length },
+    { name: 'Pending', count: events.filter(e => !e.isApproved).length }
+  ];
+
   return (
-    <div style={{ padding: '20px', fontFamily: 'Poppins', background: '#f8fafc', minHeight: '100vh' }}>
+    <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white', fontFamily: 'Poppins', padding: '20px' }}>
       
       {/* HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-        <h1 style={{ color: '#1e293b', margin: 0 }}>⚡ Admin Dashboard</h1>
-        <div style={{display:'flex', gap:'10px'}}>
-             <button onClick={() => navigate('/')} style={{ padding: '10px 20px', background: '#fff', border: '1px solid #ccc', borderRadius: '5px', cursor: 'pointer' }}>Home</button>
-             <button onClick={() => { localStorage.clear(); navigate('/login'); }} style={{ padding: '10px 20px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>Logout</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px', borderBottom: '1px solid #334155', paddingBottom: '20px', marginBottom: '30px' }}>
+        <h1 style={{ color: '#38bdf8', margin: 0 }}>⚡ GOD MODE PANEL</h1>
+        <div style={{ display: 'flex', gap: '15px' }}>
+            <Stat n={events.filter(e=>!e.isApproved).length} label="PENDING EVENTS" color="#38bdf8" />
+            <Stat n={refundReqs.length} label="REFUND REQS" color="#ef4444" />
+            <button onClick={()=>{localStorage.removeItem('user'); navigate('/login');}} style={logoutBtn}>LOGOUT</button>
         </div>
       </div>
+
+      {/* CHARTS (Wait for data) */}
+      {!loading && chartReady && users.length > 0 && (
+          <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <div style={{ background: '#1e293b', padding: '20px', borderRadius: '15px', flex: '1 1 300px', maxWidth: '400px', minWidth: '0' }}>
+                  <div style={{ width: '100%', height: 250 }}>
+                    <ResponsiveContainer width="99%" height="100%">
+                        <PieChart>
+                            <Pie data={userStats} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                                {userStats.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                            </Pie>
+                            <Tooltip contentStyle={{background:'#334155', border:'none', color:'white'}} />
+                            <Legend />
+                        </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+              </div>
+              <div style={{ background: '#1e293b', padding: '20px', borderRadius: '15px', flex: '1 1 300px', maxWidth: '500px', minWidth: '0' }}>
+                  <div style={{ width: '100%', height: 250 }}>
+                    <ResponsiveContainer width="99%" height="100%">
+                        <BarChart data={eventStats}>
+                            <XAxis dataKey="name" stroke="#cbd5e1" />
+                            <Tooltip cursor={{fill: '#334155'}} contentStyle={{background:'#1e293b', border:'1px solid #475569', color:'white'}} />
+                            <Bar dataKey="count" fill="#38bdf8" barSize={50} radius={[5, 5, 0, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+              </div>
+          </div>
+      )}
 
       {/* TABS */}
-      <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', borderBottom:'1px solid #e2e8f0', paddingBottom:'10px' }}>
-        <button onClick={() => setTab('users')} style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: tab === 'users' ? '#2563eb' : 'transparent', color: tab === 'users' ? 'white' : '#64748b', fontWeight: 'bold', cursor: 'pointer' }}>👥 Users Management</button>
-        <button onClick={() => setTab('events')} style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: tab === 'events' ? '#2563eb' : 'transparent', color: tab === 'events' ? 'white' : '#64748b', fontWeight: 'bold', cursor: 'pointer' }}>🚀 Events</button>
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '30px', flexWrap:'wrap' }}>
+        <Tab active={view==='pending_users'} onClick={()=>setView('pending_users')} label="👥 Pending Users" color="#eab308" />
+        <Tab active={view==='pending_events'} onClick={()=>setView('pending_events')} label="🚀 Events" color="#38bdf8" />
+        <Tab active={view==='refunds'} onClick={()=>setView('refunds')} label={`💸 Refunds (${refundReqs.length})`} color="#ef4444" />
+        <Tab active={view==='history'} onClick={()=>setView('history')} label={`📜 History`} color="#16a34a" />
+        <Tab active={view==='all_users'} onClick={()=>setView('all_users')} label={`🌐 All Users`} color="#6366f1" />
       </div>
 
-      {/* USER TABLE SECTION */}
-      {tab === 'users' && (
-        <>
-          {/* FILTERS */}
-          <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
-            <button onClick={() => setFilter('all')} style={{ padding: '6px 15px', borderRadius: '20px', border: filter === 'all' ? '2px solid #2563eb' : '1px solid #ccc', background: filter === 'all' ? '#eff6ff' : 'white', color: filter === 'all' ? '#2563eb' : '#64748b', cursor: 'pointer', fontWeight:'bold' }}>All</button>
-            <button onClick={() => setFilter('student')} style={{ padding: '6px 15px', borderRadius: '20px', border: filter === 'student' ? '2px solid #2563eb' : '1px solid #ccc', background: filter === 'student' ? '#eff6ff' : 'white', color: filter === 'student' ? '#2563eb' : '#64748b', cursor: 'pointer', fontWeight:'bold' }}>Students</button>
-            <button onClick={() => setFilter('sponsor')} style={{ padding: '6px 15px', borderRadius: '20px', border: filter === 'sponsor' ? '2px solid #2563eb' : '1px solid #ccc', background: filter === 'sponsor' ? '#eff6ff' : 'white', color: filter === 'sponsor' ? '#2563eb' : '#64748b', cursor: 'pointer', fontWeight:'bold' }}>Sponsors</button>
-          </div>
+      {view === 'all_users' && <input type="text" placeholder="Search by Name or Email..." value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} style={searchInput} />}
 
-          <div style={{ background: 'white', borderRadius: '10px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                <tr>
-                  <th style={{ padding: '15px', color: '#475569', fontSize:'0.9rem' }}>User Info</th>
-                  <th style={{ padding: '15px', color: '#475569', fontSize:'0.9rem' }}>Role</th>
-                  <th style={{ padding: '15px', color: '#475569', fontSize:'0.9rem' }}>Verification Doc</th>
-                  <th style={{ padding: '15px', color: '#475569', fontSize:'0.9rem' }}>Status</th>
-                  <th style={{ padding: '15px', color: '#475569', fontSize:'0.9rem', textAlign:'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map(user => (
-                  <tr key={user._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+      {/* TABLE */}
+      <div style={{ background: '#1e293b', borderRadius: '15px', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}>
+        <div style={{ overflowX: 'auto', width: '100%' }}> 
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
+                <thead style={{ background: '#334155', color: '#cbd5e1', fontSize: '0.85rem' }}>
+                    <tr>
+                        <th style={{ padding: '20px' }}>INFO</th>
+                        <th style={{ padding: '20px' }}>DETAILS</th>
+                        <th style={{ padding: '20px' }}>DOCS</th>
+                        <th style={{ padding: '20px' }}>ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {/* 1. REFUNDS VIEW */}
+                    {view === 'refunds' && refundReqs.map((r, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid #334155' }}>
+                            <td style={{ padding: '20px' }}><div style={{fontWeight:'bold'}}>{r.name}</div><div style={{color:'#f87171'}}>Refund: ₹{r.amount}</div></td>
+                            <td style={{ padding: '20px', color:'#38bdf8' }}>{r.eventTitle}</td>
+                            <td style={{ padding: '20px' }}><button onClick={() => viewAgreement(r, r.eventTitle)} style={linkBtn}>📄 Agreement</button></td>
+                            <td style={{ padding: '20px' }}><button onClick={()=>handleAction(`https://campus-sponser-api.onrender.com/api/events/${r.eventId}/process-refund`, 'put', "Refund Processed!", {sponsorId: r.sponsorId})} style={actionBtn('#ef4444')}>APPROVE REFUND</button></td>
+                        </tr>
+                    ))}
+
+                    {/* 2. HISTORY VIEW */}
+                    {view === 'history' && allPayments.map((r, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid #334155' }}>
+                            <td style={{ padding: '20px' }}><div style={{fontWeight:'bold'}}>{r.name}</div><div style={{color:'#4ade80'}}>Paid: ₹{r.amount}</div></td>
+                            <td style={{ padding: '20px' }}>{r.eventTitle}</td>
+                            <td style={{ padding: '20px' }}><button onClick={() => viewAgreement(r, r.eventTitle)} style={linkBtn}>📄 View</button></td>
+                            <td style={{ padding: '20px', fontSize:'0.8rem', color:'#94a3b8' }}>ID: {r.paymentId}</td>
+                        </tr>
+                    ))}
+
+                    {/* 3. PENDING EVENTS */}
+                    {view === 'pending_events' && events.filter(e=>!e.isApproved).map(e => (
+                        <tr key={e._id} style={{ borderBottom: '1px solid #334155' }}>
+                            <td style={{ padding: '20px' }}><strong>{e.title}</strong><br/>Budget: ₹{e.budget}</td>
+                            <td style={{ padding: '20px' }}>{e.user?.name}</td>
+                            <td style={{ padding: '20px' }}>{e.permissionLetter ? <a href={e.permissionLetter} target="_blank" style={linkBtn}>View Doc</a> : "No Doc"}</td>
+                            <td style={{ padding: '20px' }}><button onClick={()=>handleAction(`https://campus-sponser-api.onrender.com/api/events/${e._id}/approve`, 'put', "Approved!")} style={actionBtn('#16a34a')}>APPROVE</button></td>
+                        </tr>
+                    ))}
                     
-                    {/* 1. Name & Email */}
-                    <td style={{ padding: '15px' }}>
-                      <div style={{ fontWeight: 'bold', color: '#1e293b' }}>{user.name}</div>
-                      <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{user.email}</div>
-                      <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{user.phone}</div>
-                    </td>
+                    {/* 4. PENDING USERS (With DELETE) */}
+                    {view === 'pending_users' && users.filter(u=>!u.isVerified).map(u => (
+                        <tr key={u._id} style={{ borderBottom: '1px solid #334155' }}>
+                            <td style={{ padding: '20px' }}><strong>{u.name}</strong><br/>{u.email}</td>
+                            <td style={{ padding: '20px' }}>{u.role.toUpperCase()}</td>
+                            <td style={{ padding: '20px' }}>{u.verificationDoc ? <a href={u.verificationDoc} target="_blank" style={linkBtn}>View ID</a> : "No Doc"}</td>
+                            <td style={{ padding: '20px', display:'flex', gap:'10px' }}>
+                                <button onClick={()=>handleAction(`https://campus-sponser-api.onrender.com/api/users/${u._id}/approve`, 'put', "Verified!")} style={actionBtn('#16a34a')}>APPROVE</button>
+                                <button onClick={()=>confirmDelete(u._id)} style={actionBtn('#ef4444')}>🗑️ DELETE</button>
+                            </td>
+                        </tr>
+                    ))}
 
-                    {/* 2. Role */}
-                    <td style={{ padding: '15px' }}>
-                      <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold', background: user.role === 'student' ? '#dbeafe' : '#ffedd5', color: user.role === 'student' ? '#1e40af' : '#c2410c' }}>
-                        {user.role.toUpperCase()}
-                      </span>
-                      <div style={{ fontSize: '0.8rem', marginTop:'5px', color: '#64748b' }}>
-                        {user.companyName || user.collegeName}
-                      </div>
-                    </td>
-
-                    {/* 3. Doc Link */}
-                    <td style={{ padding: '15px' }}>
-                      {user.verificationDoc ? (
-                        <a href={user.verificationDoc} target="_blank" rel="noopener noreferrer" style={{ display:'inline-block', padding:'5px 10px', border:'1px solid #2563eb', borderRadius:'5px', textDecoration:'none', color:'#2563eb', fontSize:'0.85rem' }}>
-                          📄 View Document
-                        </a>
-                      ) : (
-                        <span style={{ color: '#94a3b8', fontStyle:'italic', fontSize:'0.9rem' }}>Not Uploaded</span>
-                      )}
-                    </td>
-
-                    {/* 4. Status Badge (Logic Fix Here) */}
-                    <td style={{ padding: '15px' }}>
-                      {user.isVerified ? (
-                        <div style={{ display:'flex', alignItems:'center', gap:'5px', color: '#16a34a', fontWeight: 'bold' }}>
-                          ✅ Verified
-                        </div>
-                      ) : (
-                        <div style={{ color: '#eab308', fontWeight: 'bold' }}>
-                          ⏳ Pending
-                        </div>
-                      )}
-                    </td>
-
-                    {/* 5. Actions (Approve & Delete) */}
-                    <td style={{ padding: '15px', textAlign: 'right' }}>
-                      <div style={{ display:'flex', justifyContent:'flex-end', gap:'10px' }}>
-                        
-                        {/* Approve Button: Only if NOT Verified AND HAS Doc */}
-                        {!user.isVerified && user.verificationDoc && (
-                          <button onClick={() => handleApprove(user._id)} style={{ padding: '8px 12px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontSize:'0.85rem', fontWeight:'bold' }}>
-                            Approve
-                          </button>
-                        )}
-
-                        {/* DELETE BUTTON: Always Visible */}
-                        <button onClick={() => handleDelete(user._id)} style={{ padding: '8px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontSize:'0.85rem', fontWeight:'bold', display:'flex', alignItems:'center', gap:'5px' }}>
-                          🗑️ Delete
-                        </button>
-                      </div>
-                    </td>
-
-                  </tr>
-                ))}
-              </tbody>
+                    {/* 5. ALL USERS (NEW FIX: List all + Delete) */}
+                    {view === 'all_users' && filteredUsers.map(u => (
+                        <tr key={u._id} style={{ borderBottom: '1px solid #334155' }}>
+                            <td style={{ padding: '20px' }}>
+                                <strong>{u.name}</strong><br/>{u.email}
+                            </td>
+                            <td style={{ padding: '20px' }}>
+                                <span style={{color: u.role==='student' ? '#38bdf8' : '#f59e0b', fontWeight:'bold'}}>{u.role.toUpperCase()}</span>
+                            </td>
+                            <td style={{ padding: '20px' }}>
+                                {u.isVerified ? <span style={{color:'#4ade80'}}>✅ Verified</span> : <span style={{color:'#facc15'}}>⏳ Pending</span>}
+                            </td>
+                            <td style={{ padding: '20px' }}>
+                                <button onClick={()=>confirmDelete(u._id)} style={actionBtn('#ef4444')}>🗑️ DELETE</button>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
             </table>
-            
-            {filteredUsers.length === 0 && (
-                <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-                  No users found.
-                </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {tab === 'events' && (
-        <div style={{ textAlign: 'center', padding: '50px', background:'white', borderRadius:'10px' }}>
-          <h2 style={{color:'#64748b'}}>🚀 Event Management Panel</h2>
-          <p>Coming Soon...</p>
         </div>
-      )}
-
+      </div>
     </div>
   );
 };
+
+const Stat = ({n, label, color}) => (<div style={{textAlign:'right'}}><div style={{fontSize:'1.5rem', fontWeight:'bold', color}}>{n}</div><div style={{fontSize:'0.7rem', color:'#94a3b8'}}>{label}</div></div>);
+const Tab = ({active, onClick, label, color}) => (<button onClick={onClick} style={{padding:'10px 15px', borderRadius:'8px', background: active ? `${color}20` : '#1e293b', border: active ? `2px solid ${color}` : 'none', color: active ? color : '#94a3b8', cursor:'pointer', fontWeight:'bold', fontSize:'0.9rem'}}>{label}</button>);
+const actionBtn = (bg) => ({ padding:'8px 10px', background:bg, color:'white', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold', fontSize:'0.75rem' });
+const linkBtn = { color: '#38bdf8', background:'transparent', border: '1px solid #38bdf8', padding: '5px 8px', borderRadius: '5px', cursor:'pointer', textDecoration:'none', fontSize:'0.75rem', fontWeight:'bold' };
+const logoutBtn = { background:'#ef4444', color:'white', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer', fontWeight:'bold', fontSize:'0.8rem' };
+const searchInput = { width: '100%', padding: '12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '10px', color: 'white', marginBottom: '20px', outline: 'none' };
 
 export default AdminDashboard;
