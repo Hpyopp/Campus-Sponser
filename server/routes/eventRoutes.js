@@ -1,31 +1,22 @@
 const express = require('express');
 const router = express.Router();
-
-// Import Controller
-const controller = require('../controllers/eventController');
+const eventController = require('../controllers/eventController');
 const { protect, admin } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 
-// --- ROUTES ---
+// 1. PUBLIC ROUTES (Bina Login ke dikhenge)
+router.get('/', eventController.getEvents);
+router.get('/:id', eventController.getEventById);
 
-// Public Routes (Yehi 500 de raha tha)
-router.get('/', controller.getEvents);
-router.get('/:id', controller.getEventById);
+// 2. PROTECTED ROUTES (Login Zaroori Hai)
+router.post('/', protect, upload.single('permissionLetter'), eventController.createEvent);
 
-// Organizer Routes
-router.post('/', protect, upload.single('permissionLetter'), controller.createEvent);
-router.delete('/:id', protect, controller.deleteEvent);
-router.post('/organizer/reject-deal', protect, controller.rejectSponsorship);
+// 👇 YAHAN GALTI THI: Ye Line Missing thi, isliye Error aa raha tha
+router.put('/:id/sponsor', protect, eventController.sponsorEvent);
 
-// Admin Routes
-router.put('/admin/approve/:id', protect, admin, controller.approveEvent);
-router.put('/admin/revoke/:id', protect, admin, controller.revokeEvent);
-router.post('/admin/verify-payment', protect, controller.verifySponsorship);
-router.post('/admin/approve-refund', protect, controller.approveRefund);
-router.post('/admin/reject-refund', protect, controller.rejectRefund);
-
-// Sponsor Routes
-router.put('/sponsor/:id', protect, controller.sponsorEvent);
-router.put('/request-refund/:id', protect, controller.requestRefund);
+// 3. ADMIN ROUTES
+router.put('/:id/approve', protect, admin, eventController.approveEvent);
+router.put('/:id/revoke', protect, admin, eventController.revokeEvent);
+router.delete('/:id', protect, admin, eventController.deleteEvent);
 
 module.exports = router;
