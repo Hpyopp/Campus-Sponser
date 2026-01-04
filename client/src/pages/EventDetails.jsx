@@ -26,111 +26,115 @@ const EventDetails = () => {
   const mySponsorship = event?.sponsors?.find(s => s.sponsorId === user?._id && s.status === 'verified');
   const isFullyFunded = event?.raisedAmount >= event?.budget;
 
-  // 👇 PROFESSIONAL PDF GENERATOR
+  // 👇 STAMP WALA AGREEMENT LOGIC
   const downloadAgreement = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
 
     // 1. HEADER
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(22);
-    doc.setTextColor(44, 62, 80); // Dark Blue
-    doc.text("SPONSORSHIP AGREEMENT", pageWidth / 2, 20, { align: "center" });
+    doc.setFontSize(24);
+    doc.setTextColor(41, 128, 185); // Professional Blue
+    doc.text("SPONSORSHIP AGREEMENT", pageWidth / 2, 25, { align: "center" });
     
+    // REF ID
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Ref ID: CSP-${mySponsorship.paymentId ? mySponsorship.paymentId.slice(-8).toUpperCase() : 'GEN'}`, 160, 10);
+    const refId = mySponsorship.paymentId ? mySponsorship.paymentId.slice(-8).toUpperCase() : 'GEN-001';
+    doc.text(`Agreement Ref: CSP-${refId}`, 150, 15);
 
     // Line Divider
-    doc.setLineWidth(0.5);
-    doc.setDrawColor(200);
-    doc.line(20, 25, 190, 25);
+    doc.setLineWidth(0.8);
+    doc.setDrawColor(41, 128, 185);
+    doc.line(20, 32, 190, 32);
 
-    // 2. PARTIES INVOLVED
+    // 2. PARTIES
     doc.setFontSize(12);
     doc.setTextColor(0);
     doc.setFont("helvetica", "normal");
-    doc.text(`This Agreement is entered into on ${new Date().toLocaleDateString()} by and between:`, 20, 40);
+    doc.text(`This Agreement is executed on ${new Date().toLocaleDateString()} between:`, 20, 50);
 
-    // Sponsor Info
+    // SPONSOR BLOCK
     doc.setFont("helvetica", "bold");
-    doc.text("THE SPONSOR:", 20, 50);
+    doc.text("THE SPONSOR (PAYER)", 20, 65);
     doc.setFont("helvetica", "normal");
-    const sponsorName = mySponsorship.companyName || user.companyName || user.name;
-    doc.text(`${sponsorName}`, 60, 50);
-    doc.text(`(${user.email})`, 60, 55);
+    doc.text(`${mySponsorship.companyName || user.companyName || user.name}`, 20, 72);
+    doc.text(`Email: ${user.email}`, 20, 78);
 
-    // Organizer Info
+    // ORGANIZER BLOCK
     doc.setFont("helvetica", "bold");
-    doc.text("THE ORGANIZER:", 20, 65);
+    doc.text("THE ORGANIZER (RECEIVER)", 120, 65);
     doc.setFont("helvetica", "normal");
-    const organizerName = event.user?.name || "College Representative";
-    doc.text(`${organizerName}`, 60, 65);
-    doc.text(`(Event Lead)`, 60, 70);
+    doc.text(`${event.user?.name || "College Representative"}`, 120, 72);
+    doc.text(`Event: ${event.title}`, 120, 78);
 
-    // 3. EVENT DETAILS (Grey Box)
-    doc.setFillColor(245, 247, 250); // Light Grey Background
-    doc.rect(20, 80, 170, 35, "F"); 
+    // 3. GREY BOX - PAYMENT DETAILS
+    doc.setFillColor(240, 242, 245); // Light Grey
+    doc.rect(20, 95, 170, 45, "F");
     
     doc.setFont("helvetica", "bold");
-    doc.text("EVENT DETAILS", 25, 90);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Event Name: ${event.title}`, 25, 100);
-    doc.text(`Date: ${new Date(event.date).toLocaleDateString()}`, 100, 100);
-    doc.text(`Location: ${event.location}`, 25, 110);
-
-    // 4. FINANCIALS
-    doc.setFont("helvetica", "bold");
-    doc.text("CONTRIBUTION DETAILS", 20, 130);
-    doc.setFont("helvetica", "normal");
-    doc.text(`The Sponsor agrees to provide financial support of:`, 20, 140);
+    doc.setTextColor(44, 62, 80);
+    doc.text("PAYMENT CONFIRMATION", 25, 108);
     
-    doc.setFontSize(16);
-    doc.setTextColor(39, 174, 96); // Green Color for Money
-    doc.text(`INR ${mySponsorship.amount}/-`, 20, 150);
-    
-    doc.setFontSize(12);
+    doc.setFontSize(14);
     doc.setTextColor(0);
-    doc.text(`Transaction Status: PAID & VERIFIED (ID: ${mySponsorship.paymentId})`, 20, 160);
-
-    // 5. TERMS & CONDITIONS
+    doc.setFont("helvetica", "normal");
+    doc.text(`Amount Paid:`, 25, 120);
     doc.setFont("helvetica", "bold");
-    doc.text("TERMS AND CONDITIONS", 20, 180);
+    doc.text(`INR ${mySponsorship.amount}/-`, 65, 120);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.text(`Transaction ID: ${mySponsorship.paymentId}`, 25, 130);
+    doc.text(`Payment Date: ${new Date(mySponsorship.date || Date.now()).toLocaleDateString()}`, 120, 130);
+
+    // 4. TERMS
+    doc.setFont("helvetica", "bold");
+    doc.text("TERMS OF ENGAGEMENT", 20, 160);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
+    
     const terms = [
-        "1. The Organizer agrees to use the funds strictly for the event mentioned above.",
-        "2. The Organizer will provide branding/marketing exposure to the Sponsor as discussed.",
-        "3. This agreement serves as an official proof of payment and partnership.",
-        "4. Any refunds are subject to the platform's refund policy (7 days prior notice).",
-        "5. This document is electronically generated and is valid without a physical seal."
+        "1. Funds received will be strictly used for the execution of the event mentioned.",
+        "2. The Organizer is liable to provide the agreed branding deliverables to the Sponsor.",
+        "3. This agreement serves as a binding proof of the sponsorship transaction.",
+        "4. Refunds are governed by the platform's policy (available within 24h/7days pre-event).",
+        "5. Disputes shall be resolved amicably through the CampusSponsor platform."
     ];
-    let yPos = 190;
-    terms.forEach(term => {
-        doc.text(term, 20, yPos);
-        yPos += 7;
-    });
+    let y = 170;
+    terms.forEach(t => { doc.text(t, 20, y); y += 8; });
 
-    // 6. SIGNATURES
+    // 5. DIGITAL STAMP (New Feature 🌟)
+    // Draw Circle
+    const stampX = 150;
+    const stampY = 240;
+    doc.setDrawColor(22, 160, 133); // Greenish Teal Color
+    doc.setLineWidth(1.5);
+    doc.circle(stampX, stampY, 22, "S"); 
+    
+    // Draw Inner Circle
     doc.setLineWidth(0.5);
-    doc.line(20, 250, 80, 250); // Line 1
-    doc.line(130, 250, 190, 250); // Line 2
-    
+    doc.circle(stampX, stampY, 20, "S");
+
+    // Stamp Text
     doc.setFont("helvetica", "bold");
-    doc.text("Authorized Signature", 20, 255);
-    doc.text("Authorized Signature", 130, 255);
+    doc.setFontSize(10);
+    doc.setTextColor(22, 160, 133);
+    doc.text("CAMPUS", stampX, stampY - 5, { align: "center" });
+    doc.text("VERIFIED", stampX, stampY + 0, { align: "center" });
+    doc.text("SPONSOR", stampX, stampY + 5, { align: "center" });
     
-    doc.setFont("helvetica", "normal");
-    doc.text("(Sponsor)", 20, 260);
-    doc.text("(Organizer)", 130, 260);
+    doc.setFontSize(7);
+    doc.text(`DATE: ${new Date().toLocaleDateString()}`, stampX, stampY + 12, { align: "center" });
 
-    // 7. FOOTER
-    doc.setFontSize(8);
+    // 6. FOOTER DISCLAIMER
+    doc.setFontSize(9);
     doc.setTextColor(150);
-    doc.text("Generated by CampusSponsor | Connecting Colleges & Corporates", pageWidth / 2, 280, { align: "center" });
+    doc.setFont("helvetica", "italic");
+    doc.text("This is a system-generated document & acts as a digital proof. No physical signature required.", pageWidth / 2, 280, { align: "center" });
 
-    doc.save(`${event.title}_Official_Agreement.pdf`);
-    toast.success("Professional Agreement Downloaded!");
+    doc.save(`Sponsorship_Agreement_${refId}.pdf`);
+    toast.success("Stamped Agreement Downloaded!");
   };
 
   const handlePayment = async (e) => {
@@ -216,8 +220,8 @@ const EventDetails = () => {
             <div style={{textAlign:'center'}}>
                 <h2 style={{color:'#16a34a'}}>✅ You are a Sponsor!</h2>
                 <p style={{color:'#64748b', marginBottom:'20px'}}>Thank you for contributing ₹{mySponsorship.amount}.</p>
-                <button onClick={downloadAgreement} style={{padding:'15px 30px', background:'#1e293b', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', fontSize:'1rem', boxShadow:'0 4px 10px rgba(0,0,0,0.2)'}}>
-                    📄 Download Professional Agreement
+                <button onClick={downloadAgreement} style={{padding:'15px 30px', background:'#0f172a', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', fontSize:'1rem', boxShadow:'0 4px 10px rgba(0,0,0,0.3)', display:'flex', alignItems:'center', justifyContent:'center', gap:'10px', margin:'0 auto'}}>
+                    <span>📄</span> Download Stamped Agreement
                 </button>
             </div>
         ) : isFullyFunded ? (
