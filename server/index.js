@@ -16,7 +16,7 @@ app.use(cors());
 const userRoutes = require('./routes/userRoutes');
 const eventRoutes = require('./routes/eventRoutes');
 
-// --- DEBUGGING LOGS (Terminal check karna) ---
+// --- DEBUGGING LOGS (Terminal mein dikhenge) ---
 console.log("------------------------------------------------");
 console.log("🛠️  ROUTE CHECK:");
 console.log("User Routes Type:", typeof userRoutes === 'function' ? '✅ Function (Correct)' : '❌ Object (WRONG!)');
@@ -32,14 +32,14 @@ if (typeof userRoutes === 'function') {
     console.error("🚨 CRITICAL ERROR: userRoutes.js is not exporting a router function!");
 }
 
-// 2. Event Routes (Yahan error aa raha tha shayad)
+// 2. Event Routes
 if (typeof eventRoutes === 'function') {
     app.use('/api/events', eventRoutes);
 } else {
-    console.error("🚨 CRITICAL ERROR: eventRoutes.js is not exporting a router function! Check module.exports");
+    console.error("🚨 CRITICAL ERROR: eventRoutes.js is not exporting a router function!");
 }
 
-// Upload Folder Static
+// Upload Folder Static Access
 app.use('/uploads', express.static(path.join(__dirname, '/uploads')));
 
 // Basic Route
@@ -47,7 +47,7 @@ app.get('/', (req, res) => {
     res.send('API is running...');
 });
 
-// Error Handling
+// Error Handling Middleware
 app.use((err, req, res, next) => {
     const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
     res.status(statusCode);
