@@ -15,7 +15,7 @@ const Navbar = () => {
         position:'sticky', 
         top:0, 
         zIndex:1000, 
-        flexWrap: 'wrap', // ✅ Mobile Fix
+        flexWrap: 'wrap', 
         gap: '15px' 
     }}>
       
@@ -26,7 +26,7 @@ const Navbar = () => {
       </Link>
 
       {/* LINKS */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '15px', fontFamily:'Poppins', fontWeight:'500', flexWrap:'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontFamily:'Poppins', fontWeight:'500', flexWrap:'wrap' }}>
         <Link to="/" style={{ textDecoration: 'none', color: '#64748b' }}>Home</Link>
         
         {user ? (
@@ -38,6 +38,11 @@ const Navbar = () => {
             {user.role === 'admin' && (
                 <Link to="/admin" style={{ textDecoration: 'none', color: '#dc2626', fontWeight:'bold' }}>Admin Panel</Link>
             )}
+
+            {/* 👇 NEW MESSAGES BUTTON ADDED 👇 */}
+            <Link to="/chat" style={{ textDecoration: 'none', color: '#64748b', display:'flex', alignItems:'center', gap:'5px' }}>
+                <span style={{fontSize:'1.2rem'}}>💬</span> Messages
+            </Link>
 
             {/* PROFILE LINK */}
             <div 
