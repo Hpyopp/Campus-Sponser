@@ -1,8 +1,33 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react'; // 👈 Hooks import kiye
+import axios from 'axios';
 
 const Navbar = () => {
   const navigate = useNavigate();
+  const [unreadCount, setUnreadCount] = useState(0); // 👈 Red Dot ke liye State
   const user = JSON.parse(localStorage.getItem('user'));
+
+  // 👇 Notification Polling Logic (Har 10 sec mein check karega)
+  useEffect(() => {
+    if (!user) return;
+    
+    const checkNotifications = async () => {
+        try {
+            const { data } = await axios.get('https://campus-sponser-api.onrender.com/api/notifications', {
+                headers: { Authorization: `Bearer ${user.token}` }
+            });
+            // Count unread notifications
+            const count = data.filter(n => !n.isRead).length;
+            setUnreadCount(count);
+        } catch (e) { 
+            console.error("Notification Check Failed", e); 
+        }
+    };
+
+    checkNotifications(); // Pehli baar check karo
+    const interval = setInterval(checkNotifications, 10000); // Phir har 10s baad
+    return () => clearInterval(interval); // Cleanup
+  }, []);
 
   return (
     <nav style={{ 
@@ -39,10 +64,30 @@ const Navbar = () => {
                 <Link to="/admin" style={{ textDecoration: 'none', color: '#dc2626', fontWeight:'bold' }}>Admin Panel</Link>
             )}
 
-            {/* 👇 NEW MESSAGES BUTTON ADDED 👇 */}
+            {/* MESSAGE LINK */}
             <Link to="/chat" style={{ textDecoration: 'none', color: '#64748b', display:'flex', alignItems:'center', gap:'5px' }}>
                 <span style={{fontSize:'1.2rem'}}>💬</span> Messages
             </Link>
+
+            {/* 👇🔔 NEW NOTIFICATION BELL ADDED HERE */}
+            <div 
+                onClick={() => { setUnreadCount(0); navigate('/notifications'); }} 
+                style={{ position: 'relative', cursor: 'pointer', fontSize: '1.4rem', display:'flex', alignItems:'center' }}
+            >
+                🔔
+                {unreadCount > 0 && (
+                    <span style={{
+                        position: 'absolute', top: '-5px', right: '-5px',
+                        background: '#ef4444', color: 'white', fontSize: '0.7rem',
+                        width: '18px', height: '18px', borderRadius: '50%',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold',
+                        border: '2px solid white'
+                    }}>
+                        {unreadCount}
+                    </span>
+                )}
+            </div>
+            {/* 👆🔔 END BELL */}
 
             {/* PROFILE LINK */}
             <div 

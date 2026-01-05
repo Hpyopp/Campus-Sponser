@@ -17,7 +17,8 @@ import Verify from './pages/Verify';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 import UserProfile from './pages/UserProfile';
-import Chat from './pages/Chat'; // 👈 IMPORT 1: Chat page import kiya
+import Chat from './pages/Chat';
+import Notifications from './pages/Notifications'; // 👈 IMPORT 1: Chat page import kiya
 
 // User Sync Helper
 const UserSync = () => {
@@ -71,6 +72,7 @@ function App() {
                 <Route path="/admin" element={<AdminDashboard />} /> 
                 <Route path="/verify" element={<Verify />} />
                 <Route path="*" element={<NotFound />} />
+                <Route path="/notifications" element={<Notifications />} />
             </Routes>
         </div>
         <Footer />

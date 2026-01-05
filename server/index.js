@@ -18,13 +18,15 @@ app.use(cors());
 const userRoutes = require('./routes/userRoutes');
 const eventRoutes = require('./routes/eventRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
-const chatRoutes = require('./routes/chatRoutes'); // 👈 NEW CHAT ROUTE
+const chatRoutes = require('./routes/chatRoutes');
+const notificationRoutes = require('./routes/notificationRoutes'); // 👈 NEW CHAT ROUTE
 
 // --- MOUNT ROUTES ---
 app.use('/api/users', userRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/payment', paymentRoutes);
-app.use('/api/chat', chatRoutes); // 👈 MOUNT CHAT ROUTE
+app.use('/api/chat', chatRoutes);
+app.use('/api/notifications', notificationRoutes); // 👈 MOUNT CHAT ROUTE
 
 // Static Uploads
 app.use('/uploads', express.static(path.join(__dirname, '/uploads')));
