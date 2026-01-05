@@ -38,7 +38,7 @@ const EventDetails = () => {
   const stages = ['pending', 'funding', 'completed'];
   const currentStep = stages.indexOf(currentStatus);
 
-  // 👇 SOCIAL SHARE LOGIC
+  // SHARE LOGIC
   const shareUrl = window.location.href;
   const shareText = `Check out this event: ${event.title} on CampusSponsor! Need support. 🚀`;
 
@@ -48,18 +48,16 @@ const EventDetails = () => {
         url = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + " " + shareUrl)}`;
     } else if (platform === 'linkedin') {
         url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
-    } else if (platform === 'twitter') {
-        url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
     }
     window.open(url, '_blank');
   };
 
   const copyLink = () => {
       navigator.clipboard.writeText(shareUrl);
-      toast.success("Link Copied to Clipboard! 🔗");
+      toast.success("Link Copied! 🔗");
   };
 
-  // PDF Logic (Shortened)
+  // PDF LOGIC
   const downloadAgreement = () => {
     const doc = new jsPDF();
     doc.text("Sponsorship Agreement", 20, 20);
@@ -67,11 +65,25 @@ const EventDetails = () => {
     toast.success("Downloaded!");
   };
 
+  // PAYMENT LOGIC
   const handlePayment = async (e) => {
     e.preventDefault();
     if (!user) return navigate('/login');
     if (user.role !== 'sponsor') return toast.error("Only Sponsors can pay!");
     toast.success("Redirecting to payment..."); 
+  };
+
+  // 👇 CHAT BUTTON HANDLER
+  const handleChat = () => {
+    if (!user) {
+        toast.error("Please login to chat!");
+        return navigate('/login');
+    }
+    // Khud se chat nahi kar sakte
+    if (user._id === event.user?._id) {
+        return toast.error("You can't chat with yourself!");
+    }
+    navigate(`/chat?userId=${event.user._id}`);
   };
 
   return (
@@ -89,7 +101,7 @@ const EventDetails = () => {
           ))}
         </div>
 
-        {/* 👇 SHARE BUTTONS (NEW) */}
+        {/* SHARE BUTTONS */}
         <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', justifyContent: 'flex-end' }}>
             <button onClick={() => handleShare('whatsapp')} style={{ background: '#25D366', border: 'none', padding: '8px 12px', borderRadius: '5px', color: 'white', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}>WhatsApp 📱</button>
             <button onClick={() => handleShare('linkedin')} style={{ background: '#0077b5', border: 'none', padding: '8px 12px', borderRadius: '5px', color: 'white', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}>LinkedIn 💼</button>
@@ -98,15 +110,45 @@ const EventDetails = () => {
 
         <h1 style={{ fontSize: '2.5rem', color: '#1e293b', marginBottom: '5px' }}>{event.title}</h1>
         
-        <div style={{ marginBottom: '25px' }}>
-            <span style={{ color: '#64748b', fontSize: '0.9rem' }}>Organized by: </span>
-            <Link 
-                to={`/u/${event.user?._id}`} 
-                style={{ color: '#2563eb', fontWeight: 'bold', textDecoration: 'none', fontSize: '1rem', borderBottom: '1px dashed #2563eb' }}
-            >
-                {event.user?.name || "Unknown Organizer"} 🔗
-            </Link>
+        {/* 👇👇 ORGANIZER INFO + CHAT BUTTON (UPDATED) 👇👇 */}
+        <div style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+            <div>
+                <span style={{ color: '#64748b', fontSize: '0.9rem' }}>Organized by: </span>
+                <Link 
+                    to={`/u/${event.user?._id}`} 
+                    style={{ color: '#2563eb', fontWeight: 'bold', textDecoration: 'none', fontSize: '1rem', borderBottom: '1px dashed #2563eb' }}
+                >
+                    {event.user?.name || "Unknown Organizer"} 🔗
+                </Link>
+            </div>
+
+            {/* Chat Button (Sirf tab dikhega jab user Khud Organizer na ho) */}
+            {user && user._id !== event.user?._id && (
+                <button 
+                    onClick={handleChat}
+                    style={{
+                        padding: '6px 15px',
+                        background: '#eff6ff',
+                        color: '#2563eb',
+                        border: '1px solid #2563eb',
+                        borderRadius: '20px',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: '0.2s'
+                    }}
+                    onMouseOver={(e) => e.target.style.background = '#dbeafe'}
+                    onMouseOut={(e) => e.target.style.background = '#eff6ff'}
+                >
+                    <span>💬</span> Chat with Organizer
+                </button>
+            )}
         </div>
+        {/* 👆👆 ------------------------------------------ 👆👆 */}
+
 
         {/* PROGRESS BAR */}
         <div style={{background:'#e2e8f0', borderRadius:'10px', height:'20px', width:'100%', marginBottom:'10px', overflow:'hidden'}}>
