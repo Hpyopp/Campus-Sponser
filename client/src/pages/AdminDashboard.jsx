@@ -2,19 +2,18 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { jsPDF } from "jspdf";
 
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [events, setEvents] = useState([]);
   const [view, setView] = useState('pending_users'); 
-  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [chartReady, setChartReady] = useState(false);
   const navigate = useNavigate();
 
-  // Silence Recharts width warnings
+  // Silence Recharts warnings
   useEffect(() => {
     const originalError = console.error;
     console.error = (...args) => {
@@ -53,7 +52,6 @@ const AdminDashboard = () => {
     } catch (e) { toast.error("Action Failed!"); }
   };
 
-  // 📄 Official PDF Agreement View
   const viewAgreement = (s, eventTitle) => {
       const doc = new jsPDF();
       doc.setFontSize(22);
@@ -66,7 +64,6 @@ const AdminDashboard = () => {
       window.open(doc.output('bloburl'), '_blank');
   };
 
-  // 📱 Social Sharing Functions
   const shareWhatsApp = (id, title) => {
     const link = `${window.location.origin}/event/${id}`;
     const text = `Check out this event: ${title} - ${link}`;
@@ -78,16 +75,25 @@ const AdminDashboard = () => {
     toast.success("Link Copied! 🔗");
   };
 
-  // Stats Logic
+  // --- STATS LOGIC ---
+  
+  // 1. Pie Chart Data (Role Distribution)
   const userStats = [
     { name: 'Students', value: users.filter(u => u.role === 'student').length, color: '#3b82f6' },
     { name: 'Sponsors', value: users.filter(u => u.role === 'sponsor').length, color: '#f59e0b' },
     { name: 'Admins', value: users.filter(u => u.role === 'admin').length, color: '#ef4444' }
   ];
 
+  // 2. Event Bar Chart Data
   const eventStats = [
     { name: 'Approved', count: events.filter(e => e.isApproved).length },
     { name: 'Pending', count: events.filter(e => !e.isApproved).length }
+  ];
+
+  // 3. 👇 NEW: Student vs Sponsor Bar Chart Data
+  const roleComparisonStats = [
+    { name: 'Students', count: users.filter(u => u.role === 'student').length, fill: '#3b82f6' },
+    { name: 'Sponsors', count: users.filter(u => u.role === 'sponsor').length, fill: '#f59e0b' }
   ];
 
   const allPayments = [];
@@ -100,7 +106,7 @@ const AdminDashboard = () => {
   return (
     <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white', fontFamily: 'Poppins', padding: '20px' }}>
       
-      {/* HEADER SECTION */}
+      {/* HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px', borderBottom: '1px solid #334155', paddingBottom: '20px', marginBottom: '30px' }}>
         <h1 style={{ color: '#38bdf8', margin: 0 }}>⚡ GOD MODE PANEL</h1>
         <div style={{ display: 'flex', gap: '20px' }}>
@@ -109,11 +115,53 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* 📊 CHARTS SECTION (Wahi Purana Look) */}
+      {/* 📊 CHARTS SECTION */}
       {!loading && chartReady && (
           <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', flexWrap: 'wrap', justifyContent: 'center' }}>
-              <div style={chartCard}><ResponsiveContainer width="100%" height={250}><PieChart><Pie data={userStats} innerRadius={60} outerRadius={80} dataKey="value">{userStats.map((entry, i) => <Cell key={i} fill={entry.color} />)}</Pie><Tooltip/><Legend/></PieChart></ResponsiveContainer></div>
-              <div style={chartCard}><ResponsiveContainer width="100%" height={250}><BarChart data={eventStats}><XAxis dataKey="name" stroke="#ccc"/><Tooltip/><Bar dataKey="count" fill="#38bdf8" radius={[5,5,0,0]}/></BarChart></ResponsiveContainer></div>
+              
+              {/* 1. PIE CHART (Overall Roles) */}
+              <div style={chartCard}>
+                <h3 style={{textAlign:'center', fontSize:'0.9rem', color:'#94a3b8'}}>Role Distribution</h3>
+                <ResponsiveContainer width="100%" height={250}>
+                    <PieChart>
+                        <Pie data={userStats} innerRadius={60} outerRadius={80} dataKey="value">
+                            {userStats.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                        </Pie>
+                        <Tooltip contentStyle={{backgroundColor:'#1e293b', border:'none', borderRadius:'10px'}}/>
+                        <Legend/>
+                    </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* 2. EVENT STATUS BAR CHART */}
+              <div style={chartCard}>
+                <h3 style={{textAlign:'center', fontSize:'0.9rem', color:'#94a3b8'}}>Event Status</h3>
+                <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={eventStats}>
+                        <XAxis dataKey="name" stroke="#ccc"/>
+                        <Tooltip contentStyle={{backgroundColor:'#1e293b', border:'none', borderRadius:'10px'}} cursor={{fill:'transparent'}}/>
+                        <Bar dataKey="count" fill="#38bdf8" radius={[5,5,0,0]} barSize={50}/>
+                    </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* 3. 👇 NEW: STUDENTS vs SPONSORS BAR CHART */}
+              <div style={chartCard}>
+                <h3 style={{textAlign:'center', fontSize:'0.9rem', color:'#94a3b8'}}>Students vs Sponsors</h3>
+                <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={roleComparisonStats}>
+                        <XAxis dataKey="name" stroke="#ccc"/>
+                        <Tooltip contentStyle={{backgroundColor:'#1e293b', border:'none', borderRadius:'10px'}} cursor={{fill:'transparent'}}/>
+                        <Bar dataKey="count" radius={[5,5,0,0]} barSize={50}>
+                            {/* Individual colors for bars */}
+                            {roleComparisonStats.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                            ))}
+                        </Bar>
+                    </BarChart>
+                </ResponsiveContainer>
+              </div>
+
           </div>
       )}
 
@@ -128,7 +176,7 @@ const AdminDashboard = () => {
       {/* MAIN CONTENT TABLE/GRID */}
       <div style={{ background: '#1e293b', borderRadius: '15px', padding: '20px' }}>
         
-        {/* 🚀 EVENTS CONTROL WITH SPONSOR LISTING */}
+        {/* EVENTS CONTROL */}
         {view === 'events' && (
           <div style={{ display: 'grid', gap: '20px' }}>
             {events.map(e => (
@@ -148,7 +196,6 @@ const AdminDashboard = () => {
                   </div>
                 </div>
 
-                {/* 👇 LIST OF SPONSORS FOR THIS EVENT */}
                 {e.sponsors?.length > 0 && (
                   <div style={{marginTop:'20px', background: '#0f172a', padding: '15px', borderRadius: '8px'}}>
                     <h4 style={{margin:'0 0 10px 0', fontSize:'0.85rem', color:'#38bdf8'}}>Verified Sponsors & Payments:</h4>
@@ -165,7 +212,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* 📜 PAYMENT HISTORY TAB */}
+        {/* PAYMENT HISTORY */}
         {view === 'history' && (
              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{textAlign:'left', color:'#94a3b8', fontSize:'0.8rem', background:'#334155'}}><tr style={{borderBottom:'2px solid #475569'}}><th style={{padding:'15px'}}>SPONSOR</th><th style={{padding:'15px'}}>EVENT</th><th style={{padding:'15px'}}>AMOUNT</th><th style={{padding:'15px'}}>PAYMENT ID</th><th style={{padding:'15px'}}>DOC</th></tr></thead>
@@ -183,7 +230,7 @@ const AdminDashboard = () => {
             </table>
         )}
 
-        {/* Pending Users and All Users Tables (Standard God Mode) */}
+        {/* USERS TABLES */}
         {(view === 'pending_users' || view === 'all_users') && (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{textAlign:'left', color:'#94a3b8', fontSize:'0.8rem', background:'#334155'}}><tr><th style={{padding:'15px'}}>USER INFO</th><th style={{padding:'15px'}}>ROLE</th><th style={{padding:'15px'}}>KYC</th><th style={{padding:'15px'}}>ACTIONS</th></tr></thead>
@@ -207,7 +254,7 @@ const AdminDashboard = () => {
   );
 };
 
-// HELPER COMPONENTS & STYLES
+// HELPER COMPONENTS
 const chartCard = { background: '#1e293b', padding: '20px', borderRadius: '15px', flex: '1 1 300px' };
 const Tab = ({active, onClick, label, color}) => (<button onClick={onClick} style={{padding:'10px 15px', borderRadius:'8px', background: active ? `${color}20` : '#1e293b', border: active ? `2px solid ${color}` : 'none', color: active ? color : '#94a3b8', cursor:'pointer', fontWeight:'bold'}}>{label}</button>);
 const actionBtn = (bg) => ({ padding:'6px 12px', background:bg, color:'white', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold', fontSize:'0.7rem' });
