@@ -36,36 +36,41 @@ const Home = () => {
   return (
     <div style={{ fontFamily: 'Poppins, sans-serif', background: '#f8fafc', minHeight:'100vh' }}>
       
-      {/* 🌟 HERO SECTION (Honest & Direct) */}
+      {/* 🌟 HERO SECTION */}
       <div style={{ 
         background: '#0f172a', 
         color: 'white', 
         padding: '80px 20px 100px 20px', 
         textAlign: 'center',
         borderRadius: '0 0 40px 40px',
-        position: 'relative'
+        position: 'relative',
+        boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
       }}>
         <h1 style={{ fontSize: '3rem', marginBottom: '20px', fontWeight: 'bold', color: '#38bdf8' }}>
-          Connect. Sponsor. Grow.
+          Fund Your Campus Dreams.
         </h1>
         <p style={{ fontSize: '1.1rem', color: '#cbd5e1', maxWidth: '600px', margin: '0 auto 40px auto', lineHeight: '1.6' }}>
-          A secure platform connecting <b>Student Organizers</b> directly with <b>Corporate Sponsors</b>. 
-          No middlemen, 100% transparent funding via Razorpay.
+          The secure bridge between ambitious student organizers and visionary corporate sponsors. 
+          No middlemen, 100% transparent funding.
         </p>
         
-        {/* ACTION BUTTONS (Fixed Links) */}
+        {/* 👇 ACTION BUTTONS (UPDATED LINKS) */}
         <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', marginBottom: '40px', flexWrap: 'wrap' }}>
+          
+          {/* Link to Create Event */}
           <Link to="/create-event" style={{ padding: '14px 28px', background: '#38bdf8', color: '#0f172a', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', fontSize: '1rem', transition: '0.3s' }}>
-            🚀 List Your Event
+            🚀 Start an Event
           </Link>
-          <Link to="/signup" style={{ padding: '14px 28px', background: 'transparent', border: '1px solid #ffffff', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', fontSize: '1rem' }}>
-            🤝 Sign Up as Sponsor
+
+          {/* 👇 YAHAN FIX KIYA HAI: Ab ye '/register' pe le jayega */}
+          <Link to="/register" style={{ padding: '14px 28px', background: 'transparent', border: '1px solid #ffffff', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', fontSize: '1rem', transition: '0.3s' }}>
+            🤝 Become a Sponsor
           </Link>
+
         </div>
       </div>
 
-      {/* 🛡️ TRUST STRIP (Replaces Fake Stats) */}
-      {/* Ye dikhata hai ki platform secure aur professional hai */}
+      {/* 🛡️ TRUST BADGES */}
       <div style={{ 
         display: 'flex', justifyContent: 'center', gap: '30px', flexWrap: 'wrap',
         padding: '30px', background: 'white', borderRadius: '15px', 
@@ -73,9 +78,9 @@ const Home = () => {
         width: '85%', maxWidth:'1000px', margin: '-60px auto 50px auto', 
         position: 'relative', zIndex: 10
       }}>
-        <TrustBadge emoji="🔒" title="100% Secure" desc="Payments via Razorpay" />
+        <TrustBadge emoji="🔒" title="100% Secure" desc="Razorpay Integration" />
         <div style={{width:'1px', background:'#e2e8f0', display: window.innerWidth < 600 ? 'none' : 'block'}}></div>
-        <TrustBadge emoji="✅" title="Verified Users" desc="KYC Checked by Admin" />
+        <TrustBadge emoji="✅" title="Verified Users" desc="Admin Checked KYC" />
         <div style={{width:'1px', background:'#e2e8f0', display: window.innerWidth < 600 ? 'none' : 'block'}}></div>
         <TrustBadge emoji="📄" title="Auto Agreements" desc="Digital Proof of Sponsorship" />
       </div>
@@ -90,14 +95,14 @@ const Home = () => {
                 placeholder="🔍 Search Event (e.g. Tech Fest)" 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ padding: '15px', borderRadius: '8px', border: '1px solid #cbd5e1', width: '100%', maxWidth: '400px', fontSize: '1rem', outline:'none' }}
+                style={{ padding: '15px', borderRadius: '8px', border: '1px solid #cbd5e1', width: '100%', maxWidth: '400px', fontSize: '1rem', outline:'none', boxShadow:'0 2px 5px rgba(0,0,0,0.05)' }}
             />
             <input 
                 type="text" 
                 placeholder="📍 City (e.g. Mumbai)" 
                 value={filterLocation}
                 onChange={(e) => setFilterLocation(e.target.value)}
-                style={{ padding: '15px', borderRadius: '8px', border: '1px solid #cbd5e1', width: '100%', maxWidth: '300px', fontSize: '1rem', outline:'none' }}
+                style={{ padding: '15px', borderRadius: '8px', border: '1px solid #cbd5e1', width: '100%', maxWidth: '300px', fontSize: '1rem', outline:'none', boxShadow:'0 2px 5px rgba(0,0,0,0.05)' }}
             />
         </div>
 
@@ -109,7 +114,7 @@ const Home = () => {
             </span>
         </div>
 
-        {/* Loading / Empty / Grid State */}
+        {/* Events Grid */}
         {loading ? (
             <div style={{textAlign:'center', padding:'50px', color:'#94a3b8'}}>Loading Events...</div>
         ) : filteredEvents.length === 0 ? (
@@ -137,6 +142,7 @@ const Home = () => {
                             <span style={{display:'flex', alignItems:'center', gap:'5px'}}>📍 {event.location}</span>
                         </div>
                     </div>
+                    {/* View Details Link */}
                     <Link to={`/event/${event._id}`} style={{ display: 'block', textAlign: 'center', background: '#0f172a', color: 'white', padding: '10px', borderRadius: '8px', textDecoration: 'none', fontWeight: '500', transition: '0.3s' }}>
                         View Details
                     </Link>
@@ -147,7 +153,7 @@ const Home = () => {
       </div>
 
       <footer style={{ background: '#0f172a', color: 'white', padding: '30px', textAlign: 'center', marginTop: '60px', fontSize: '0.9rem' }}>
-        <p>&copy; 2024 CampusSponsor. Verified & Secure.</p>
+        <p>&copy; 2024 CampusSponsor. A Secure Platform for Students & Sponsors.</p>
       </footer>
     </div>
   );
