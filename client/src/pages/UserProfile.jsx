@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom'; // 👈 useNavigate Import kiya Chat ke liye
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
 const UserProfile = () => {
   const { id } = useParams();
-  const navigate = useNavigate(); // 👈 Hook for navigation
+  const navigate = useNavigate(); // 👈 Navigation Hook
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -67,10 +67,9 @@ const UserProfile = () => {
             </p>
           </div>
 
-          {/* Connect Button */}
-          {/* 👇 CHAT FEATURE WALA UPDATE */}
+          {/* 👇 REAL CHAT BUTTON (FIXED) */}
           <button 
-            onClick={() => toast.success("Chat feature coming in next update! 💬")} 
+            onClick={() => navigate(`/chat?userId=${user._id}`)} 
             style={{ padding: '12px 25px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '50px', cursor: 'pointer', fontWeight: '700', fontSize:'1rem', boxShadow:'0 4px 15px rgba(37, 99, 235, 0.3)', transition:'0.3s', display:'flex', alignItems:'center', gap:'8px' }}>
             Connect 💬
           </button>
@@ -90,18 +89,17 @@ const UserProfile = () => {
         <div style={{ display: 'grid', gap: '20px' }}>
             {events.length > 0 ? events.map(event => {
                 
-                // 🔥 SMART STATUS LOGIC
                 let smartStatus = 'pending';
-                let statusColor = '#eab308'; // Yellow
+                let statusColor = '#eab308'; 
                 let statusBg = '#fefce8';
                 
                 if (event.isApproved) {
                     smartStatus = 'funding';
-                    statusColor = '#2563eb'; // Blue
+                    statusColor = '#2563eb'; 
                     statusBg = '#eff6ff';
                     if (event.raisedAmount >= event.budget) {
                         smartStatus = 'completed';
-                        statusColor = '#16a34a'; // Green
+                        statusColor = '#16a34a'; 
                         statusBg = '#dcfce7';
                     }
                 }
