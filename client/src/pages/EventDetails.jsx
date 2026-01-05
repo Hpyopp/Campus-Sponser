@@ -73,17 +73,26 @@ const EventDetails = () => {
     toast.success("Redirecting to payment..."); 
   };
 
-  // 👇 CHAT BUTTON HANDLER
+  // CHAT BUTTON HANDLER
   const handleChat = () => {
-    if (!user) {
-        toast.error("Please login to chat!");
-        return navigate('/login');
-    }
-    // Khud se chat nahi kar sakte
-    if (user._id === event.user?._id) {
-        return toast.error("You can't chat with yourself!");
-    }
+    if (!user) { toast.error("Please login to chat!"); return navigate('/login'); }
+    if (user._id === event.user?._id) { return toast.error("You can't chat with yourself!"); }
     navigate(`/chat?userId=${event.user._id}`);
+  };
+
+  // 👇 REPORT HANDLER (NEW)
+  const handleReport = async () => {
+    if (!user) return toast.error("Login to report!");
+    const reason = prompt("🚨 Why do you want to report this event? (e.g., Fake Event, Spam)");
+    if (!reason) return;
+
+    try {
+        const config = { headers: { Authorization: `Bearer ${user.token}` } };
+        await axios.post('https://campus-sponser-api.onrender.com/api/reports', { eventId: event._id, reason }, config);
+        toast.success("Report Submitted to Admin 👮‍♂️");
+    } catch (error) {
+        toast.error("Failed to submit report");
+    }
   };
 
   return (
@@ -106,11 +115,14 @@ const EventDetails = () => {
             <button onClick={() => handleShare('whatsapp')} style={{ background: '#25D366', border: 'none', padding: '8px 12px', borderRadius: '5px', color: 'white', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}>WhatsApp 📱</button>
             <button onClick={() => handleShare('linkedin')} style={{ background: '#0077b5', border: 'none', padding: '8px 12px', borderRadius: '5px', color: 'white', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}>LinkedIn 💼</button>
             <button onClick={copyLink} style={{ background: '#cbd5e1', border: 'none', padding: '8px 12px', borderRadius: '5px', color: '#1e293b', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}>Copy Link 🔗</button>
+            
+            {/* 👇 REPORT BUTTON ADDED */}
+            <button onClick={handleReport} style={{ background: '#fee2e2', border: '1px solid #ef4444', padding: '8px 12px', borderRadius: '5px', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}>Report 🚩</button>
         </div>
 
         <h1 style={{ fontSize: '2.5rem', color: '#1e293b', marginBottom: '5px' }}>{event.title}</h1>
         
-        {/* 👇👇 ORGANIZER INFO + CHAT BUTTON (UPDATED) 👇👇 */}
+        {/* ORGANIZER INFO + CHAT BUTTON */}
         <div style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
             <div>
                 <span style={{ color: '#64748b', fontSize: '0.9rem' }}>Organized by: </span>
@@ -122,23 +134,13 @@ const EventDetails = () => {
                 </Link>
             </div>
 
-            {/* Chat Button (Sirf tab dikhega jab user Khud Organizer na ho) */}
             {user && user._id !== event.user?._id && (
                 <button 
                     onClick={handleChat}
                     style={{
-                        padding: '6px 15px',
-                        background: '#eff6ff',
-                        color: '#2563eb',
-                        border: '1px solid #2563eb',
-                        borderRadius: '20px',
-                        cursor: 'pointer',
-                        fontSize: '0.85rem',
-                        fontWeight: 'bold',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        transition: '0.2s'
+                        padding: '6px 15px', background: '#eff6ff', color: '#2563eb', border: '1px solid #2563eb',
+                        borderRadius: '20px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold',
+                        display: 'flex', alignItems: 'center', gap: '6px', transition: '0.2s'
                     }}
                     onMouseOver={(e) => e.target.style.background = '#dbeafe'}
                     onMouseOut={(e) => e.target.style.background = '#eff6ff'}
@@ -147,8 +149,6 @@ const EventDetails = () => {
                 </button>
             )}
         </div>
-        {/* 👆👆 ------------------------------------------ 👆👆 */}
-
 
         {/* PROGRESS BAR */}
         <div style={{background:'#e2e8f0', borderRadius:'10px', height:'20px', width:'100%', marginBottom:'10px', overflow:'hidden'}}>
