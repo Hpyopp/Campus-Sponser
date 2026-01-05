@@ -61,17 +61,65 @@ const EventDetails = () => {
   const downloadAgreement = () => {
     const doc = new jsPDF();
     doc.text("Sponsorship Agreement", 20, 20);
+    doc.text(`Event: ${event.title}`, 20, 30);
+    doc.text(`Amount: INR ${mySponsorship?.amount}`, 20, 40);
+    doc.text(`Transaction ID: ${mySponsorship?.paymentId}`, 20, 50);
     doc.save("agreement.pdf");
     toast.success("Downloaded!");
   };
 
-  // PAYMENT LOGIC
+  // 👇👇 REAL PAYMENT LOGIC RESTORED 👇👇
   const handlePayment = async (e) => {
     e.preventDefault();
     if (!user) return navigate('/login');
     if (user.role !== 'sponsor') return toast.error("Only Sponsors can pay!");
-    toast.success("Redirecting to payment..."); 
+    
+    setLoading(true);
+    toast.success("Initiating Payment..."); 
+
+    try {
+        // 1. Get Key
+        const { data: { key } } = await axios.get("https://campus-sponser-api.onrender.com/api/payment/getkey");
+
+        // 2. Create Order
+        const config = { headers: { Authorization: `Bearer ${user.token}` } };
+        const { data: { order } } = await axios.post("https://campus-sponser-api.onrender.com/api/payment/checkout", { amount }, config);
+
+        // 3. Open Razorpay
+        const options = {
+            key,
+            amount: order.amount,
+            currency: "INR",
+            name: "CampusSponsor",
+            description: `Sponsorship for ${event.title}`,
+            image: "https://cdn-icons-png.flaticon.com/512/4762/4762311.png",
+            order_id: order.id,
+            // Callback URL (Backend will verify & send email)
+            callback_url: `https://campus-sponser-api.onrender.com/api/payment/paymentverification?eventId=${event._id}&userId=${user._id}&amount=${amount}`,
+            prefill: {
+                name: user.name,
+                email: user.email,
+                contact: "9999999999"
+            },
+            notes: {
+                "address": "CampusSponsor Office"
+            },
+            theme: {
+                "color": "#2563eb"
+            }
+        };
+
+        const razor = new window.Razorpay(options);
+        razor.open();
+        setLoading(false);
+
+    } catch (error) {
+        console.error(error);
+        setLoading(false);
+        toast.error("Payment Initialization Failed");
+    }
   };
+  // 👆👆 --------------------------------- 👆👆
 
   // CHAT BUTTON HANDLER
   const handleChat = () => {
@@ -80,7 +128,7 @@ const EventDetails = () => {
     navigate(`/chat?userId=${event.user._id}`);
   };
 
-  // 👇 REPORT HANDLER (NEW)
+  // REPORT HANDLER
   const handleReport = async () => {
     if (!user) return toast.error("Login to report!");
     const reason = prompt("🚨 Why do you want to report this event? (e.g., Fake Event, Spam)");
@@ -115,8 +163,6 @@ const EventDetails = () => {
             <button onClick={() => handleShare('whatsapp')} style={{ background: '#25D366', border: 'none', padding: '8px 12px', borderRadius: '5px', color: 'white', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}>WhatsApp 📱</button>
             <button onClick={() => handleShare('linkedin')} style={{ background: '#0077b5', border: 'none', padding: '8px 12px', borderRadius: '5px', color: 'white', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}>LinkedIn 💼</button>
             <button onClick={copyLink} style={{ background: '#cbd5e1', border: 'none', padding: '8px 12px', borderRadius: '5px', color: '#1e293b', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}>Copy Link 🔗</button>
-            
-            {/* 👇 REPORT BUTTON ADDED */}
             <button onClick={handleReport} style={{ background: '#fee2e2', border: '1px solid #ef4444', padding: '8px 12px', borderRadius: '5px', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}>Report 🚩</button>
         </div>
 
