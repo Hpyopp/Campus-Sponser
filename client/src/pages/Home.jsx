@@ -10,21 +10,8 @@ const Home = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLocation, setFilterLocation] = useState('');
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ events: 0, funds: 0, partners: 0 });
 
-  // 1. STATS ANIMATION (Fake Effect for Impression)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setStats(prev => ({
-        events: prev.events < 150 ? prev.events + 5 : 150,
-        funds: prev.funds < 500000 ? prev.funds + 15000 : 500000,
-        partners: prev.partners < 50 ? prev.partners + 2 : 50
-      }));
-    }, 50);
-    return () => clearInterval(interval);
-  }, []);
-
-  // 2. FETCH EVENTS
+  // 1. FETCH REAL DATA
   useEffect(() => {
     const fetchEvents = async () => {
       try {
@@ -32,13 +19,13 @@ const Home = () => {
         setEvents(data);
         setFilteredEvents(data);
       } catch (error) {
-        toast.error("Failed to load events");
+        console.error("Load failed");
       } finally { setLoading(false); }
     };
     fetchEvents();
   }, []);
 
-  // 3. FILTER LOGIC
+  // 2. FILTER LOGIC
   useEffect(() => {
     let result = events;
     if (searchTerm) result = result.filter(e => e.title.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -49,115 +36,109 @@ const Home = () => {
   return (
     <div style={{ fontFamily: 'Poppins, sans-serif', background: '#f8fafc', minHeight:'100vh' }}>
       
-      {/* 🌟 HERO SECTION */}
+      {/* 🌟 HERO SECTION (Honest & Direct) */}
       <div style={{ 
-        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', 
+        background: '#0f172a', 
         color: 'white', 
-        padding: '80px 20px 120px 20px', // Extra padding bottom for overlap
+        padding: '80px 20px 100px 20px', 
         textAlign: 'center',
-        borderRadius: '0 0 50px 50px',
-        position: 'relative',
-        overflow: 'hidden'
+        borderRadius: '0 0 40px 40px',
+        position: 'relative'
       }}>
-        {/* Background Decorative Circle */}
-        <div style={{position:'absolute', top:'-50px', left:'-50px', width:'200px', height:'200px', background:'#38bdf8', opacity:'0.2', borderRadius:'50%', filter:'blur(80px)'}}></div>
-        
-        <h1 style={{ fontSize: '3.5rem', marginBottom: '20px', fontWeight: '800', background: '-webkit-linear-gradient(45deg, #38bdf8, #22c55e)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-          Fund Your Campus Dreams.
+        <h1 style={{ fontSize: '3rem', marginBottom: '20px', fontWeight: 'bold', color: '#38bdf8' }}>
+          Connect. Sponsor. Grow.
         </h1>
-        <p style={{ fontSize: '1.2rem', color: '#94a3b8', maxWidth: '600px', margin: '0 auto 40px auto' }}>
-          The secure bridge between ambitious student organizers and visionary corporate sponsors.
+        <p style={{ fontSize: '1.1rem', color: '#cbd5e1', maxWidth: '600px', margin: '0 auto 40px auto', lineHeight: '1.6' }}>
+          A secure platform connecting <b>Student Organizers</b> directly with <b>Corporate Sponsors</b>. 
+          No middlemen, 100% transparent funding via Razorpay.
         </p>
         
-        <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', marginBottom: '40px' }}>
-          <Link to="/create-event" style={{ padding: '15px 30px', background: '#38bdf8', color: '#0f172a', borderRadius: '30px', textDecoration: 'none', fontWeight: 'bold', fontSize: '1.1rem', transition: '0.3s' }}>
-            🚀 Start an Event
+        {/* ACTION BUTTONS (Fixed Links) */}
+        <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', marginBottom: '40px', flexWrap: 'wrap' }}>
+          <Link to="/create-event" style={{ padding: '14px 28px', background: '#38bdf8', color: '#0f172a', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', fontSize: '1rem', transition: '0.3s' }}>
+            🚀 List Your Event
           </Link>
-          <Link to="/join-sponsor" style={{ padding: '15px 30px', background: 'transparent', border: '2px solid #22c55e', color: '#22c55e', borderRadius: '30px', textDecoration: 'none', fontWeight: 'bold', fontSize: '1.1rem' }}>
-            🤝 Become a Sponsor
+          <Link to="/signup" style={{ padding: '14px 28px', background: 'transparent', border: '1px solid #ffffff', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', fontSize: '1rem' }}>
+            🤝 Sign Up as Sponsor
           </Link>
         </div>
       </div>
 
-      {/* 📊 FLOATING STATS STRIP (Overlaps Hero) */}
+      {/* 🛡️ TRUST STRIP (Replaces Fake Stats) */}
+      {/* Ye dikhata hai ki platform secure aur professional hai */}
       <div style={{ 
-        display: 'flex', justifyContent: 'space-around', alignItems:'center',
-        padding: '30px', background: 'white', borderRadius: '20px', 
-        boxShadow: '0 20px 40px rgba(0,0,0,0.1)', 
-        width: '85%', maxWidth:'1000px', margin: '-80px auto 50px auto', 
-        position: 'relative', zIndex: 10, flexWrap:'wrap', gap:'20px' 
+        display: 'flex', justifyContent: 'center', gap: '30px', flexWrap: 'wrap',
+        padding: '30px', background: 'white', borderRadius: '15px', 
+        boxShadow: '0 10px 30px rgba(0,0,0,0.08)', 
+        width: '85%', maxWidth:'1000px', margin: '-60px auto 50px auto', 
+        position: 'relative', zIndex: 10
       }}>
-        <div style={{ textAlign: 'center' }}>
-          <h2 style={{ fontSize: '2rem', color: '#0f172a', margin: 0 }}>{stats.events}+</h2>
-          <p style={{ color: '#64748b', fontSize:'0.9rem', fontWeight:'bold' }}>EVENTS LISTED</p>
-        </div>
-        <div style={{ width: '2px', height:'50px', background: '#e2e8f0' }} className="hide-mobile"></div>
-        <div style={{ textAlign: 'center' }}>
-          <h2 style={{ fontSize: '2rem', color: '#22c55e', margin: 0 }}>₹{stats.funds.toLocaleString()}+</h2>
-          <p style={{ color: '#64748b', fontSize:'0.9rem', fontWeight:'bold' }}>FUNDS RAISED</p>
-        </div>
-        <div style={{ width: '2px', height:'50px', background: '#e2e8f0' }} className="hide-mobile"></div>
-        <div style={{ textAlign: 'center' }}>
-          <h2 style={{ fontSize: '2rem', color: '#38bdf8', margin: 0 }}>{stats.partners}+</h2>
-          <p style={{ color: '#64748b', fontSize:'0.9rem', fontWeight:'bold' }}>PARTNERS</p>
-        </div>
+        <TrustBadge emoji="🔒" title="100% Secure" desc="Payments via Razorpay" />
+        <div style={{width:'1px', background:'#e2e8f0', display: window.innerWidth < 600 ? 'none' : 'block'}}></div>
+        <TrustBadge emoji="✅" title="Verified Users" desc="KYC Checked by Admin" />
+        <div style={{width:'1px', background:'#e2e8f0', display: window.innerWidth < 600 ? 'none' : 'block'}}></div>
+        <TrustBadge emoji="📄" title="Auto Agreements" desc="Digital Proof of Sponsorship" />
       </div>
 
-      {/* 🔍 SEARCH SECTION */}
+      {/* 🔍 SEARCH & EVENTS SECTION */}
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px 40px 20px' }}>
+        
+        {/* Search Bars */}
         <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '40px' }}>
             <input 
                 type="text" 
                 placeholder="🔍 Search Event (e.g. Tech Fest)" 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ padding: '15px', borderRadius: '10px', border: '1px solid #e2e8f0', width: '100%', maxWidth: '400px', fontSize: '1rem', outline:'none', boxShadow:'0 2px 5px rgba(0,0,0,0.05)' }}
+                style={{ padding: '15px', borderRadius: '8px', border: '1px solid #cbd5e1', width: '100%', maxWidth: '400px', fontSize: '1rem', outline:'none' }}
             />
             <input 
                 type="text" 
-                placeholder="📍 Filter by City" 
+                placeholder="📍 City (e.g. Mumbai)" 
                 value={filterLocation}
                 onChange={(e) => setFilterLocation(e.target.value)}
-                style={{ padding: '15px', borderRadius: '10px', border: '1px solid #e2e8f0', width: '100%', maxWidth: '300px', fontSize: '1rem', outline:'none', boxShadow:'0 2px 5px rgba(0,0,0,0.05)' }}
+                style={{ padding: '15px', borderRadius: '8px', border: '1px solid #cbd5e1', width: '100%', maxWidth: '300px', fontSize: '1rem', outline:'none' }}
             />
         </div>
 
-        {/* 📅 EVENTS GRID */}
+        {/* Section Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h2 style={{ color: '#1e293b', margin: 0 }}>🔥 Trending Events</h2>
-            <span style={{ background: '#e2e8f0', padding: '5px 15px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold', color: '#475569' }}>
-                {filteredEvents.length} Results
+            <h2 style={{ color: '#1e293b', margin: 0, fontSize: '1.5rem' }}>Live Opportunities</h2>
+            <span style={{ background: '#e2e8f0', padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', color: '#475569' }}>
+                {filteredEvents.length} Events Listed
             </span>
         </div>
 
+        {/* Loading / Empty / Grid State */}
         {loading ? (
             <div style={{textAlign:'center', padding:'50px', color:'#94a3b8'}}>Loading Events...</div>
         ) : filteredEvents.length === 0 ? (
-            <div style={{textAlign:'center', padding:'50px', background:'white', borderRadius:'15px', boxShadow:'0 4px 10px rgba(0,0,0,0.05)'}}>
-                <h3 style={{color:'#64748b'}}>No events found.</h3>
-                <button onClick={()=>{setSearchTerm(''); setFilterLocation('')}} style={{marginTop:'10px', color:'#38bdf8', background:'none', border:'none', cursor:'pointer', textDecoration:'underline'}}>Clear Filters</button>
+            <div style={{textAlign:'center', padding:'50px', background:'white', borderRadius:'12px', border:'1px dashed #cbd5e1'}}>
+                <h3 style={{color:'#64748b', fontSize:'1.1rem'}}>No events found.</h3>
+                <p style={{fontSize:'0.9rem', color:'#94a3b8'}}>Be the first to list an event!</p>
+                <button onClick={()=>{setSearchTerm(''); setFilterLocation('')}} style={{marginTop:'10px', color:'#2563eb', background:'none', border:'none', cursor:'pointer', textDecoration:'underline'}}>Clear Filters</button>
             </div>
         ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '30px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '25px' }}>
             {filteredEvents.map((event) => (
-                <div key={event._id} style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 10px 20px -5px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9', transition: '0.3s', display:'flex', flexDirection:'column', justifyContent:'space-between' }}>
+                <div key={event._id} style={{ background: 'white', borderRadius: '12px', padding: '20px', border: '1px solid #e2e8f0', transition: '0.2s', display:'flex', flexDirection:'column', justifyContent:'space-between', boxShadow:'0 2px 5px rgba(0,0,0,0.05)' }}>
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom:'10px' }}>
-                            <h3 style={{ fontSize: '1.25rem', color: '#1e293b', fontWeight: '700', margin:0 }}>{event.title}</h3>
-                            <span style={{ background: '#dcfce7', color: '#166534', padding: '5px 10px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                                ₹{event.budget}
+                            <h3 style={{ fontSize: '1.2rem', color: '#1e293b', fontWeight: '700', margin:0 }}>{event.title}</h3>
+                            <span style={{ background: '#dcfce7', color: '#166534', padding: '4px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                                Needs ₹{event.budget}
                             </span>
                         </div>
-                        <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '15px', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>
+                        <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '15px', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', lineHeight:'1.5' }}>
                             {event.description}
                         </p>
                         <div style={{ display: 'flex', gap: '15px', fontSize: '0.85rem', color: '#475569', marginBottom: '20px' }}>
-                            <span>📅 {new Date(event.date).toLocaleDateString()}</span>
-                            <span>📍 {event.location}</span>
+                            <span style={{display:'flex', alignItems:'center', gap:'5px'}}>📅 {new Date(event.date).toLocaleDateString()}</span>
+                            <span style={{display:'flex', alignItems:'center', gap:'5px'}}>📍 {event.location}</span>
                         </div>
                     </div>
-                    <Link to={`/event/${event._id}`} style={{ display: 'block', textAlign: 'center', background: '#1e293b', color: 'white', padding: '12px', borderRadius: '10px', textDecoration: 'none', fontWeight: '600', transition: '0.3s', boxShadow:'0 4px 10px rgba(30,41,59,0.2)' }}>
-                        View Details &rarr;
+                    <Link to={`/event/${event._id}`} style={{ display: 'block', textAlign: 'center', background: '#0f172a', color: 'white', padding: '10px', borderRadius: '8px', textDecoration: 'none', fontWeight: '500', transition: '0.3s' }}>
+                        View Details
                     </Link>
                 </div>
             ))}
@@ -165,12 +146,22 @@ const Home = () => {
         )}
       </div>
 
-      {/* FOOTER */}
-      <footer style={{ background: '#0f172a', color: 'white', padding: '40px', textAlign: 'center', marginTop: '60px' }}>
-        <p>&copy; 2024 CampusSponsor. Built for the Future.</p>
+      <footer style={{ background: '#0f172a', color: 'white', padding: '30px', textAlign: 'center', marginTop: '60px', fontSize: '0.9rem' }}>
+        <p>&copy; 2024 CampusSponsor. Verified & Secure.</p>
       </footer>
     </div>
   );
 };
+
+// Helper Component for Trust Badge
+const TrustBadge = ({ emoji, title, desc }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '15px', minWidth: '200px' }}>
+        <div style={{ fontSize: '2rem' }}>{emoji}</div>
+        <div>
+            <h4 style={{ margin: 0, color: '#1e293b', fontSize: '1rem' }}>{title}</h4>
+            <p style={{ margin: 0, color: '#64748b', fontSize: '0.8rem' }}>{desc}</p>
+        </div>
+    </div>
+);
 
 export default Home;
