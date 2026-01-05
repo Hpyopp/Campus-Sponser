@@ -25,7 +25,6 @@ const UserProfile = () => {
 
   const { user, events } = profileData;
 
-  // Stats Calculation
   const totalEvents = events.length;
   const totalMoney = user.role === 'student' 
     ? events.reduce((acc, curr) => acc + (curr.raisedAmount || 0), 0)
@@ -34,15 +33,14 @@ const UserProfile = () => {
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', paddingBottom: '40px', fontFamily: 'Poppins, sans-serif' }}>
       
-      {/* 🎭 COVER & PROFILE */}
+      {/* HEADER */}
       <div style={{ background: 'white', borderRadius: '0 0 20px 20px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
         <div style={{ height: '150px', background: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)' }}></div>
-        
         <div style={{ padding: '0 30px 30px 30px', marginTop: '-60px', display: 'flex', alignItems: 'flex-end', gap: '20px', flexWrap:'wrap' }}>
           <img 
             src={`https://ui-avatars.com/api/?name=${user.name}&background=0f172a&color=fff&size=150`} 
             alt={user.name} 
-            style={{ width: '120px', height: '120px', borderRadius: '50%', border: '4px solid white', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }} 
+            style={{ width: '120px', height: '120px', borderRadius: '50%', border: '4px solid white' }} 
           />
           <div style={{ flex: 1, marginBottom: '10px' }}>
             <h1 style={{ margin: 0, fontSize: '1.8rem', color: '#1e293b' }}>
@@ -53,44 +51,33 @@ const UserProfile = () => {
               {user.role === 'student' ? '🎓 Student Organizer' : '🏢 Corporate Sponsor'}
               {user.companyName && ` @ ${user.companyName}`}
             </p>
-            <p style={{ margin: 0, fontSize: '0.9rem', color: '#94a3b8' }}>{user.email}</p>
           </div>
-          <button onClick={() => toast.success("Chat Coming Soon!")} style={{ padding: '10px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold' }}>
+          <button onClick={() => toast.success("Chat Coming Soon!")} style={{ padding: '10px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '20px', cursor: 'pointer' }}>
             Connect 💬
           </button>
         </div>
       </div>
 
-      {/* 📊 STATS */}
+      {/* STATS */}
       <div style={{ display: 'flex', gap: '20px', margin: '20px 0' }}>
         <StatCard label={user.role === 'student' ? "Events Organized" : "Events Sponsored"} value={totalEvents} emoji="📅" />
         <StatCard label={user.role === 'student' ? "Total Funds Raised" : "Total Invested"} value={`₹${totalMoney.toLocaleString()}`} emoji="💰" />
-        <StatCard label="Reputation Score" value="100%" emoji="⭐" />
       </div>
 
-      {/* 📜 ACTIVITY FEED */}
+      {/* ACTIVITY FEED */}
       <h3 style={{ color: '#334155', marginTop: '30px' }}>Recent Activity</h3>
       <div style={{ display: 'grid', gap: '20px' }}>
         {events.length > 0 ? events.map(event => (
           <div key={event._id} style={{ background: 'white', padding: '20px', borderRadius: '15px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <h4 style={{ margin: '0 0 5px 0', fontSize: '1.1rem' }}>
-                {user.role === 'student' ? '🚀 Organized: ' : '🤝 Sponsored: '} 
                 <Link to={`/event/${event._id}`} style={{color:'#2563eb', textDecoration:'none'}}>{event.title}</Link>
               </h4>
-              <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>
-                {new Date(event.date).toLocaleDateString()} • {event.location}
-              </p>
+              <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>{new Date(event.date).toLocaleDateString()}</p>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <span style={{ 
-                background: event.status === 'completed' ? '#dcfce7' : '#eff6ff', 
-                color: event.status === 'completed' ? '#166534' : '#1e40af',
-                padding: '5px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' 
-              }}>
-                {event.status ? event.status.toUpperCase() : 'PENDING'}
-              </span>
-            </div>
+            <span style={{ background: '#eff6ff', color: '#1e40af', padding: '5px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+              {event.status ? event.status.toUpperCase() : 'PENDING'}
+            </span>
           </div>
         )) : (
           <p style={{ color: '#94a3b8', fontStyle: 'italic' }}>No activity yet.</p>
