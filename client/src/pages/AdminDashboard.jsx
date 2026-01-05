@@ -8,6 +8,7 @@ import { jsPDF } from "jspdf";
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [events, setEvents] = useState([]);
+  const [reports, setReports] = useState([]); // 👈 New State for Reports
   const [view, setView] = useState('pending_users'); 
   const [loading, setLoading] = useState(true);
   const [chartReady, setChartReady] = useState(false);
@@ -29,12 +30,15 @@ const AdminDashboard = () => {
       if (!user || user.role !== 'admin') return navigate('/login');
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
       
-      const [uRes, eRes] = await Promise.all([
+      // 👇 Fetch Reports along with users and events
+      const [uRes, eRes, rRes] = await Promise.all([
           axios.get('https://campus-sponser-api.onrender.com/api/users/all', config),
-          axios.get('https://campus-sponser-api.onrender.com/api/events/admin/all', config)
+          axios.get('https://campus-sponser-api.onrender.com/api/events/admin/all', config),
+          axios.get('https://campus-sponser-api.onrender.com/api/reports', config)
       ]);
       setUsers(uRes.data);
       setEvents(eRes.data);
+      setReports(rRes.data); // Store reports
       setTimeout(() => setChartReady(true), 500); 
     } catch (e) { toast.error("Sync Failed!"); }
     finally { setLoading(false); }
@@ -50,6 +54,12 @@ const AdminDashboard = () => {
       toast.success(msg);
       fetchData(); 
     } catch (e) { toast.error("Action Failed!"); }
+  };
+
+  // 👇 Function to resolve report
+  const resolveReport = async (id) => {
+    if(!window.confirm("Mark this report as resolved?")) return;
+    await handleAction(`https://campus-sponser-api.onrender.com/api/reports/${id}`, 'delete', "Report Resolved ✅");
   };
 
   const viewAgreement = (s, eventTitle) => {
@@ -76,21 +86,17 @@ const AdminDashboard = () => {
   };
 
   // --- STATS LOGIC ---
-  
-  // 1. Pie Chart Data (Role Distribution)
   const userStats = [
     { name: 'Students', value: users.filter(u => u.role === 'student').length, color: '#3b82f6' },
     { name: 'Sponsors', value: users.filter(u => u.role === 'sponsor').length, color: '#f59e0b' },
     { name: 'Admins', value: users.filter(u => u.role === 'admin').length, color: '#ef4444' }
   ];
 
-  // 2. Event Bar Chart Data
   const eventStats = [
     { name: 'Approved', count: events.filter(e => e.isApproved).length },
     { name: 'Pending', count: events.filter(e => !e.isApproved).length }
   ];
 
-  // 3. 👇 NEW: Student vs Sponsor Bar Chart Data
   const roleComparisonStats = [
     { name: 'Students', count: users.filter(u => u.role === 'student').length, fill: '#3b82f6' },
     { name: 'Sponsors', count: users.filter(u => u.role === 'sponsor').length, fill: '#f59e0b' }
@@ -110,7 +116,14 @@ const AdminDashboard = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px', borderBottom: '1px solid #334155', paddingBottom: '20px', marginBottom: '30px' }}>
         <h1 style={{ color: '#38bdf8', margin: 0 }}>⚡ GOD MODE PANEL</h1>
         <div style={{ display: 'flex', gap: '20px' }}>
-            <div style={{textAlign:'right'}}><div style={{fontSize:'1.5rem', fontWeight:'bold', color:'#38bdf8'}}>{events.filter(e=>!e.isApproved).length}</div><div style={{fontSize:'0.7rem', color:'#94a3b8'}}>PENDING EVENTS</div></div>
+            <div style={{textAlign:'right'}}>
+                <div style={{fontSize:'1.5rem', fontWeight:'bold', color:'#ef4444'}}>{reports.length}</div>
+                <div style={{fontSize:'0.7rem', color:'#94a3b8'}}>REPORTS</div>
+            </div>
+            <div style={{textAlign:'right'}}>
+                <div style={{fontSize:'1.5rem', fontWeight:'bold', color:'#38bdf8'}}>{events.filter(e=>!e.isApproved).length}</div>
+                <div style={{fontSize:'0.7rem', color:'#94a3b8'}}>PENDING</div>
+            </div>
             <button onClick={()=>{localStorage.clear(); navigate('/login');}} style={logoutBtn}>LOGOUT</button>
         </div>
       </div>
@@ -118,55 +131,30 @@ const AdminDashboard = () => {
       {/* 📊 CHARTS SECTION */}
       {!loading && chartReady && (
           <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', flexWrap: 'wrap', justifyContent: 'center' }}>
-              
-              {/* 1. PIE CHART (Overall Roles) */}
               <div style={chartCard}>
                 <h3 style={{textAlign:'center', fontSize:'0.9rem', color:'#94a3b8'}}>Role Distribution</h3>
                 <ResponsiveContainer width="100%" height={250}>
-                    <PieChart>
-                        <Pie data={userStats} innerRadius={60} outerRadius={80} dataKey="value">
-                            {userStats.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                        </Pie>
-                        <Tooltip contentStyle={{backgroundColor:'#1e293b', border:'none', borderRadius:'10px'}}/>
-                        <Legend/>
-                    </PieChart>
+                    <PieChart><Pie data={userStats} innerRadius={60} outerRadius={80} dataKey="value">{userStats.map((entry, i) => <Cell key={i} fill={entry.color} />)}</Pie><Tooltip contentStyle={{backgroundColor:'#1e293b', border:'none', borderRadius:'10px'}}/><Legend/></PieChart>
                 </ResponsiveContainer>
               </div>
-
-              {/* 2. EVENT STATUS BAR CHART */}
               <div style={chartCard}>
                 <h3 style={{textAlign:'center', fontSize:'0.9rem', color:'#94a3b8'}}>Event Status</h3>
                 <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={eventStats}>
-                        <XAxis dataKey="name" stroke="#ccc"/>
-                        <Tooltip contentStyle={{backgroundColor:'#1e293b', border:'none', borderRadius:'10px'}} cursor={{fill:'transparent'}}/>
-                        <Bar dataKey="count" fill="#38bdf8" radius={[5,5,0,0]} barSize={50}/>
-                    </BarChart>
+                    <BarChart data={eventStats}><XAxis dataKey="name" stroke="#ccc"/><Tooltip contentStyle={{backgroundColor:'#1e293b', border:'none', borderRadius:'10px'}} cursor={{fill:'transparent'}}/><Bar dataKey="count" fill="#38bdf8" radius={[5,5,0,0]} barSize={50}/></BarChart>
                 </ResponsiveContainer>
               </div>
-
-              {/* 3. 👇 NEW: STUDENTS vs SPONSORS BAR CHART */}
               <div style={chartCard}>
                 <h3 style={{textAlign:'center', fontSize:'0.9rem', color:'#94a3b8'}}>Students vs Sponsors</h3>
                 <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={roleComparisonStats}>
-                        <XAxis dataKey="name" stroke="#ccc"/>
-                        <Tooltip contentStyle={{backgroundColor:'#1e293b', border:'none', borderRadius:'10px'}} cursor={{fill:'transparent'}}/>
-                        <Bar dataKey="count" radius={[5,5,0,0]} barSize={50}>
-                            {/* Individual colors for bars */}
-                            {roleComparisonStats.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.fill} />
-                            ))}
-                        </Bar>
-                    </BarChart>
+                    <BarChart data={roleComparisonStats}><XAxis dataKey="name" stroke="#ccc"/><Tooltip contentStyle={{backgroundColor:'#1e293b', border:'none', borderRadius:'10px'}} cursor={{fill:'transparent'}}/><Bar dataKey="count" radius={[5,5,0,0]} barSize={50}>{roleComparisonStats.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.fill} />))}</Bar></BarChart>
                 </ResponsiveContainer>
               </div>
-
           </div>
       )}
 
       {/* TAB NAVIGATION */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '30px', flexWrap:'wrap' }}>
+        <Tab active={view==='reports'} onClick={()=>setView('reports')} label={`🚩 Reports (${reports.length})`} color="#ef4444" /> {/* 👈 Reports Tab Added */}
         <Tab active={view==='pending_users'} onClick={()=>setView('pending_users')} label="👥 Pending KYC" color="#eab308" />
         <Tab active={view==='events'} onClick={()=>setView('events')} label="🚀 Events Control" color="#38bdf8" />
         <Tab active={view==='history'} onClick={()=>setView('history')} label="📜 History" color="#16a34a" />
@@ -176,6 +164,41 @@ const AdminDashboard = () => {
       {/* MAIN CONTENT TABLE/GRID */}
       <div style={{ background: '#1e293b', borderRadius: '15px', padding: '20px' }}>
         
+        {/* 👇👇 NEW REPORTS SECTION 👇👇 */}
+        {view === 'reports' && (
+            <div style={{overflowX:'auto'}}>
+                 {reports.length === 0 ? (
+                    <div style={{textAlign:'center', padding:'40px', color:'#94a3b8'}}>No reports found. 🎉</div>
+                 ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead style={{textAlign:'left', color:'#94a3b8', fontSize:'0.8rem', background:'#334155'}}><tr style={{borderBottom:'2px solid #475569'}}><th style={{padding:'15px'}}>REPORTED EVENT</th><th style={{padding:'15px'}}>REPORTED BY</th><th style={{padding:'15px'}}>REASON</th><th style={{padding:'15px'}}>ACTIONS</th></tr></thead>
+                        <tbody>
+                            {reports.map((r, i) => (
+                                <tr key={i} style={{borderBottom:'1px solid #334155'}}>
+                                    <td style={{padding:'15px'}}>
+                                        <b style={{color:'white'}}>{r.event?.title || "Deleted Event"}</b>
+                                        <br/><small style={{color:'#64748b'}}>ID: {r.event?._id}</small>
+                                    </td>
+                                    <td style={{padding:'15px'}}>
+                                        {r.reportedBy?.name}
+                                        <br/><small style={{color:'#64748b'}}>{r.reportedBy?.email}</small>
+                                    </td>
+                                    <td style={{padding:'15px', color:'#fca5a5', fontWeight:'bold'}}>
+                                        "{r.reason}"
+                                    </td>
+                                    <td style={{padding:'15px', display:'flex', gap:'10px'}}>
+                                        <button onClick={()=>window.open(`/event/${r.event?._id}`, '_blank')} style={actionBtn('#38bdf8')}>VIEW EVENT 👁️</button>
+                                        <button onClick={()=>resolveReport(r._id)} style={actionBtn('#16a34a')}>RESOLVE (DELETE) ✅</button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                 )}
+            </div>
+        )}
+        {/* 👆👆 ----------------------- 👆👆 */}
+
         {/* EVENTS CONTROL */}
         {view === 'events' && (
           <div style={{ display: 'grid', gap: '20px' }}>
@@ -256,7 +279,7 @@ const AdminDashboard = () => {
 
 // HELPER COMPONENTS
 const chartCard = { background: '#1e293b', padding: '20px', borderRadius: '15px', flex: '1 1 300px' };
-const Tab = ({active, onClick, label, color}) => (<button onClick={onClick} style={{padding:'10px 15px', borderRadius:'8px', background: active ? `${color}20` : '#1e293b', border: active ? `2px solid ${color}` : 'none', color: active ? color : '#94a3b8', cursor:'pointer', fontWeight:'bold'}}>{label}</button>);
+const Tab = ({active, onClick, label, color}) => (<button onClick={onClick} style={{padding:'10px 15px', borderRadius:'8px', background: active ? `${color}20` : '#1e293b', border: active ? `2px solid ${color}` : 'none', color: active ? color : '#94a3b8', cursor:'pointer', fontWeight:'bold', marginRight: '10px'}}>{label}</button>);
 const actionBtn = (bg) => ({ padding:'6px 12px', background:bg, color:'white', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold', fontSize:'0.7rem' });
 const logoutBtn = { background:'#ef4444', color:'white', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer', fontWeight:'bold' };
 
