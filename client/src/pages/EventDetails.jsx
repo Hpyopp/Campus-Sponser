@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom'; // ✅ Link Imported
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { jsPDF } from "jspdf";
@@ -29,7 +29,7 @@ const EventDetails = () => {
   const isFullyFunded = event?.raisedAmount >= event?.budget;
   const percent = Math.min((event.raisedAmount / event.budget) * 100, 100);
 
-  // SMART TIMELINE
+  // Smart Timeline
   let currentStatus = 'pending';
   if (event.isApproved) {
       currentStatus = 'funding';
@@ -38,23 +38,39 @@ const EventDetails = () => {
   const stages = ['pending', 'funding', 'completed'];
   const currentStep = stages.indexOf(currentStatus);
 
-  // PDF DOWNLOAD
+  // 👇 SOCIAL SHARE LOGIC
+  const shareUrl = window.location.href;
+  const shareText = `Check out this event: ${event.title} on CampusSponsor! Need support. 🚀`;
+
+  const handleShare = (platform) => {
+    let url = "";
+    if (platform === 'whatsapp') {
+        url = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + " " + shareUrl)}`;
+    } else if (platform === 'linkedin') {
+        url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
+    } else if (platform === 'twitter') {
+        url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
+    }
+    window.open(url, '_blank');
+  };
+
+  const copyLink = () => {
+      navigator.clipboard.writeText(shareUrl);
+      toast.success("Link Copied to Clipboard! 🔗");
+  };
+
+  // PDF Logic (Shortened)
   const downloadAgreement = () => {
     const doc = new jsPDF();
     doc.text("Sponsorship Agreement", 20, 20);
-    // (Shortened for brevity, tera purana logic yahan kaam karega)
     doc.save("agreement.pdf");
     toast.success("Downloaded!");
   };
 
-  // PAYMENT HANDLER
   const handlePayment = async (e) => {
     e.preventDefault();
     if (!user) return navigate('/login');
     if (user.role !== 'sponsor') return toast.error("Only Sponsors can pay!");
-    
-    // (Tera purana payment logic yahan aayega)
-    // Abhi ke liye short rakha hai taaki code clean rahe
     toast.success("Redirecting to payment..."); 
   };
 
@@ -73,9 +89,15 @@ const EventDetails = () => {
           ))}
         </div>
 
+        {/* 👇 SHARE BUTTONS (NEW) */}
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', justifyContent: 'flex-end' }}>
+            <button onClick={() => handleShare('whatsapp')} style={{ background: '#25D366', border: 'none', padding: '8px 12px', borderRadius: '5px', color: 'white', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}>WhatsApp 📱</button>
+            <button onClick={() => handleShare('linkedin')} style={{ background: '#0077b5', border: 'none', padding: '8px 12px', borderRadius: '5px', color: 'white', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}>LinkedIn 💼</button>
+            <button onClick={copyLink} style={{ background: '#cbd5e1', border: 'none', padding: '8px 12px', borderRadius: '5px', color: '#1e293b', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}>Copy Link 🔗</button>
+        </div>
+
         <h1 style={{ fontSize: '2.5rem', color: '#1e293b', marginBottom: '5px' }}>{event.title}</h1>
         
-        {/* 👇👇 YE WALA SECTION TERE CODE MEIN MISSING THA 👇👇 */}
         <div style={{ marginBottom: '25px' }}>
             <span style={{ color: '#64748b', fontSize: '0.9rem' }}>Organized by: </span>
             <Link 
@@ -85,7 +107,6 @@ const EventDetails = () => {
                 {event.user?.name || "Unknown Organizer"} 🔗
             </Link>
         </div>
-        {/* 👆👆 UPPER WALA SECTION MISSING THA 👆👆 */}
 
         {/* PROGRESS BAR */}
         <div style={{background:'#e2e8f0', borderRadius:'10px', height:'20px', width:'100%', marginBottom:'10px', overflow:'hidden'}}>
