@@ -3,11 +3,13 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const path = require('path');
-const http = require('http'); // 👈 Required for Socket
-const { Server } = require('socket.io'); // 👈 Required for Socket
+const http = require('http');
+const { Server } = require('socket.io');
 
-// Config
+// 1. Config sabse pehle load karo
 dotenv.config();
+
+// 2. Database connect
 connectDB();
 
 const app = express();
@@ -15,20 +17,24 @@ app.use(express.json());
 app.use(cors());
 
 // --- ROUTES IMPORTS ---
+// IMPORTANT: Ensure ye paths sahi hon
 const userRoutes = require('./routes/userRoutes');
 const eventRoutes = require('./routes/eventRoutes');
-const paymentRoutes = require('./routes/paymentRoutes');
+const paymentRoutes = require('./routes/paymentRoutes'); // 👈 Payment Route Import
 const chatRoutes = require('./routes/chatRoutes');
 const notificationRoutes = require('./routes/notificationRoutes'); 
-const reportRoutes = require('./routes/reportRoutes');// 👈 NEW CHAT ROUTE
+const reportRoutes = require('./routes/reportRoutes');
 
 // --- MOUNT ROUTES ---
+// Debugging log taaki pata chale routes load huye
+console.log("✅ Mounting Routes...");
+
 app.use('/api/users', userRoutes);
 app.use('/api/events', eventRoutes);
-app.use('/api/payment', paymentRoutes);
+app.use('/api/payment', paymentRoutes); // 👈 Payment Route Mount (Singular 'payment')
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/reports', reportRoutes); // 👈 MOUNT REPORT ROUTE
+app.use('/api/reports', reportRoutes);
 
 // Static Uploads
 app.use('/uploads', express.static(path.join(__dirname, '/uploads')));
@@ -42,43 +48,26 @@ app.use((err, req, res, next) => {
 });
 
 // ==========================================
-// ⚡ SOCKET.IO SETUP (REAL-TIME CHAT)
+// ⚡ SOCKET.IO SETUP
 // ==========================================
 const server = http.createServer(app);
-
 const io = new Server(server, {
-  cors: {
-    origin: "*", // Allow all origins (Development ke liye easy)
-    methods: ["GET", "POST"]
-  }
+  cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
 io.on('connection', (socket) => {
   console.log(`⚡ Socket Connected: ${socket.id}`);
-
-  // User joins their own room (based on User ID)
-  socket.on('join_room', (userId) => {
-    socket.join(userId);
-    console.log(`User joined room: ${userId}`);
-  });
-
-  // Send Message
+  socket.on('join_room', (userId) => { socket.join(userId); });
   socket.on('send_message', async (data) => {
     const { sender, receiver, message } = data;
-    
-    // Save to DB (Taaki refresh karne pe gayab na ho)
-    const Message = require('./models/Message');
-    await Message.create({ sender, receiver, message });
-
-    // Send to Receiver instantly
-    io.to(receiver).emit('receive_message', data);
+    try {
+        const Message = require('./models/Message');
+        await Message.create({ sender, receiver, message });
+        io.to(receiver).emit('receive_message', data);
+    } catch(e) { console.error("Message Save Error", e); }
   });
-
-  socket.on('disconnect', () => {
-    console.log('User Disconnected');
-  });
+  socket.on('disconnect', () => { console.log('User Disconnected'); });
 });
 
 const PORT = process.env.PORT || 5000;
-// Note: app.listen nahi, server.listen use karna hai
 server.listen(PORT, () => console.log(`🚀 Server & Socket running on port ${PORT}`));
