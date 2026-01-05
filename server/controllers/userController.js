@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Event = require('../models/campusEvent'); // 👈 IMPORTANT: Event model import kiya
 const asyncHandler = require('express-async-handler');
