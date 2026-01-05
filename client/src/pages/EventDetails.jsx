@@ -15,7 +15,7 @@ const EventDetails = () => {
   const user = JSON.parse(localStorage.getItem('user'));
 
   // 👇👇 SMART API URL (Automatic Switch) 👇👇
-  // Agar localhost par ho toh Local Backend, agar Vercel par ho toh Render Backend
+  // Localhost par ho toh Local Backend, Vercel par ho toh Live Backend
   const API_URL = window.location.hostname === 'localhost' 
     ? "http://127.0.0.1:5000" 
     : "https://campus-sponser-api.onrender.com";
@@ -23,11 +23,16 @@ const EventDetails = () => {
   // 1. Fetch Data
   const fetchEvent = async () => {
     try {
-      // Data hamesha Render se hi le aate hain (consistent data ke liye)
-      // Ya fir API_URL use kar sakte ho agar local DB bhara hua hai
-      const { data } = await axios.get(`https://campus-sponser-api.onrender.com/api/events/${id}`);
+      // API_URL use kar rahe hain taaki local/live dono jagah chale
+      const { data } = await axios.get(`${API_URL}/api/events/${id}`);
       setEvent(data);
-    } catch (error) { toast.error("Event not found"); }
+    } catch (error) { 
+        // Fallback: Agar local DB khali hai toh Live se try karein
+        try {
+            const { data } = await axios.get(`https://campus-sponser-api.onrender.com/api/events/${id}`);
+            setEvent(data);
+        } catch(e) { toast.error("Event not found"); }
+    }
   };
 
   useEffect(() => { fetchEvent(); }, [id]);
@@ -76,12 +81,12 @@ const EventDetails = () => {
     if (!reason) return;
     try {
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
-        await axios.post('https://campus-sponser-api.onrender.com/api/reports', { eventId: event._id, reason }, config);
+        await axios.post(`${API_URL}/api/reports`, { eventId: event._id, reason }, config);
         toast.success("Report Submitted. Admin will review. 👮‍♂️");
     } catch (error) { toast.error("Failed to submit report"); }
   };
 
-  // 👇👇 PAYMENT LOGIC (SMART URL USED HERE) 👇👇
+  // 👇👇 PAYMENT LOGIC (SMART URL + REDIRECT FIX) 👇👇
   const handlePayment = async (e) => {
     e.preventDefault();
     if (!user) return navigate('/login');
@@ -91,12 +96,15 @@ const EventDetails = () => {
     toast.success("Connecting to Payment Gateway... 💳"); 
 
     try {
-        // 1. Get Key (Smart URL)
+        // 1. Get Key
         const { data: { key } } = await axios.get(`${API_URL}/api/payment/getkey`);
 
-        // 2. Create Order (Smart URL)
+        // 2. Create Order
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
         const { data: { order } } = await axios.post(`${API_URL}/api/payment/checkout`, { amount, eventId: event._id }, config);
+
+        // 👇 Ye line Backend ko batayegi ki wapas kahan aana hai (Local ya Vercel)
+        const currentUrl = window.location.origin; 
 
         // 3. Open Razorpay
         const options = {
@@ -104,8 +112,8 @@ const EventDetails = () => {
             name: "CampusSponsor", description: `Support ${event.title}`,
             image: "https://cdn-icons-png.flaticon.com/512/4762/4762311.png",
             order_id: order.id,
-            // Callback URL bhi Smart set kar diya hai
-            callback_url: `${API_URL}/api/payment/paymentverification?eventId=${event._id}&userId=${user._id}&amount=${amount}&userName=${user.name}&userEmail=${user.email}`,
+            // 👇 Callback URL mein client_url bheja hai
+            callback_url: `${API_URL}/api/payment/paymentverification?eventId=${event._id}&userId=${user._id}&amount=${amount}&userName=${user.name}&userEmail=${user.email}&client_url=${currentUrl}`,
             prefill: { name: user.name, email: user.email },
             theme: { "color": "#2563eb" }
         };
@@ -116,7 +124,7 @@ const EventDetails = () => {
     } catch (error) {
         console.error("Payment Error:", error);
         setLoading(false);
-        toast.error("Payment Failed. Server error.");
+        toast.error("Payment Failed. Make sure Backend is running.");
     }
   };
 

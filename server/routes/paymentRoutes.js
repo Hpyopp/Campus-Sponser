@@ -5,19 +5,17 @@ const router = express.Router();
 const Event = require('../models/campusEvent');
 const sendEmail = require('../utils/sendEmail'); 
 
-console.log("💳 Payment Routes Loaded"); // 👈 Debug Log
+console.log("💳 Payment Routes Active");
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-// 1. GET KEY
 router.get('/getkey', (req, res) => {
     res.status(200).json({ key: process.env.RAZORPAY_KEY_ID });
 });
 
-// 2. CHECKOUT
 router.post('/checkout', async (req, res) => {
   try {
     const { amount, eventId } = req.body;
@@ -29,22 +27,22 @@ router.post('/checkout', async (req, res) => {
       currency: "INR",
       receipt: "receipt_" + Math.random().toString(36).substring(7),
     };
-
     const order = await razorpay.orders.create(options);
     res.json({ order }); 
   } catch (error) {
-    console.error("Order Error:", error);
     res.status(500).send(error);
   }
 });
 
-// 3. VERIFICATION
 router.post('/paymentverification', async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-    const { eventId, amount, userId, userName, userEmail, companyName, comment } = req.query; 
+    // 👇 Read client_url from query
+    const { eventId, amount, userId, userName, userEmail, companyName, comment, client_url } = req.query; 
 
-    // Values setup
+    // Default to Vercel if missing
+    const redirectBase = client_url || "https://campus-sponser.vercel.app";
+
     const eId = eventId || req.body.eventId;
     const amt = amount || req.body.amount;
     const uName = userName || req.body.userName;
@@ -65,15 +63,14 @@ router.post('/paymentverification', async (req, res) => {
         event.raisedAmount = (event.raisedAmount || 0) + Number(amt);
         await event.save();
 
-        // Email
         try {
             const subject = "Payment Receipt - CampusSponsor ✅";
             const message = `<p>Hi ${uName}, Received ₹${amt}. Txn ID: ${razorpay_payment_id}</p>`;
             if(uEmail) await sendEmail({ email: uEmail, subject, html: message });
-        } catch (e) { console.log("Email skipped"); }
+        } catch (e) {}
 
-        // REDIRECT TO LOCALHOST (IPv4)
-        res.redirect(`http://127.0.0.1:5173/event/${eId}?payment=success`);
+        // 👇 DYNAMIC REDIRECT (Jahan se aaye the wahin wapas)
+        res.redirect(`${redirectBase}/event/${eId}?payment=success`);
       } else {
           res.status(404).json({ message: "Event not found" });
       }
