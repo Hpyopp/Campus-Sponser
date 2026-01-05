@@ -16,6 +16,10 @@ const EventDetails = () => {
 
   const fetchEvent = async () => {
     try {
+      // NOTE: For fetching event details, you can keep using the live backend if you want
+      // or switch this to localhost too if you are running a full local DB.
+      // For now, I'm keeping this one pointing to Live so you can see data,
+      // BUT payment requests must go to Localhost where the new code is.
       const { data } = await axios.get(`https://campus-sponser-api.onrender.com/api/events/${id}`);
       setEvent(data);
     } catch (error) { toast.error("Event not found"); }
@@ -68,7 +72,7 @@ const EventDetails = () => {
     toast.success("Downloaded!");
   };
 
-  // 👇👇 REAL PAYMENT LOGIC RESTORED 👇👇
+  // 👇👇 REAL PAYMENT LOGIC (UPDATED FOR LOCALHOST) 👇👇
   const handlePayment = async (e) => {
     e.preventDefault();
     if (!user) return navigate('/login');
@@ -78,12 +82,12 @@ const EventDetails = () => {
     toast.success("Initiating Payment..."); 
 
     try {
-        // 1. Get Key
-        const { data: { key } } = await axios.get("https://campus-sponser-api.onrender.com/api/payment/getkey");
+        // 1. Get Key from LOCALHOST (Backend must be running on port 5000)
+        const { data: { key } } = await axios.get("http://localhost:5000/api/payment/getkey");
 
-        // 2. Create Order
+        // 2. Create Order on LOCALHOST
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
-        const { data: { order } } = await axios.post("https://campus-sponser-api.onrender.com/api/payment/checkout", { amount }, config);
+        const { data: { order } } = await axios.post("http://localhost:5000/api/payment/checkout", { amount }, config);
 
         // 3. Open Razorpay
         const options = {
@@ -94,8 +98,8 @@ const EventDetails = () => {
             description: `Sponsorship for ${event.title}`,
             image: "https://cdn-icons-png.flaticon.com/512/4762/4762311.png",
             order_id: order.id,
-            // Callback URL (Backend will verify & send email)
-            callback_url: `https://campus-sponser-api.onrender.com/api/payment/paymentverification?eventId=${event._id}&userId=${user._id}&amount=${amount}`,
+            // Callback URL (Points to LOCALHOST for verification)
+            callback_url: `http://localhost:5000/api/payment/paymentverification?eventId=${event._id}&userId=${user._id}&amount=${amount}`,
             prefill: {
                 name: user.name,
                 email: user.email,
@@ -116,7 +120,7 @@ const EventDetails = () => {
     } catch (error) {
         console.error(error);
         setLoading(false);
-        toast.error("Payment Initialization Failed");
+        toast.error("Payment Initialization Failed (Check if Local Backend is running)");
     }
   };
   // 👆👆 --------------------------------- 👆👆
