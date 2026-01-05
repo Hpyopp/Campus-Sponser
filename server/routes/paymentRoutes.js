@@ -10,12 +10,12 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-// 👇 1. GET KEY (Ye Frontend maangta hai)
+// 👇 1. GET KEY
 router.get('/getkey', (req, res) => {
     res.status(200).json({ key: process.env.RAZORPAY_KEY_ID });
 });
 
-// 👇 2. CHECKOUT (Naam change kiya: '/order' -> '/checkout')
+// 👇 2. CHECKOUT (Iska naam '/checkout' hi hona chahiye)
 router.post('/checkout', async (req, res) => {
   try {
     const { amount, eventId } = req.body;
@@ -30,8 +30,6 @@ router.post('/checkout', async (req, res) => {
     };
 
     const order = await razorpay.orders.create(options);
-    
-    // Frontend expects { order: ... } structure
     res.json({ order }); 
   } catch (error) {
     console.error("Order Error:", error);
@@ -39,16 +37,13 @@ router.post('/checkout', async (req, res) => {
   }
 });
 
-// 👇 3. VERIFICATION (Naam change kiya: '/verify' -> '/paymentverification')
+// 👇 3. VERIFICATION
 router.post('/paymentverification', async (req, res) => {
   try {
-    // Razorpay callback data
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-    
-    // URL Query se data (kyunki frontend callback URL mein bhej raha hai)
     const { eventId, amount, userId, userName, userEmail, companyName, comment } = req.query; 
 
-    // Safety checks (Agar query se na mile toh body se try kare)
+    // Safety checks
     const eId = eventId || req.body.eventId;
     const amt = amount || req.body.amount;
     const uName = userName || req.body.userName;
@@ -93,10 +88,8 @@ router.post('/paymentverification', async (req, res) => {
             if(uEmail) await sendEmail({ email: uEmail, subject, html: message });
         } catch (e) { console.log("Email error (ignored):", e.message); }
 
-        // Success Redirect
-        // ⚠️ IS URL KO LOCALHOST KAR LENA AGAR LOCAL PE HAI TOH
-        // res.redirect(`http://localhost:5173/event/${eId}?payment=success`);
-        res.redirect(`https://campus-sponser.vercel.app/event/${eId}?payment=success`); 
+        // 👇 REDIRECT TO LOCALHOST (Kyunki abhi tu local test kar raha hai)
+        res.redirect(`http://127.0.0.1:5173/event/${eId}?payment=success`); 
 
       } else {
           res.status(404).json({ message: "Event not found" });
