@@ -1,19 +1,18 @@
-const multer = require('multer');
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const multer = require('multer');
 
-// Cloudinary Config (Make sure .env me keys hon)
+// 👇 TERE .env SE KEYS CONNECT KIYA 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Storage Engine
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: 'campus-sponsor-docs', // Cloudinary folder name
+    folder: 'campus-sponsor-docs',
     allowed_formats: ['jpg', 'png', 'jpeg', 'pdf'],
   },
 });
