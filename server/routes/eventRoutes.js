@@ -1,97 +1,41 @@
 const express = require('express');
 const router = express.Router();
 const { protect, admin } = require('../middleware/authMiddleware');
-const Event = require('../models/campusEvent');
+const upload = require('../middleware/uploadMiddleware');
+const {
+  createEvent,
+  getEvents,
+  getEventById,
+  sponsorEvent,
+  verifyPayment,
+  requestRefund,
+  processRefund,
+  rejectSponsorship,
+  approveEvent,
+  revokeEvent,
+  deleteEvent,
+  getAllEventsForAdmin
+} = require('../controllers/eventController');
 
-// 1. GET ALL EVENTS (Public)
-router.get('/', async (req, res) => {
-  try {
-    // Sirf Approved events dikhao public ko
-    const events = await Event.find({ isApproved: true }).populate('user', 'name email');
-    res.json(events);
-  } catch (error) { res.status(500).json({ message: error.message }); }
-});
+// --- PUBLIC ROUTES ---
+router.get('/', getEvents); // Approved events dikhane ke liye
+router.get('/:id', getEventById); // Single event details
 
-// 2. GET ADMIN EVENTS (Protected)
-router.get('/admin/all', protect, admin, async (req, res) => {
-  try {
-    const events = await Event.find({}).populate('user', 'name email');
-    res.json(events);
-  } catch (error) { res.status(500).json({ message: error.message }); }
-});
+// --- PROTECTED ROUTES (Logged-in Users) ---
+// 1. Create Event (With Cloudinary Upload)
+router.post('/', protect, upload.single('permissionLetter'), createEvent);
 
-// 3. GET SINGLE EVENT
-router.get('/:id', async (req, res) => {
-  try {
-    const event = await Event.findById(req.params.id).populate('user', 'name email');
-    if (event) res.json(event);
-    else res.status(404).json({ message: 'Event not found' });
-  } catch (error) { res.status(500).json({ message: error.message }); }
-});
+// 2. Sponsor/Payment Actions
+router.post('/:id/sponsor', protect, sponsorEvent); // Sponsor banne ke liye
+router.put('/:id/request-refund', protect, requestRefund); // Refund maangne ke liye
 
-// 4. SPONSOR REQUEST REFUND (New Route) 🆕
-router.put('/:id/refund-request', protect, async (req, res) => {
-    try {
-        const event = await Event.findById(req.params.id);
-        if (!event) return res.status(404).json({ message: "Event not found" });
-
-        const sponsor = event.sponsors.find(s => s.sponsorId.toString() === req.user._id.toString());
-        
-        if (!sponsor) return res.status(404).json({ message: "Sponsorship not found" });
-        if (sponsor.status === 'refunded') return res.status(400).json({ message: "Already Refunded" });
-
-        sponsor.status = 'refund_requested';
-        await event.save();
-        
-        res.json({ message: "Refund Requested Successfully" });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
-
-// 5. ADMIN PROCESS REFUND (New Route) 🆕
-router.put('/:id/process-refund', protect, admin, async (req, res) => {
-    try {
-        const { sponsorId } = req.body;
-        const event = await Event.findById(req.params.id);
-        
-        const sponsor = event.sponsors.find(s => s.sponsorId.toString() === sponsorId);
-        if (!sponsor) return res.status(404).json({ message: "Sponsor not found" });
-
-        // Amount wapas minus karo
-        event.raisedAmount -= sponsor.amount;
-        sponsor.status = 'refunded'; // Mark as refunded
-
-        await event.save();
-        res.json({ message: "Refund Processed & Sponsor Removed" });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
-
-// 6. APPROVE EVENT (Admin)
-router.put('/:id/approve', protect, admin, async (req, res) => {
-    try {
-        const event = await Event.findById(req.params.id);
-        if(event) {
-            event.isApproved = true;
-            await event.save();
-            res.json(event);
-        } else { res.status(404).json({ message: "Event Not Found" }); }
-    } catch (e) { res.status(500).json({ message: e.message }); }
-});
-
-// 7. CREATE EVENT
-router.post('/', protect, async (req, res) => {
-    const { title, date, location, description, budget, permissionLetter } = req.body;
-    try {
-        const event = new Event({
-            user: req.user._id,
-            title, date, location, description, budget, permissionLetter
-        });
-        const createdEvent = await event.save();
-        res.status(201).json(createdEvent);
-    } catch (error) { res.status(500).json({ message: 'Creation Failed' }); }
-});
+// --- ADMIN ONLY ROUTES ---
+router.get('/admin/all', protect, admin, getAllEventsForAdmin); // Saare events dekhna
+router.put('/:id/approve', protect, admin, approveEvent); // Approve karna
+router.put('/:id/revoke', protect, admin, revokeEvent); // Un-approve karna
+router.put('/:id/verify-payment', protect, admin, verifyPayment); // Payment verify karna
+router.put('/:id/process-refund', protect, admin, processRefund); // Refund dena
+router.put('/:id/reject-sponsorship', protect, admin, rejectSponsorship); // Offer mana karna
+router.delete('/:id', protect, admin, deleteEvent); // Event delete karna
 
 module.exports = router;

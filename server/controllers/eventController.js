@@ -1,18 +1,27 @@
-const Event = require('../models/campusEvent'); 
+const Event = require('../models/campusEvent');
 const asyncHandler = require('express-async-handler');
-const sendEmail = require('../utils/sendEmail'); // 👈 Import Added
+const sendEmail = require('../utils/sendEmail');
 
-// 1. CREATE EVENT
+// 1. CREATE EVENT (With Multer Path Fix)
 const createEvent = asyncHandler(async (req, res) => {
   const { title, description, date, location, budget } = req.body;
   if (!title || !description || !date || !location || !budget) {
     res.status(400); throw new Error('Please fill all fields');
   }
-  let permissionLetter = req.file ? (req.file.path || req.file.url) : "";
+
+  // Cloudinary Check
+  if (!req.file) {
+    res.status(400); throw new Error('Please upload permission letter');
+  }
+
+  const permissionLetter = req.file.path || req.file.url;
+
   const event = await Event.create({
-    user: req.user.id, title, description, date, location, budget,
+    user: req.user._id, // Standard ID field
+    title, description, date, location, budget,
     permissionLetter, sponsors: []
   });
+
   res.status(201).json(event);
 });
 
@@ -35,73 +44,69 @@ const sponsorEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
   if (event) {
     event.sponsors.push({
-      sponsorId: req.user.id, name: req.user.name, email: req.user.email,
-      companyName: req.user.companyName, amount: Number(amount),
-      comment, status: 'pending'
+      sponsorId: req.user._id, 
+      name: req.user.name, 
+      email: req.user.email,
+      companyName: req.user.companyName, 
+      amount: Number(amount),
+      comment, 
+      status: 'pending'
     });
     await event.save();
-    res.status(201).json({ message: 'Pledged' });
+    res.status(201).json({ message: 'Pledged Successfully' });
   } else { res.status(404); throw new Error('Event not found'); }
 });
 
-// 5. VERIFY PAYMENT
+// 5. VERIFY PAYMENT (Admin Action)
 const verifyPayment = asyncHandler(async (req, res) => {
   const { sponsorId } = req.body;
   const event = await Event.findById(req.params.id);
+  if (!event) { res.status(404); throw new Error('Event not found'); }
+
   const sponsor = event.sponsors.find(s => s.sponsorId.toString() === sponsorId);
   if (sponsor) {
     sponsor.status = 'verified';
     event.raisedAmount = event.sponsors.filter(s => s.status === 'verified').reduce((acc, curr) => acc + curr.amount, 0);
     await event.save();
-    res.json({ message: 'Verified' });
+    res.json({ message: 'Payment Verified' });
   } else { res.status(404); throw new Error('Sponsor not found'); }
 });
 
-// 6. REQUEST REFUND
+// 6. REQUEST REFUND (User Action)
 const requestRefund = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
-  const sponsor = event.sponsors.find(s => s.sponsorId.toString() === req.user.id.toString());
+  const sponsor = event.sponsors.find(s => s.sponsorId.toString() === req.user._id.toString());
   if (sponsor) {
     sponsor.status = 'refund_requested';
     await event.save();
-    res.json({ message: 'Requested' });
+    res.json({ message: 'Refund Requested' });
   } else { res.status(404); throw new Error('Not found'); }
 });
 
-// 7. PROCESS REFUND (Updated with Email)
+// 7. PROCESS REFUND (Admin Action)
 const processRefund = asyncHandler(async (req, res) => {
     const { sponsorId } = req.body;
     const event = await Event.findById(req.params.id);
     if (!event) { res.status(404); throw new Error('Event not found'); }
 
-    // Email Data Nikalo
     const sponsorDetails = event.sponsors.find(s => s.sponsorId.toString() === sponsorId);
+    if (!sponsorDetails) { res.status(404); throw new Error('Sponsor record not found'); }
     
-    // Delete Sponsor
+    // Delete Sponsor and Update Raised Amount
     event.sponsors = event.sponsors.filter(s => s.sponsorId.toString() !== sponsorId);
     event.raisedAmount = event.sponsors.filter(s => s.status === 'verified').reduce((acc, curr) => acc + curr.amount, 0);
     await event.save();
 
-    // 👇 Send Email
-    if (sponsorDetails) {
-        const emailContent = `
-            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #dc2626; border-radius: 10px; background-color: #fef2f2;">
-                <h2 style="color: #dc2626;">💰 Refund Processed</h2>
-                <p>Hello <strong>${sponsorDetails.name}</strong>,</p>
-                <p>Your refund request for the event <strong>"${event.title}"</strong> has been processed.</p>
-                <p><strong>Amount Refunded:</strong> ₹${sponsorDetails.amount}</p>
-                <p style="font-size: 12px; color: #666;">CampusSponsor Admin Team</p>
-            </div>
-        `;
-        // Background me email bhejo (await mat karo agar fast response chahiye)
-        sendEmail({
+    // Send Brevo Email
+    try {
+        await sendEmail({
             email: sponsorDetails.email,
             subject: 'Refund Processed - CampusSponsor',
-            html: emailContent
+            html: `<h2>Refund Processed</h2><p>Your refund for <b>${event.title}</b> of ₹${sponsorDetails.amount} is successful.</p>`
         });
-    }
+    } catch (err) { console.error("Email fail, but refund processed"); }
 
-    res.json({ message: 'Refunded' });
+    res.json({ message: 'Refunded successfully' });
 });
 
 // 8. REJECT OFFER
@@ -110,21 +115,28 @@ const rejectSponsorship = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
   event.sponsors = event.sponsors.filter(s => s.sponsorId.toString() !== sponsorId);
   await event.save();
-  res.json({ message: 'Declined' });
+  res.json({ message: 'Offer Declined' });
 });
 
 // 9. ADMIN ACTIONS
 const approveEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
-  event.isApproved = true; await event.save(); res.json({ message: 'Approved' });
+  if (!event) { res.status(404); throw new Error('Event not found'); }
+  event.isApproved = true; 
+  await event.save(); 
+  res.json({ message: 'Approved' });
 });
+
 const revokeEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
   event.isApproved = false; await event.save(); res.json({ message: 'Revoked' });
 });
+
 const deleteEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
-  await event.deleteOne(); res.json({ message: 'Deleted' });
+  if (!event) { res.status(404); throw new Error('Event not found'); }
+  await event.deleteOne(); 
+  res.json({ message: 'Deleted' });
 });
 
 // 10. ADMIN: Get All Events
