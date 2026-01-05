@@ -13,13 +13,14 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import CreateEvent from './pages/CreateEvent';
 import EventDetails from './pages/EventDetails';
-import Agreement from './pages/Agreement';     // 📄 PDF Agreement Page
-import AdminDashboard from './pages/AdminDashboard'; // ⚡ God Mode Panel (Includes Refunds)
+import Agreement from './pages/Agreement';
+import AdminDashboard from './pages/AdminDashboard';
 import Verify from './pages/Verify';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
+import UserProfile from './pages/UserProfile'; // 👈 NEW IMPORT
 
-// 👇 USER SYNC COMPONENT (Status, Role, Doc Sync karega)
+// USER SYNC COMPONENT
 const UserSync = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -31,10 +32,9 @@ const UserSync = () => {
 
       try {
         const config = { headers: { Authorization: `Bearer ${storedUser.token}` } };
-        const res = await axios.get('/api/users/me', config);
+        const res = await axios.get('https://campus-sponser-api.onrender.com/api/users/me', config);
         const serverUser = res.data;
 
-        // Check for updates
         if (
             serverUser.isVerified !== storedUser.isVerified || 
             serverUser.role !== storedUser.role ||
@@ -47,23 +47,17 @@ const UserSync = () => {
                 verificationDoc: serverUser.verificationDoc
             };
             localStorage.setItem('user', JSON.stringify(updatedUser));
-            // Trigger storage event to update other components if needed
             window.dispatchEvent(new Event("storage"));
-            console.log("🔄 User Synced with Server");
         }
-
       } catch (error) {
-        // Agar Token expire ho gaya ya user delete ho gaya
         if (error.response && error.response.status === 401) {
             localStorage.clear();
             navigate('/login');
         }
       }
     };
-
-    const interval = setInterval(checkStatus, 5000); // Har 5 second check
-    checkStatus(); // First load check
-
+    const interval = setInterval(checkStatus, 5000); 
+    checkStatus(); 
     return () => clearInterval(interval);
   }, [navigate, location]);
 
@@ -74,38 +68,30 @@ function App() {
   return (
     <Router>
       <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        
-        {/* Background Sync */}
         <UserSync />
-        
         <Navbar />
         <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
 
         <div style={{ flex: 1 }}> 
             <Routes>
-                {/* Public Routes */}
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 
-                {/* Protected Routes */}
                 <Route path="/create-event" element={<CreateEvent />} />
                 <Route path="/event/:id" element={<EventDetails />} />
-                <Route path="/agreement/:id" element={<Agreement />} /> {/* 📄 PDF Link */}
+                <Route path="/agreement/:id" element={<Agreement />} />
                 <Route path="/profile" element={<Profile />} />
                 
-                {/* Admin Routes */}
-                <Route path="/admin" element={<AdminDashboard />} /> 
-                {/* Note: /admin/refunds hata diya kyunki wo Dashboard me hi hai */}
+                {/* 👇 NEW: Public Profile Route */}
+                <Route path="/u/:id" element={<UserProfile />} />
 
-                {/* System Routes */}
+                <Route path="/admin" element={<AdminDashboard />} /> 
                 <Route path="/verify" element={<Verify />} />
                 <Route path="*" element={<NotFound />} />
             </Routes>
         </div>
-
         <Footer />
-        
       </div>
     </Router>
   );

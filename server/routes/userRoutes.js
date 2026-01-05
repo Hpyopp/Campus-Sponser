@@ -1,16 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const userController = require('../controllers/userController'); // Controller import
+const userController = require('../controllers/userController'); 
 const { protect, admin } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 
-// 👇 1. PUBLIC ROUTES (Login/Register)
-// IMPORTANT: Frontend hits '/api/users' -> Ye '/' route match karega
+// 1. PUBLIC ROUTES
 router.post('/', userController.registerUser); 
 router.post('/login', userController.loginUser);
 router.post('/verify-otp', userController.verifyRegisterOTP);
 router.post('/forgot-password', userController.forgotPassword);
 router.post('/reset-password', userController.resetPassword);
+
+// 👇 NEW: Public Profile Route (LinkedIn Style)
+router.get('/u/:id', userController.getUserProfilePublic);
 
 // 2. PROTECTED ROUTES
 router.get('/me', protect, userController.getMe);

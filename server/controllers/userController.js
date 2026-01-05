@@ -1,8 +1,9 @@
 const User = require('../models/User');
+const Event = require('../models/campusEvent'); // 👈 IMPORTED EVENT MODEL
 const asyncHandler = require('express-async-handler');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const sendEmail = require('../utils/sendEmail'); // ✅ Uses Brevo
+const sendEmail = require('../utils/sendEmail');
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
@@ -68,32 +69,22 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 // ======================================================
-// 3. FORGOT PASSWORD (✅ DEBUGGING MODE ON)
+// 3. FORGOT PASSWORD
 // ======================================================
 const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
-  console.log(`🔍 Forgot Password Request for: ${email}`); // LOG CHECK 1
-
   const user = await User.findOne({ email: email.toLowerCase().trim() });
 
-  if (!user) { 
-    console.log("❌ User Not Found");
-    res.status(404); throw new Error('User not found'); 
-  }
+  if (!user) { res.status(404); throw new Error('User not found'); }
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
   try {
-    console.log("🚀 USING BREVO FORGOT PASSWORD FUNCTION..."); // LOG CHECK 2 (Ye aana chahiye)
-    
-    // THIS CALLS sendEmail.js (BREVO)
     await sendEmail({
       email: user.email,
       subject: "Reset Password - CampusSponsor",
       html: `<h1>Reset Password</h1><p>Your OTP is: <b style="color:red;">${otp}</b></p>`
     });
-
-    console.log("✅ Brevo Email Sent for Forgot Password"); // LOG CHECK 3
 
     user.otp = otp;
     user.otpExpires = Date.now() + 10 * 60 * 1000;
@@ -101,8 +92,6 @@ const forgotPassword = asyncHandler(async (req, res) => {
 
     res.json({ success: true, message: "OTP sent to your email." });
   } catch (error) {
-    console.error("❌ Forgot Password Failed (Check Error Below):");
-    console.error(error);
     res.status(500); throw new Error("Email service failed.");
   }
 });
@@ -134,6 +123,31 @@ const resetPassword = asyncHandler(async (req, res) => {
   } else { res.status(400); throw new Error('Invalid OTP'); }
 });
 
+// ======================================================
+// 6. PUBLIC PROFILE (LinkedIn Style) 👇 NEW ADDED
+// ======================================================
+const getUserProfilePublic = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id).select('-password -otp');
+  
+  if (user) {
+    let events = [];
+    
+    // Agar Student hai -> Uske create kiye hue events dikhao
+    if (user.role === 'student') {
+      events = await Event.find({ user: user._id }).sort({ createdAt: -1 });
+    } 
+    // Agar Sponsor hai -> Usne jahan paisa lagaya wo dikhao
+    else {
+      events = await Event.find({ "sponsors.sponsorId": user._id }).sort({ createdAt: -1 });
+    }
+
+    res.json({ user, events });
+  } else {
+    res.status(404);
+    throw new Error('User not found');
+  }
+});
+
 // Helpers
 const approveUser = asyncHandler(async (req, res) => { const user = await User.findById(req.params.id); if (user) { user.isVerified = true; await user.save(); try{await sendEmail({email:user.email,subject:'Approved',html:'<p>Approved</p>'});}catch(e){} res.json({message:'Verified'}); } else { res.status(404); throw new Error('User not found'); } });
 const getMe = asyncHandler(async (req, res) => { const user = await User.findById(req.user.id); if (user) res.json({_id:user._id,name:user.name,email:user.email,role:user.role,isVerified:user.isVerified,verificationDoc:user.verificationDoc||"",companyName:user.companyName}); else {res.status(404);throw new Error('User not found');}});
@@ -145,5 +159,6 @@ const verifyLogin = asyncHandler(async (req, res) => { res.status(400).json({ me
 
 module.exports = {
   registerUser, loginUser, verifyRegisterOTP, forgotPassword, resetPassword,
-  getMe, uploadDoc, getAllUsers, approveUser, unverifyUser, deleteUser, verifyLogin
+  getMe, uploadDoc, getAllUsers, approveUser, unverifyUser, deleteUser, verifyLogin,
+  getUserProfilePublic // 👈 EXPORTED
 };
