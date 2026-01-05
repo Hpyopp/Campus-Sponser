@@ -3,11 +3,9 @@ import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from
 import axios from 'axios';
 import { Toaster } from 'react-hot-toast';
 
-// Components
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 
-// Pages
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -20,47 +18,31 @@ import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 import UserProfile from './pages/UserProfile'; // 👈 NEW IMPORT
 
-// USER SYNC COMPONENT
+// User Sync Helper
 const UserSync = () => {
   const navigate = useNavigate();
   const location = useLocation();
-
   useEffect(() => {
     const checkStatus = async () => {
       const storedUser = JSON.parse(localStorage.getItem('user'));
       if (!storedUser || !storedUser.token) return;
-
       try {
         const config = { headers: { Authorization: `Bearer ${storedUser.token}` } };
         const res = await axios.get('https://campus-sponser-api.onrender.com/api/users/me', config);
         const serverUser = res.data;
-
-        if (
-            serverUser.isVerified !== storedUser.isVerified || 
-            serverUser.role !== storedUser.role ||
-            serverUser.verificationDoc !== storedUser.verificationDoc
-        ) {
-            const updatedUser = { 
-                ...storedUser, 
-                isVerified: serverUser.isVerified, 
-                role: serverUser.role,
-                verificationDoc: serverUser.verificationDoc
-            };
+        if (serverUser.isVerified !== storedUser.isVerified || serverUser.role !== storedUser.role) {
+            const updatedUser = { ...storedUser, isVerified: serverUser.isVerified, role: serverUser.role };
             localStorage.setItem('user', JSON.stringify(updatedUser));
             window.dispatchEvent(new Event("storage"));
         }
       } catch (error) {
-        if (error.response && error.response.status === 401) {
-            localStorage.clear();
-            navigate('/login');
-        }
+        if (error.response && error.response.status === 401) { localStorage.clear(); navigate('/login'); }
       }
     };
     const interval = setInterval(checkStatus, 5000); 
     checkStatus(); 
     return () => clearInterval(interval);
   }, [navigate, location]);
-
   return null;
 };
 
@@ -71,19 +53,17 @@ function App() {
         <UserSync />
         <Navbar />
         <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
-
         <div style={{ flex: 1 }}> 
             <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-                
                 <Route path="/create-event" element={<CreateEvent />} />
                 <Route path="/event/:id" element={<EventDetails />} />
                 <Route path="/agreement/:id" element={<Agreement />} />
                 <Route path="/profile" element={<Profile />} />
                 
-                {/* 👇 NEW: Public Profile Route */}
+                {/* 👇 NEW: Ye route missing tha, ab add ho gaya */}
                 <Route path="/u/:id" element={<UserProfile />} />
 
                 <Route path="/admin" element={<AdminDashboard />} /> 

@@ -11,7 +11,7 @@ router.post('/verify-otp', userController.verifyRegisterOTP);
 router.post('/forgot-password', userController.forgotPassword);
 router.post('/reset-password', userController.resetPassword);
 
-// 👇 NEW: Public Profile Route (LinkedIn Style)
+// 👇 NEW: Public Profile Route (Bina Login ke dikhega)
 router.get('/u/:id', userController.getUserProfilePublic);
 
 // 2. PROTECTED ROUTES
