@@ -16,60 +16,63 @@ const EventDetails = () => {
 
   const fetchEvent = async () => {
     try {
-      const { data } = await axios.get(`/api/events/${id}`);
+      const { data } = await axios.get(`https://campus-sponser-api.onrender.com/api/events/${id}`);
       setEvent(data);
     } catch (error) { toast.error("Event not found"); }
   };
 
   useEffect(() => { fetchEvent(); }, [id]);
 
+  if (!event) return <div style={{textAlign:'center', marginTop:'50px'}}>Loading...</div>;
+
   const mySponsorship = event?.sponsors?.find(s => s.sponsorId === user?._id && s.status === 'verified');
   const isFullyFunded = event?.raisedAmount >= event?.budget;
+  const percent = Math.min((event.raisedAmount / event.budget) * 100, 100);
 
-  // 👇 STAMP WALA AGREEMENT LOGIC
+  // 👇 NEW: TIMELINE LOGIC
+  const stages = ['pending', 'funding', 'completed'];
+  const currentStep = stages.indexOf(event.status || 'pending');
+
+  // 👇 EXISTING: PDF DOWNLOAD LOGIC (STAMP WALA)
   const downloadAgreement = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
 
-    // 1. HEADER
+    // HEADER
     doc.setFont("helvetica", "bold");
     doc.setFontSize(24);
-    doc.setTextColor(41, 128, 185); // Professional Blue
+    doc.setTextColor(41, 128, 185);
     doc.text("SPONSORSHIP AGREEMENT", pageWidth / 2, 25, { align: "center" });
     
-    // REF ID
     doc.setFontSize(10);
     doc.setTextColor(100);
     const refId = mySponsorship.paymentId ? mySponsorship.paymentId.slice(-8).toUpperCase() : 'GEN-001';
     doc.text(`Agreement Ref: CSP-${refId}`, 150, 15);
 
-    // Line Divider
     doc.setLineWidth(0.8);
     doc.setDrawColor(41, 128, 185);
     doc.line(20, 32, 190, 32);
 
-    // 2. PARTIES
+    // PARTIES
     doc.setFontSize(12);
     doc.setTextColor(0);
     doc.setFont("helvetica", "normal");
     doc.text(`This Agreement is executed on ${new Date().toLocaleDateString()} between:`, 20, 50);
 
-    // SPONSOR BLOCK
     doc.setFont("helvetica", "bold");
     doc.text("THE SPONSOR (PAYER)", 20, 65);
     doc.setFont("helvetica", "normal");
     doc.text(`${mySponsorship.companyName || user.companyName || user.name}`, 20, 72);
     doc.text(`Email: ${user.email}`, 20, 78);
 
-    // ORGANIZER BLOCK
     doc.setFont("helvetica", "bold");
     doc.text("THE ORGANIZER (RECEIVER)", 120, 65);
     doc.setFont("helvetica", "normal");
     doc.text(`${event.user?.name || "College Representative"}`, 120, 72);
     doc.text(`Event: ${event.title}`, 120, 78);
 
-    // 3. GREY BOX - PAYMENT DETAILS
-    doc.setFillColor(240, 242, 245); // Light Grey
+    // PAYMENT DETAILS
+    doc.setFillColor(240, 242, 245);
     doc.rect(20, 95, 170, 45, "F");
     
     doc.setFont("helvetica", "bold");
@@ -88,7 +91,7 @@ const EventDetails = () => {
     doc.text(`Transaction ID: ${mySponsorship.paymentId}`, 25, 130);
     doc.text(`Payment Date: ${new Date(mySponsorship.date || Date.now()).toLocaleDateString()}`, 120, 130);
 
-    // 4. TERMS
+    // TERMS
     doc.setFont("helvetica", "bold");
     doc.text("TERMS OF ENGAGEMENT", 20, 160);
     doc.setFont("helvetica", "normal");
@@ -104,19 +107,15 @@ const EventDetails = () => {
     let y = 170;
     terms.forEach(t => { doc.text(t, 20, y); y += 8; });
 
-    // 5. DIGITAL STAMP (New Feature 🌟)
-    // Draw Circle
+    // STAMP
     const stampX = 150;
     const stampY = 240;
-    doc.setDrawColor(22, 160, 133); // Greenish Teal Color
+    doc.setDrawColor(22, 160, 133);
     doc.setLineWidth(1.5);
     doc.circle(stampX, stampY, 22, "S"); 
-    
-    // Draw Inner Circle
     doc.setLineWidth(0.5);
     doc.circle(stampX, stampY, 20, "S");
 
-    // Stamp Text
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(22, 160, 133);
@@ -127,7 +126,6 @@ const EventDetails = () => {
     doc.setFontSize(7);
     doc.text(`DATE: ${new Date().toLocaleDateString()}`, stampX, stampY + 12, { align: "center" });
 
-    // 6. FOOTER DISCLAIMER
     doc.setFontSize(9);
     doc.setTextColor(150);
     doc.setFont("helvetica", "italic");
@@ -137,6 +135,7 @@ const EventDetails = () => {
     toast.success("Stamped Agreement Downloaded!");
   };
 
+  // 👇 EXISTING: PAYMENT LOGIC
   const handlePayment = async (e) => {
     e.preventDefault();
     if (!user) return navigate('/login');
@@ -144,7 +143,7 @@ const EventDetails = () => {
     
     try {
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
-        const meRes = await axios.get('/api/users/me', config);
+        const meRes = await axios.get('https://campus-sponser-api.onrender.com/api/users/me', config);
         if (!meRes.data.isVerified) return toast.error("🚫 Not Verified by Admin!");
     } catch (err) { return; }
 
@@ -152,10 +151,10 @@ const EventDetails = () => {
 
     setLoading(true);
     try {
-        const { data: order } = await axios.post('/api/payment/order', { amount, eventId: id });
+        const { data: order } = await axios.post('https://campus-sponser-api.onrender.com/api/payment/order', { amount, eventId: id });
 
         const options = {
-            key: "rzp_test_RzpjqjoYNvSTMY",
+            key: "rzp_test_RzpjqjoYNvSTMY", // Replace with your actual Key ID
             amount: order.amount,
             currency: "INR",
             name: "CampusSponsor",
@@ -175,7 +174,7 @@ const EventDetails = () => {
                         companyName: user.companyName,
                         comment: comment
                     };
-                    await axios.post('/api/payment/verify', verifyData);
+                    await axios.post('https://campus-sponser-api.onrender.com/api/payment/verify', verifyData);
                     toast.success("🎉 Payment Successful!");
                     fetchEvent(); 
                 } catch (error) { toast.error("Verification Failed"); }
@@ -186,22 +185,38 @@ const EventDetails = () => {
         const rzp1 = new window.Razorpay(options);
         rzp1.open();
     } catch (error) {
-        console.error(error);
         toast.error(error.response?.data?.message || "Payment Failed");
     } finally { setLoading(false); }
   };
 
-  if (!event) return <div style={{textAlign:'center', marginTop:'50px'}}>Loading...</div>;
-
-  const percent = Math.min((event.raisedAmount / event.budget) * 100, 100);
-
   return (
     <div style={{ maxWidth: '800px', margin: '40px auto', padding: '20px', fontFamily:'Poppins' }}>
       
-      {/* HEADER */}
+      {/* HEADER CARD */}
       <div style={{ background: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+        
+        {/* 🔥 NEW: TIMELINE UI (College Demo Special) */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px', padding: '15px', background: '#f8fafc', borderRadius: '12px' }}>
+          {stages.map((s, i) => (
+            <div key={s} style={{ textAlign: 'center', flex: 1, position: 'relative' }}>
+              <div style={{ 
+                width: '30px', height: '30px', borderRadius: '50%', 
+                background: i <= currentStep ? '#3b82f6' : '#e2e8f0', 
+                margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '12px', color: i <= currentStep ? 'white' : '#64748b', fontWeight: 'bold'
+              }}>
+                {i + 1}
+              </div>
+              <p style={{ fontSize: '0.7rem', marginTop: '8px', color: i <= currentStep ? '#3b82f6' : '#94a3b8', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                {s}
+              </p>
+            </div>
+          ))}
+        </div>
+
         <h1 style={{ fontSize: '2.5rem', color: '#1e293b', marginBottom: '10px' }}>{event.title}</h1>
         
+        {/* FUNDING PROGRESS BAR */}
         <div style={{background:'#e2e8f0', borderRadius:'10px', height:'20px', width:'100%', marginBottom:'10px', overflow:'hidden'}}>
             <div style={{width: `${percent}%`, background: isFullyFunded ? '#22c55e' : '#3b82f6', height:'100%', transition:'0.5s'}}></div>
         </div>

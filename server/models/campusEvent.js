@@ -7,7 +7,8 @@ const sponsorSchema = mongoose.Schema({
   companyName: { type: String },
   amount: { type: Number, required: true },
   comment: { type: String },
-  status: { type: String, default: 'pending' }, // 'pending' ya 'verified'
+  status: { type: String, default: 'pending' }, // 'pending' | 'verified' | 'refund_requested' | 'refunded'
+  paymentId: { type: String }, // Razorpay Payment ID store karne ke liye
   date: { type: Date, default: Date.now }
 });
 
@@ -18,11 +19,19 @@ const eventSchema = mongoose.Schema({
   date: { type: Date, required: true },
   location: { type: String, required: true },
   budget: { type: Number, required: true },
-  permissionLetter: { type: String }, // File path
+  permissionLetter: { type: String }, 
   isApproved: { type: Boolean, default: false },
+  
+  // 👇 NEW: Timeline Status
+  status: { 
+    type: String, 
+    enum: ['pending', 'funding', 'completed'], 
+    default: 'pending' 
+  },
+  
   raisedAmount: { type: Number, default: 0 },
-  sponsors: [sponsorSchema], // 👈 Ye zaroori hai sponsorship ke liye
-  views: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  sponsors: [sponsorSchema],
+  eventImages: [String], // Future use: Event photos
 }, {
   timestamps: true
 });
