@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom'; // 👈 useNavigate Import kiya Chat ke liye
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
 const UserProfile = () => {
   const { id } = useParams();
+  const navigate = useNavigate(); // 👈 Hook for navigation
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -37,11 +38,11 @@ const UserProfile = () => {
       
       {/* 🎭 COVER & PROFILE HEADER */}
       <div style={{ background: 'white', borderRadius: '0 0 25px 25px', boxShadow: '0 10px 30px rgba(0,0,0,0.05)', overflow: 'hidden', position:'relative' }}>
-        {/* Cover Photo with Gradient Overlay */}
+        {/* Cover Photo */}
         <div style={{ height: '180px', background: `linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.4)), url('https://source.unsplash.com/random/1600x400/?campus,tech')`, backgroundSize:'cover', backgroundPosition:'center' }}></div>
         
         <div style={{ padding: '0 30px 30px 30px', display: 'flex', alignItems: 'flex-end', gap: '25px', flexWrap:'wrap' }}>
-          {/* Avatar (Overlapping) */}
+          {/* Avatar */}
           <div style={{ marginTop: '-90px', padding:'5px', background:'white', borderRadius:'50%', boxShadow:'0 4px 15px rgba(0,0,0,0.1)' }}>
             <img 
                 src={`https://ui-avatars.com/api/?name=${user.name}&background=3b82f6&color=fff&size=180&bold=true`} 
@@ -61,14 +62,16 @@ const UserProfile = () => {
               {user.companyName && <span style={{color:'#334155'}}> @ {user.companyName}</span>}
               {user.collegeName && <span style={{color:'#334155'}}> | {user.collegeName}</span>}
             </p>
-            {/* Fake Location/Join Date for PRO feel */}
             <p style={{ margin: '10px 0 0 0', fontSize: '0.9rem', color: '#94a3b8', display:'flex', gap:'15px' }}>
                 <span>📍 India</span> | <span>📅 Joined recently</span>
             </p>
           </div>
 
           {/* Connect Button */}
-          <button onClick={() => toast.success("Messaging feature coming soon! 💬")} style={{ padding: '12px 25px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '50px', cursor: 'pointer', fontWeight: '700', fontSize:'1rem', boxShadow:'0 4px 15px rgba(37, 99, 235, 0.3)', transition:'0.3s', display:'flex', alignItems:'center', gap:'8px' }}>
+          {/* 👇 CHAT FEATURE WALA UPDATE */}
+          <button 
+            onClick={() => toast.success("Chat feature coming in next update! 💬")} 
+            style={{ padding: '12px 25px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '50px', cursor: 'pointer', fontWeight: '700', fontSize:'1rem', boxShadow:'0 4px 15px rgba(37, 99, 235, 0.3)', transition:'0.3s', display:'flex', alignItems:'center', gap:'8px' }}>
             Connect 💬
           </button>
         </div>
@@ -81,13 +84,13 @@ const UserProfile = () => {
         <StatCard label="Profile Credibility" value="High ⭐" emoji="🛡️" bg="#fff7ed" color="#d97706" />
       </div>
 
-      {/* 📜 ACTIVITY FEED (With Smart Status Fix) */}
+      {/* 📜 ACTIVITY FEED */}
       <div style={{ padding: '0 20px' }}>
         <h3 style={{ color: '#1e293b', marginTop: '30px', fontSize:'1.5rem', borderBottom:'2px solid #e2e8f0', paddingBottom:'15px', marginBottom:'25px' }}>Recent Activity</h3>
         <div style={{ display: 'grid', gap: '20px' }}>
             {events.length > 0 ? events.map(event => {
                 
-                // 🔥 SMART STATUS LOGIC (Fixes "Pending" Issue)
+                // 🔥 SMART STATUS LOGIC
                 let smartStatus = 'pending';
                 let statusColor = '#eab308'; // Yellow
                 let statusBg = '#fefce8';
@@ -102,7 +105,6 @@ const UserProfile = () => {
                         statusBg = '#dcfce7';
                     }
                 }
-                // For sponsors, check their specific payment status if needed, but event status is better here.
 
                 return (
                 <div key={event._id} style={{ background: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition:'0.3s' }}>
@@ -124,9 +126,9 @@ const UserProfile = () => {
                     <span style={{ 
                         background: statusBg, 
                         color: statusColor,
-                        padding: '6px 12px', borderRadius: '30px', fontSize: '0.75rem', fontWeight: '800', letterSpacing:'0.5px', boxShadow:`0 2px 5px ${statusBg}`
+                        padding: '6px 12px', borderRadius: '30px', fontSize: '0.75rem', fontWeight: '800', letterSpacing:'0.5px', boxShadow:`0 2px 5px ${statusBg}`, textTransform: 'uppercase'
                     }}>
-                        {smartStatus.toUpperCase()}
+                        {smartStatus}
                     </span>
                     </div>
                 </div>
@@ -143,7 +145,7 @@ const UserProfile = () => {
   );
 };
 
-// Improved Stat Card Component
+// Stat Card Component
 const StatCard = ({ label, value, emoji, bg, color }) => (
   <div style={{ flex: 1, background: 'white', padding: '25px', borderRadius: '20px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)', textAlign: 'center', borderBottom: `4px solid ${color}` }}>
     <div style={{ fontSize: '2.5rem', marginBottom: '10px', background: bg, width:'70px', height:'70px', display:'flex', alignItems:'center', justifyContent:'center', borderRadius:'50%', margin:'0 auto 15px auto' }}>{emoji}</div>

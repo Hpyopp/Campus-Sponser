@@ -27,7 +27,8 @@
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^4.0.0",
     "nodemailer": "^7.0.12",
-    "razorpay": "^2.9.6"
+    "razorpay": "^2.9.6",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "babel-plugin-react-compiler": "^1.0.0",

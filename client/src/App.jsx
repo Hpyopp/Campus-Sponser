@@ -16,7 +16,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import Verify from './pages/Verify';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
-import UserProfile from './pages/UserProfile'; // 👈 NEW IMPORT
+import UserProfile from './pages/UserProfile';
+import Chat from './pages/Chat'; // 👈 NEW IMPORT
 
 // User Sync Helper
 const UserSync = () => {

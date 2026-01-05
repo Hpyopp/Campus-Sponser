@@ -3,6 +3,8 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const path = require('path');
+const http = require('http'); // 👈 Required for Socket
+const { Server } = require('socket.io'); // 👈 Required for Socket
 
 // Config
 dotenv.config();
@@ -12,59 +14,67 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// --- IMPORTS ---
+// --- ROUTES IMPORTS ---
 const userRoutes = require('./routes/userRoutes');
 const eventRoutes = require('./routes/eventRoutes');
-const paymentRoutes = require('./routes/paymentRoutes'); // 👈 NEW ADDITION (Payment Route)
-
-// --- DEBUGGING LOGS (Terminal mein dikhenge) ---
-console.log("------------------------------------------------");
-console.log("🛠️  ROUTE CHECK:");
-console.log("User Routes Type:", typeof userRoutes === 'function' ? '✅ Function (Correct)' : '❌ Object (WRONG!)');
-console.log("Event Routes Type:", typeof eventRoutes === 'function' ? '✅ Function (Correct)' : '❌ Object (WRONG!)');
-console.log("Payment Routes Type:", typeof paymentRoutes === 'function' ? '✅ Function (Correct)' : '❌ Object (WRONG!)'); // 👈 Check Payment Route
-console.log("------------------------------------------------");
+const paymentRoutes = require('./routes/paymentRoutes');
+const chatRoutes = require('./routes/chatRoutes'); // 👈 NEW CHAT ROUTE
 
 // --- MOUNT ROUTES ---
+app.use('/api/users', userRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/payment', paymentRoutes);
+app.use('/api/chat', chatRoutes); // 👈 MOUNT CHAT ROUTE
 
-// 1. User Routes
-if (typeof userRoutes === 'function') {
-    app.use('/api/users', userRoutes);
-} else {
-    console.error("🚨 CRITICAL ERROR: userRoutes.js is not exporting a router function!");
-}
-
-// 2. Event Routes
-if (typeof eventRoutes === 'function') {
-    app.use('/api/events', eventRoutes);
-} else {
-    console.error("🚨 CRITICAL ERROR: eventRoutes.js is not exporting a router function!");
-}
-
-// 3. Payment Routes (👈 NEW ADDITION)
-if (typeof paymentRoutes === 'function') {
-    app.use('/api/payment', paymentRoutes);
-} else {
-    console.error("🚨 CRITICAL ERROR: paymentRoutes.js is not exporting a router function! Check file path.");
-}
-
-// Upload Folder Static Access
+// Static Uploads
 app.use('/uploads', express.static(path.join(__dirname, '/uploads')));
 
-// Basic Route
-app.get('/', (req, res) => {
-    res.send('API is running...');
-});
+app.get('/', (req, res) => { res.send('API is running...'); });
 
-// Error Handling Middleware
+// Error Handler
 app.use((err, req, res, next) => {
     const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
-    res.status(statusCode);
-    res.json({
-        message: err.message,
-        stack: process.env.NODE_ENV === 'production' ? null : err.stack,
-    });
+    res.status(statusCode).json({ message: err.message });
+});
+
+// ==========================================
+// ⚡ SOCKET.IO SETUP (REAL-TIME CHAT)
+// ==========================================
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Allow all origins (Development ke liye easy)
+    methods: ["GET", "POST"]
+  }
+});
+
+io.on('connection', (socket) => {
+  console.log(`⚡ Socket Connected: ${socket.id}`);
+
+  // User joins their own room (based on User ID)
+  socket.on('join_room', (userId) => {
+    socket.join(userId);
+    console.log(`User joined room: ${userId}`);
+  });
+
+  // Send Message
+  socket.on('send_message', async (data) => {
+    const { sender, receiver, message } = data;
+    
+    // Save to DB (Taaki refresh karne pe gayab na ho)
+    const Message = require('./models/Message');
+    await Message.create({ sender, receiver, message });
+
+    // Send to Receiver instantly
+    io.to(receiver).emit('receive_message', data);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User Disconnected');
+  });
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, console.log(`🚀 Server running on port ${PORT}`));
+// Note: app.listen nahi, server.listen use karna hai
+server.listen(PORT, () => console.log(`🚀 Server & Socket running on port ${PORT}`));
