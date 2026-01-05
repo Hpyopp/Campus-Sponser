@@ -17,7 +17,7 @@ import Verify from './pages/Verify';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 import UserProfile from './pages/UserProfile';
-import Chat from './pages/Chat'; // 👈 NEW IMPORT
+import Chat from './pages/Chat'; // 👈 IMPORT 1: Chat page import kiya
 
 // User Sync Helper
 const UserSync = () => {
@@ -63,9 +63,10 @@ function App() {
                 <Route path="/event/:id" element={<EventDetails />} />
                 <Route path="/agreement/:id" element={<Agreement />} />
                 <Route path="/profile" element={<Profile />} />
-                
-                {/* 👇 NEW: Ye route missing tha, ab add ho gaya */}
                 <Route path="/u/:id" element={<UserProfile />} />
+                
+                {/* 👇 IMPORT 2: Yahan Chat ka rasta (Route) banaya */}
+                <Route path="/chat" element={<Chat />} />
 
                 <Route path="/admin" element={<AdminDashboard />} /> 
                 <Route path="/verify" element={<Verify />} />
