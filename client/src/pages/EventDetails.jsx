@@ -29,11 +29,21 @@ const EventDetails = () => {
   const isFullyFunded = event?.raisedAmount >= event?.budget;
   const percent = Math.min((event.raisedAmount / event.budget) * 100, 100);
 
-  // 👇 NEW: TIMELINE LOGIC
-  const stages = ['pending', 'funding', 'completed'];
-  const currentStep = stages.indexOf(event.status || 'pending');
+  // 👇 SMART TIMELINE LOGIC (Fix for Stuck Pending)
+  // Hum database status ke bajaye real conditions check karenge
+  let currentStatus = 'pending';
+  
+  if (event.isApproved) {
+      currentStatus = 'funding'; // Agar Approved hai toh kam se kam Funding stage pe hai
+      if (event.raisedAmount >= event.budget) {
+          currentStatus = 'completed'; // Agar paisa pura ho gaya toh Completed
+      }
+  }
 
-  // 👇 EXISTING: PDF DOWNLOAD LOGIC (STAMP WALA)
+  const stages = ['pending', 'funding', 'completed'];
+  const currentStep = stages.indexOf(currentStatus);
+
+  // 👇 PDF DOWNLOAD LOGIC
   const downloadAgreement = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
@@ -135,7 +145,6 @@ const EventDetails = () => {
     toast.success("Stamped Agreement Downloaded!");
   };
 
-  // 👇 EXISTING: PAYMENT LOGIC
   const handlePayment = async (e) => {
     e.preventDefault();
     if (!user) return navigate('/login');
@@ -154,7 +163,7 @@ const EventDetails = () => {
         const { data: order } = await axios.post('https://campus-sponser-api.onrender.com/api/payment/order', { amount, eventId: id });
 
         const options = {
-            key: "rzp_test_RzpjqjoYNvSTMY", // Replace with your actual Key ID
+            key: "rzp_test_RzpjqjoYNvSTMY",
             amount: order.amount,
             currency: "INR",
             name: "CampusSponsor",
@@ -195,7 +204,7 @@ const EventDetails = () => {
       {/* HEADER CARD */}
       <div style={{ background: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
         
-        {/* 🔥 NEW: TIMELINE UI (College Demo Special) */}
+        {/* 🔥 NEW: SMART TIMELINE UI */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px', padding: '15px', background: '#f8fafc', borderRadius: '12px' }}>
           {stages.map((s, i) => (
             <div key={s} style={{ textAlign: 'center', flex: 1, position: 'relative' }}>
