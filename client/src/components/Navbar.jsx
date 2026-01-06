@@ -1,20 +1,43 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import io from 'socket.io-client';
+import io from 'socket.io-client'; // 👈 Import Socket
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const [unreadCount, setUnreadCount] = useState(0); // Notifications ke liye
-  const [msgNotification, setMsgNotification] = useState(false); // 👈 Chat Red Dot ke liye
+  const location = useLocation();
+  const [unreadCount, setUnreadCount] = useState(0); 
+  const [chatRedDot, setChatRedDot] = useState(false); // 👈 Chat Red Dot State
   const user = JSON.parse(localStorage.getItem('user'));
 
-  // Smart Endpoint
   const ENDPOINT = window.location.hostname === 'localhost' 
     ? "http://127.0.0.1:5000" 
     : "https://campus-sponser-api.onrender.com";
 
-  // 1. Notification Polling (Existing Logic)
+  // 1. Chat Red Dot Logic (Socket)
+  useEffect(() => {
+    if(!user) return;
+    const socket = io(ENDPOINT);
+    socket.emit("join_room", user._id);
+
+    socket.on("receive_message", (data) => {
+        // Agar user Chat page par nahi hai, tabhi Red Dot dikhao
+        if (location.pathname !== '/chat') {
+            setChatRedDot(true);
+        }
+    });
+    return () => socket.disconnect();
+  }, [user, location.pathname]);
+
+  // Agar Chat page khul jaye, to Red Dot hata do
+  useEffect(() => {
+    if (location.pathname === '/chat') {
+        setChatRedDot(false);
+    }
+  }, [location.pathname]);
+
+
+  // 2. Notification System (Existing)
   useEffect(() => {
     if (!user) return;
     const checkNotifications = async () => {
@@ -27,40 +50,18 @@ const Navbar = () => {
         } catch (e) {}
     };
     checkNotifications();
-    const interval = setInterval(checkNotifications, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // 2. 👇 Socket Listener for New Messages (Red Dot)
-  useEffect(() => {
-    if(!user) return;
-    const socket = io(ENDPOINT);
-    socket.emit("join_room", user._id);
-
-    socket.on("receive_message", (data) => {
-        // Agar user abhi Chat page par nahi hai, tabhi Red Dot dikhao
-        if (!window.location.href.includes('/chat')) {
-            setMsgNotification(true);
-        }
-    });
-
-    return () => socket.disconnect();
-  }, []);
-
-  const handleChatClick = () => {
-      setMsgNotification(false); // Click karte hi Red Dot hata do
-  };
+    const interval = setInterval(checkNotifications, 10000); 
+    return () => clearInterval(interval); 
+  }, [user]);
 
   return (
     <nav style={{ background: '#ffffff', padding: '15px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position:'sticky', top:0, zIndex:1000, flexWrap: 'wrap', gap: '15px' }}>
       
-      {/* LOGO */}
       <Link to="/" style={{ textDecoration: 'none', display:'flex', alignItems:'center', gap:'10px' }}>
         <span style={{fontSize:'1.8rem'}}>🚀</span>
         <h2 style={{ margin: 0, color: '#1e293b', fontFamily: 'Poppins', fontWeight:'800', fontSize:'1.5rem' }}>CampusSponsor</h2>
       </Link>
 
-      {/* LINKS */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontFamily:'Poppins', fontWeight:'500', flexWrap:'wrap' }}>
         <Link to="/" style={{ textDecoration: 'none', color: '#64748b' }}>Home</Link>
         
@@ -70,19 +71,19 @@ const Navbar = () => {
             {user.role === 'admin' && <Link to="/admin" style={{ textDecoration: 'none', color: '#dc2626', fontWeight:'bold' }}>Admin Panel</Link>}
 
             {/* 👇 MESSAGE LINK WITH RED DOT */}
-            <Link to="/chat" onClick={handleChatClick} style={{ textDecoration: 'none', color: '#64748b', display:'flex', alignItems:'center', gap:'5px', position:'relative' }}>
+            <Link to="/chat" style={{ textDecoration: 'none', color: '#64748b', display:'flex', alignItems:'center', gap:'5px', position:'relative' }}>
                 <span style={{fontSize:'1.2rem'}}>💬</span> Messages
-                {msgNotification && (
+                {chatRedDot && (
                     <span style={{
-                        position: 'absolute', top: '-2px', right: '-8px',
+                        position: 'absolute', top: '-2px', right: '-6px',
                         height: '10px', width: '10px',
-                        backgroundColor: 'red', borderRadius: '50%',
+                        backgroundColor: '#ef4444', borderRadius: '50%',
                         border: '2px solid white'
                     }}></span>
                 )}
             </Link>
 
-            {/* NOTIFICATION BELL */}
+            {/* NOTIFICATIONS */}
             <div onClick={() => { setUnreadCount(0); navigate('/notifications'); }} style={{ position: 'relative', cursor: 'pointer', fontSize: '1.4rem', display:'flex', alignItems:'center' }}>
                 🔔
                 {unreadCount > 0 && (

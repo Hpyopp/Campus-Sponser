@@ -9,7 +9,6 @@ const Chat = () => {
   const startChatId = searchParams.get('userId');
   const user = JSON.parse(localStorage.getItem('user'));
 
-  // Smart Endpoint Logic
   const ENDPOINT = window.location.hostname === 'localhost' 
     ? "http://127.0.0.1:5000" 
     : "https://campus-sponser-api.onrender.com";
@@ -21,7 +20,7 @@ const Chat = () => {
   const [socket, setSocket] = useState(null);
   const scrollRef = useRef();
 
-  // 1. Socket Initialize
+  // 1. Socket Init
   useEffect(() => {
     const s = io(ENDPOINT);
     setSocket(s);
@@ -29,27 +28,27 @@ const Chat = () => {
     return () => s.disconnect();
   }, []);
 
-  // 2. Incoming Messages & Seen Updates
+  // 2. Listeners
   useEffect(() => {
     if (!socket) return;
     
-    // Message Receive Listener
+    // Message Receive
     socket.on("receive_message", (data) => {
       if (currentChat && (data.sender === currentChat._id || data.sender === user._id)) {
         setMessages((prev) => [...prev, data]);
-        // Agar chat khuli hai, toh turant SEEN mark karo
+        // Agar chat khuli hai to turant seen karo
         if (data.sender === currentChat._id) {
             socket.emit("mark_as_seen", { senderId: data.sender, receiverId: user._id });
         }
       } else {
-        toast("New Message Received 📩");
+        toast("New Message 📩");
         fetchConversations();
       }
     });
 
-    // 👇 Seen Update Listener (Blue Tick Logic)
-    socket.on("message_seen_update", ({ seerId }) => {
-        if (currentChat && currentChat._id === seerId) {
+    // 👇 SEEN UPDATE LISTENER
+    socket.on("msg_seen_update", ({ receiverId }) => {
+        if (currentChat && currentChat._id === receiverId) {
             setMessages(prev => prev.map(msg => 
                 msg.sender === user._id ? { ...msg, isRead: true } : msg
             ));
@@ -58,7 +57,7 @@ const Chat = () => {
 
   }, [socket, currentChat]);
 
-  // 3. Mark as Seen when Chat Opens
+  // 3. Chat Open hone par Mark Seen
   useEffect(() => {
       if (socket && currentChat) {
           socket.emit("mark_as_seen", { senderId: currentChat._id, receiverId: user._id });
@@ -79,16 +78,13 @@ const Chat = () => {
             const newUser = { _id: userRes.data.user._id, name: userRes.data.user.name, role: userRes.data.user.role };
             setConversations(prev => [newUser, ...prev]);
             setCurrentChat(newUser);
-        } else {
-            setCurrentChat(exists);
-        }
+        } else { setCurrentChat(exists); }
       }
-    } catch (error) { console.error(error); }
+    } catch (error) {}
   };
-
   useEffect(() => { fetchConversations(); }, [startChatId]);
 
-  // 5. Fetch Chat History
+  // 5. Messages Load
   useEffect(() => {
     const getMessages = async () => {
       if (!currentChat) return;
@@ -96,14 +92,14 @@ const Chat = () => {
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
         const { data } = await axios.get(`${ENDPOINT}/api/chat/${currentChat._id}`, config);
         setMessages(data);
-      } catch (err) { console.error(err); }
+      } catch (err) {}
     };
     getMessages();
   }, [currentChat]);
 
   useEffect(() => { scrollRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  // 6. Send Message
+  // 6. Send
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
@@ -122,58 +118,72 @@ const Chat = () => {
     <div style={{ display: 'flex', height: 'calc(100vh - 80px)', background: '#f1f5f9', fontFamily: 'Poppins' }}>
       
       {/* SIDEBAR */}
-      <div style={{ width: '300px', background: 'white', borderRight: '1px solid #e2e8f0', overflowY: 'auto' }}>
-        <div style={{ padding: '20px', borderBottom: '1px solid #e2e8f0' }}>
-            <h2 style={{ fontSize: '1.2rem', margin: 0 }}>Messages 💬</h2>
+      <div style={{ width: '320px', background: 'white', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '20px', borderBottom: '1px solid #f1f5f9' }}>
+            <h2 style={{ fontSize: '1.5rem', margin: 0, fontWeight: '700' }}>Chats</h2>
         </div>
-        {conversations.map((c) => (
-          <div key={c._id} onClick={() => setCurrentChat(c)}
-            style={{ padding: '15px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', background: currentChat?._id === c._id ? '#eff6ff' : 'white', borderBottom: '1px solid #f8fafc' }}>
-            <div style={{ width: '40px', height: '40px', background: '#3b82f6', borderRadius: '50%', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-                {c.name?.charAt(0)}
+        <div style={{ overflowY: 'auto', flex: 1 }}>
+            {conversations.map((c) => (
+            <div key={c._id} onClick={() => setCurrentChat(c)}
+                style={{ padding: '15px 20px', display: 'flex', alignItems: 'center', gap: '15px', cursor: 'pointer', background: currentChat?._id === c._id ? '#eff6ff' : 'transparent', transition: '0.2s' }}>
+                <div style={{ width: '45px', height: '45px', background: 'linear-gradient(135deg, #3b82f6, #2563eb)', borderRadius: '50%', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                    {c.name?.charAt(0)}
+                </div>
+                <div>
+                    <h4 style={{ margin: 0, fontSize: '1rem', color: '#0f172a' }}>{c.name}</h4>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>{c.role}</p>
+                </div>
             </div>
-            <div>
-                <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#1e293b' }}>{c.name}</h4>
-                <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>{c.role}</p>
-            </div>
-          </div>
-        ))}
+            ))}
+        </div>
       </div>
 
       {/* CHAT AREA */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
         {currentChat ? (
             <>
-                {/* Header */}
-                <div style={{ padding: '15px 20px', background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '35px', height: '35px', background: '#3b82f6', borderRadius: '50%', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{currentChat.name?.charAt(0)}</div>
-                    <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{currentChat.name}</h3>
+                <div style={{ padding: '15px 25px', background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+                    <div style={{ width: '40px', height: '40px', background: '#3b82f6', borderRadius: '50%', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize:'1.1rem' }}>{currentChat.name?.charAt(0)}</div>
+                    <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>{currentChat.name}</h3>
                 </div>
 
-                {/* Messages */}
-                <div style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {messages.map((m, index) => (
-                        <div key={index} ref={scrollRef} style={{ alignSelf: m.sender === user._id ? 'flex-end' : 'flex-start', maxWidth: '70%', display:'flex', flexDirection:'column', alignItems: m.sender === user._id ? 'flex-end' : 'flex-start' }}>
-                            <div style={{ padding: '10px 15px', borderRadius: '15px', background: m.sender === user._id ? '#2563eb' : 'white', color: m.sender === user._id ? 'white' : '#1e293b', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', borderTopRightRadius: m.sender === user._id ? '0' : '15px', borderTopLeftRadius: m.sender === user._id ? '15px' : '0' }}>
-                                {m.message}
+                <div style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {messages.map((m, index) => {
+                        const isMe = m.sender === user._id;
+                        return (
+                            <div key={index} ref={scrollRef} style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '70%', display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                                <div style={{ 
+                                    padding: '12px 18px', 
+                                    borderRadius: '20px', 
+                                    background: isMe ? '#2563eb' : 'white', 
+                                    color: isMe ? 'white' : '#1e293b', 
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                                    borderBottomRightRadius: isMe ? '4px' : '20px',
+                                    borderBottomLeftRadius: isMe ? '20px' : '4px',
+                                    fontSize: '0.95rem'
+                                }}>
+                                    {m.message}
+                                </div>
+                                {/* 👇 INSTAGRAM STYLE SEEN STATUS */}
+                                {isMe && (
+                                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '4px', marginRight: '5px' }}>
+                                        {m.isRead ? "Seen" : "Sent"}
+                                    </span>
+                                )}
                             </div>
-                            
-                            {/* 👇 SEEN INDICATOR (Last Message par) */}
-                            <span style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '3px' }}>
-                                {m.sender === user._id ? (m.isRead ? "Seen ✅" : "Delivered") : ""}
-                            </span>
-                        </div>
-                    ))}
+                        )
+                    })}
                 </div>
 
-                {/* Input */}
-                <form onSubmit={handleSubmit} style={{ padding: '20px', background: 'white', display: 'flex', gap: '10px' }}>
-                    <input type="text" placeholder="Type a message..." value={newMessage} onChange={(e) => setNewMessage(e.target.value)} style={{ flex: 1, padding: '12px', borderRadius: '25px', border: '1px solid #cbd5e1', outline: 'none' }} />
-                    <button type="submit" style={{ padding: '12px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '25px', cursor: 'pointer', fontWeight: 'bold' }}>Send 🚀</button>
+                <form onSubmit={handleSubmit} style={{ padding: '20px', background: 'white', display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <input type="text" placeholder="Message..." value={newMessage} onChange={(e) => setNewMessage(e.target.value)} style={{ flex: 1, padding: '14px 20px', borderRadius: '30px', border: '1px solid #e2e8f0', outline: 'none', background: '#f8fafc', fontSize: '1rem' }} />
+                    <button type="submit" style={{ padding: '12px 25px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '30px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem' }}>Send</button>
                 </form>
             </>
         ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8', fontSize: '1.2rem' }}>Select a user to start chatting 👋</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8', fontSize: '1.2rem' }}>
+                Start a conversation ✨
+            </div>
         )}
       </div>
     </div>
