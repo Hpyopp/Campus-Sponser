@@ -1,60 +1,53 @@
 const express = require('express');
 const router = express.Router();
+const { protect } = require('../middleware/authMiddleware');
 const Message = require('../models/Message');
 const User = require('../models/User');
-const { protect } = require('../middleware/authMiddleware');
 
-// 1. Get Chat History with a specific user
-router.get('/:userId', protect, async (req, res) => {
+// 👇 1. Get Unread Message Count (Ye Naya Hai)
+router.get('/unread/count', protect, async (req, res) => {
+  try {
+    const count = await Message.countDocuments({ 
+        receiver: req.user._id, 
+        isRead: false 
+    });
+    res.json({ count });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 2. Get All Conversations (Sidebar ke liye)
+router.get('/conversations/all', protect, async (req, res) => {
+  try {
+    // Find all unique users communicated with
+    const sent = await Message.find({ sender: req.user._id }).distinct('receiver');
+    const received = await Message.find({ receiver: req.user._id }).distinct('sender');
+    
+    // Combine and unique IDs
+    const userIds = [...new Set([...sent, ...received].map(id => id.toString()))];
+    
+    const users = await User.find({ _id: { $in: userIds } }).select('name role email');
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 3. Get Chat History with specific user
+router.get('/:id', protect, async (req, res) => {
   try {
     const messages = await Message.find({
       $or: [
-        { sender: req.user._id, receiver: req.params.userId },
-        { sender: req.params.userId, receiver: req.user._id }
-      ]
+        { sender: req.user._id, receiver: req.params.id },
+        { sender: req.params.id, receiver: req.user._id },
+      ],
     }).sort({ createdAt: 1 });
+
     res.json(messages);
-  } catch (error) { res.status(500).json({ error: error.message }); }
-});
-
-// 2. Get List of People I have chatted with (Sidebar)
-router.get('/conversations/all', protect, async (req, res) => {
-  try {
-    // Find all messages where I am sender or receiver
-    const messages = await Message.find({
-      $or: [{ sender: req.user._id }, { receiver: req.user._id }]
-    }).populate('sender', 'name role').populate('receiver', 'name role').sort({ createdAt: -1 });
-
-    // Extract unique users
-    const usersMap = new Map();
-    messages.forEach(msg => {
-      const otherUser = msg.sender._id.toString() === req.user._id.toString() ? msg.receiver : msg.sender;
-      if (!usersMap.has(otherUser._id.toString())) {
-        usersMap.set(otherUser._id.toString(), {
-          _id: otherUser._id,
-          name: otherUser.name,
-          role: otherUser.role,
-          lastMessage: msg.message,
-          time: msg.createdAt
-        });
-      }
-    });
-
-    res.json(Array.from(usersMap.values()));
-  } catch (error) { res.status(500).json({ error: error.message }); }
-});
-
-// 3. Send Message (HTTP Backup for when Socket is flaky)
-router.post('/', protect, async (req, res) => {
-  const { receiverId, message } = req.body;
-  try {
-    const newMessage = await Message.create({
-      sender: req.user._id,
-      receiver: receiverId,
-      message
-    });
-    res.json(newMessage);
-  } catch (error) { res.status(500).json({ error: error.message }); }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
 
 module.exports = router;

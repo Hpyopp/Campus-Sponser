@@ -6,45 +6,57 @@ import io from 'socket.io-client';
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [unreadCount, setUnreadCount] = useState(0); 
-  const [msgRedDot, setMsgRedDot] = useState(false); 
+  const [unreadCount, setUnreadCount] = useState(0); // Bell Icon ke liye
+  const [msgCount, setMsgCount] = useState(0);       // 👈 Chat Counter ke liye
   const user = JSON.parse(localStorage.getItem('user'));
   
-  // Ref to track location inside socket callback
   const locationRef = useRef(location.pathname);
 
-  // Update ref whenever location changes
-  useEffect(() => {
-    locationRef.current = location.pathname;
-    // Agar chat page par aa gaye, to red dot hata do
-    if (location.pathname === '/chat') {
-        setMsgRedDot(false);
-    }
-  }, [location.pathname]);
-
+  // Smart Endpoint
   const ENDPOINT = window.location.hostname === 'localhost' 
     ? "http://127.0.0.1:5000" 
     : "https://campus-sponser-api.onrender.com";
 
-  // 1. CHAT RED DOT LOGIC (Fixed)
+  // Location track karo (Ref update)
+  useEffect(() => {
+    locationRef.current = location.pathname;
+    // Agar chat page par aa gaye, toh count 0 kar do
+    if (location.pathname === '/chat') {
+        setMsgCount(0);
+    }
+  }, [location.pathname]);
+
+  // 1. Initial Load: Get Unread Count from Database
+  useEffect(() => {
+      if(!user) return;
+      const fetchUnreadMsg = async () => {
+          try {
+              const { data } = await axios.get(`${ENDPOINT}/api/chat/unread/count`, {
+                  headers: { Authorization: `Bearer ${user.token}` }
+              });
+              setMsgCount(data.count);
+          } catch(e) { console.error(e); }
+      };
+      if (location.pathname !== '/chat') fetchUnreadMsg();
+  }, [user, location.pathname]); // Run on mount and location change
+
+  // 2. Socket Listener (Real-time update)
   useEffect(() => {
     if(!user) return;
-    
     const socket = io(ENDPOINT);
     socket.emit("join_room", user._id);
 
     socket.on("receive_message", (data) => {
-        // Check current location using Ref (Taaki socket disconnect na karna pade)
+        // Agar hum Chat page par NAHI hain, tabhi Count badhao
         if (locationRef.current !== '/chat') {
-            setMsgRedDot(true);
-            // Optional: Chhota sa sound bhi play kar sakte ho
+            setMsgCount(prev => prev + 1);
         }
     });
 
     return () => socket.disconnect();
-  }, [user]); // Removed location.pathname dependency
+  }, [user]);
 
-  // 2. Notification System
+  // 3. Notification Logic (Existing)
   useEffect(() => {
     if (!user) return;
     const checkNotifications = async () => {
@@ -77,16 +89,21 @@ const Navbar = () => {
             {user.role === 'student' && <Link to="/create-event" style={{ textDecoration: 'none', color: '#64748b' }}>Create Event</Link>}
             {user.role === 'admin' && <Link to="/admin" style={{ textDecoration: 'none', color: '#dc2626', fontWeight:'bold' }}>Admin Panel</Link>}
 
-            {/* 👇 MESSAGE LINK WITH RED DOT */}
+            {/* 👇 MESSAGES LINK WITH NUMBER COUNTER */}
             <Link to="/chat" style={{ textDecoration: 'none', color: '#64748b', display:'flex', alignItems:'center', gap:'5px', position:'relative' }}>
                 <span style={{fontSize:'1.2rem'}}>💬</span> Messages
-                {msgRedDot && (
+                
+                {/* Count Badge */}
+                {msgCount > 0 && (
                     <span style={{
-                        position: 'absolute', top: '-2px', right: '-6px',
-                        height: '10px', width: '10px',
-                        backgroundColor: '#ef4444', borderRadius: '50%',
-                        border: '2px solid white'
-                    }}></span>
+                        position: 'absolute', top: '-8px', right: '-12px',
+                        backgroundColor: '#ef4444', color: 'white',
+                        borderRadius: '50%', padding: '2px 6px',
+                        fontSize: '0.7rem', fontWeight: 'bold',
+                        border: '2px solid white', minWidth: '18px', textAlign: 'center'
+                    }}>
+                        {msgCount > 9 ? '9+' : msgCount}
+                    </span>
                 )}
             </Link>
 
