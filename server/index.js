@@ -6,17 +6,14 @@ const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
 
-// 1. Config sabse pehle
 dotenv.config();
 connectDB();
 
 const app = express();
 
-// 👇👇 YE LINE SABSE ZAROORI HAI (Razorpay Fix) 👇👇
+// 👇 Razorpay Fix (Zaroori hai)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); 
-// 👆👆 ---------------------------------------- 👆👆
-
 app.use(cors());
 
 // Routes
@@ -45,23 +42,45 @@ app.use((err, req, res, next) => {
     res.status(statusCode).json({ message: err.message });
 });
 
-// Socket.io
+// Socket.io Setup
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
 io.on('connection', (socket) => {
-  // Socket logic same as before...
-  socket.on('join_room', (userId) => { socket.join(userId); });
+  console.log(`⚡ Socket Connected: ${socket.id}`);
+
+  socket.on('join_room', (userId) => { 
+      socket.join(userId); 
+  });
+
+  // 1. Send Message Logic
   socket.on('send_message', async (data) => {
     const { sender, receiver, message } = data;
     try {
         const Message = require('./models/Message');
-        await Message.create({ sender, receiver, message });
-        io.to(receiver).emit('receive_message', data);
-    } catch(e) {}
+        // Naya message by default unread (isRead: false) hoga
+        const newMsg = await Message.create({ sender, receiver, message, isRead: false });
+        io.to(receiver).emit('receive_message', newMsg);
+    } catch(e) { console.error("Message Error:", e); }
   });
+
+  // 2. 👇 NEW: Mark as Seen Logic (Insta Style)
+  socket.on('mark_as_seen', async ({ senderId, receiverId }) => {
+    try {
+        const Message = require('./models/Message');
+        // Database mein update karo ki messages padh liye gaye
+        await Message.updateMany(
+            { sender: senderId, receiver: receiverId, isRead: false },
+            { $set: { isRead: true } }
+        );
+        // Sender ko batao ki "Tera message Seen ho gaya"
+        io.to(senderId).emit('message_seen_update', { seerId: receiverId });
+    } catch (e) { console.error(e); }
+  });
+
+  socket.on('disconnect', () => { console.log('User Disconnected'); });
 });
 
 const PORT = process.env.PORT || 5000;
