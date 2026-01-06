@@ -1,49 +1,50 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import io from 'socket.io-client'; // 👈 IMPORT IMPORTANT HAI
+import io from 'socket.io-client';
 
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0); 
-  const [msgRedDot, setMsgRedDot] = useState(false); // 👈 Chat Red Dot State
+  const [msgRedDot, setMsgRedDot] = useState(false); 
   const user = JSON.parse(localStorage.getItem('user'));
+  
+  // Ref to track location inside socket callback
+  const locationRef = useRef(location.pathname);
 
-  // Smart URL
-  const ENDPOINT = window.location.hostname === 'localhost' 
-    ? "http://127.0.0.1:5000" 
-    : "https://campus-sponser-api.onrender.com";
-
-  // 1. 👇 CHAT RED DOT LOGIC (Ye missing tha)
+  // Update ref whenever location changes
   useEffect(() => {
-    if(!user) return;
-    
-    // Socket connect karo
-    const socket = io(ENDPOINT);
-    // Room Join karo (Taaki server message bhej sake)
-    socket.emit("join_room", user._id);
-
-    // Jab message aaye...
-    socket.on("receive_message", (data) => {
-        // Agar hum abhi Chat page par NAHI hain, tabhi Red Dot dikhao
-        if (location.pathname !== '/chat') {
-            setMsgRedDot(true);
-        }
-    });
-
-    return () => socket.disconnect();
-  }, [user, location.pathname]);
-
-  // Agar Chat page par chale gaye, toh Red Dot hata do
-  useEffect(() => {
+    locationRef.current = location.pathname;
+    // Agar chat page par aa gaye, to red dot hata do
     if (location.pathname === '/chat') {
         setMsgRedDot(false);
     }
   }, [location.pathname]);
 
+  const ENDPOINT = window.location.hostname === 'localhost' 
+    ? "http://127.0.0.1:5000" 
+    : "https://campus-sponser-api.onrender.com";
 
-  // 2. Notification System (Existing Code)
+  // 1. CHAT RED DOT LOGIC (Fixed)
+  useEffect(() => {
+    if(!user) return;
+    
+    const socket = io(ENDPOINT);
+    socket.emit("join_room", user._id);
+
+    socket.on("receive_message", (data) => {
+        // Check current location using Ref (Taaki socket disconnect na karna pade)
+        if (locationRef.current !== '/chat') {
+            setMsgRedDot(true);
+            // Optional: Chhota sa sound bhi play kar sakte ho
+        }
+    });
+
+    return () => socket.disconnect();
+  }, [user]); // Removed location.pathname dependency
+
+  // 2. Notification System
   useEffect(() => {
     if (!user) return;
     const checkNotifications = async () => {
@@ -79,8 +80,6 @@ const Navbar = () => {
             {/* 👇 MESSAGE LINK WITH RED DOT */}
             <Link to="/chat" style={{ textDecoration: 'none', color: '#64748b', display:'flex', alignItems:'center', gap:'5px', position:'relative' }}>
                 <span style={{fontSize:'1.2rem'}}>💬</span> Messages
-                
-                {/* Agar Red Dot True hai toh dikhao */}
                 {msgRedDot && (
                     <span style={{
                         position: 'absolute', top: '-2px', right: '-6px',

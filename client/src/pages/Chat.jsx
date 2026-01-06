@@ -18,9 +18,10 @@ const Chat = () => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [socket, setSocket] = useState(null);
-  const scrollRef = useRef();
+  
+  // 👇 REF FOR CHAT CONTAINER (Not individual message)
+  const chatContainerRef = useRef(null);
 
-  // 1. Socket Init
   useEffect(() => {
     const s = io(ENDPOINT);
     setSocket(s);
@@ -28,15 +29,12 @@ const Chat = () => {
     return () => s.disconnect();
   }, []);
 
-  // 2. Listeners
   useEffect(() => {
     if (!socket) return;
     
-    // Message Receive
     socket.on("receive_message", (data) => {
       if (currentChat && (data.sender === currentChat._id || data.sender === user._id)) {
         setMessages((prev) => [...prev, data]);
-        // Agar chat khuli hai to turant seen karo
         if (data.sender === currentChat._id) {
             socket.emit("mark_as_seen", { senderId: data.sender, receiverId: user._id });
         }
@@ -46,7 +44,6 @@ const Chat = () => {
       }
     });
 
-    // 👇 SEEN UPDATE LISTENER
     socket.on("msg_seen_update", ({ receiverId }) => {
         if (currentChat && currentChat._id === receiverId) {
             setMessages(prev => prev.map(msg => 
@@ -57,14 +54,12 @@ const Chat = () => {
 
   }, [socket, currentChat]);
 
-  // 3. Chat Open hone par Mark Seen
   useEffect(() => {
       if (socket && currentChat) {
           socket.emit("mark_as_seen", { senderId: currentChat._id, receiverId: user._id });
       }
   }, [currentChat, socket]);
 
-  // 4. Fetch Users
   const fetchConversations = async () => {
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
@@ -84,7 +79,6 @@ const Chat = () => {
   };
   useEffect(() => { fetchConversations(); }, [startChatId]);
 
-  // 5. Messages Load
   useEffect(() => {
     const getMessages = async () => {
       if (!currentChat) return;
@@ -97,9 +91,13 @@ const Chat = () => {
     getMessages();
   }, [currentChat]);
 
-  useEffect(() => { scrollRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  // 👇 AUTO SCROLL FIX (Sirf Chat Box scroll hoga, poora page nahi)
+  useEffect(() => {
+    if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
 
-  // 6. Send
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
@@ -147,14 +145,14 @@ const Chat = () => {
                     <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>{currentChat.name}</h3>
                 </div>
 
-                <div style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* 👇 Ref here for scrolling */}
+                <div ref={chatContainerRef} style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {messages.map((m, index) => {
                         const isMe = m.sender === user._id;
                         return (
-                            <div key={index} ref={scrollRef} style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '70%', display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                            <div key={index} style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '70%', display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
                                 <div style={{ 
-                                    padding: '12px 18px', 
-                                    borderRadius: '20px', 
+                                    padding: '12px 18px', borderRadius: '20px', 
                                     background: isMe ? '#2563eb' : 'white', 
                                     color: isMe ? 'white' : '#1e293b', 
                                     boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
@@ -164,7 +162,6 @@ const Chat = () => {
                                 }}>
                                     {m.message}
                                 </div>
-                                {/* 👇 INSTAGRAM STYLE SEEN STATUS */}
                                 {isMe && (
                                     <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '4px', marginRight: '5px' }}>
                                         {m.isRead ? "Seen" : "Sent"}
