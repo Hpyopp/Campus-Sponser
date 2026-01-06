@@ -1,43 +1,49 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import io from 'socket.io-client'; // 👈 Import Socket
+import io from 'socket.io-client'; // 👈 IMPORT IMPORTANT HAI
 
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0); 
-  const [chatRedDot, setChatRedDot] = useState(false); // 👈 Chat Red Dot State
+  const [msgRedDot, setMsgRedDot] = useState(false); // 👈 Chat Red Dot State
   const user = JSON.parse(localStorage.getItem('user'));
 
+  // Smart URL
   const ENDPOINT = window.location.hostname === 'localhost' 
     ? "http://127.0.0.1:5000" 
     : "https://campus-sponser-api.onrender.com";
 
-  // 1. Chat Red Dot Logic (Socket)
+  // 1. 👇 CHAT RED DOT LOGIC (Ye missing tha)
   useEffect(() => {
     if(!user) return;
+    
+    // Socket connect karo
     const socket = io(ENDPOINT);
+    // Room Join karo (Taaki server message bhej sake)
     socket.emit("join_room", user._id);
 
+    // Jab message aaye...
     socket.on("receive_message", (data) => {
-        // Agar user Chat page par nahi hai, tabhi Red Dot dikhao
+        // Agar hum abhi Chat page par NAHI hain, tabhi Red Dot dikhao
         if (location.pathname !== '/chat') {
-            setChatRedDot(true);
+            setMsgRedDot(true);
         }
     });
+
     return () => socket.disconnect();
   }, [user, location.pathname]);
 
-  // Agar Chat page khul jaye, to Red Dot hata do
+  // Agar Chat page par chale gaye, toh Red Dot hata do
   useEffect(() => {
     if (location.pathname === '/chat') {
-        setChatRedDot(false);
+        setMsgRedDot(false);
     }
   }, [location.pathname]);
 
 
-  // 2. Notification System (Existing)
+  // 2. Notification System (Existing Code)
   useEffect(() => {
     if (!user) return;
     const checkNotifications = async () => {
@@ -73,7 +79,9 @@ const Navbar = () => {
             {/* 👇 MESSAGE LINK WITH RED DOT */}
             <Link to="/chat" style={{ textDecoration: 'none', color: '#64748b', display:'flex', alignItems:'center', gap:'5px', position:'relative' }}>
                 <span style={{fontSize:'1.2rem'}}>💬</span> Messages
-                {chatRedDot && (
+                
+                {/* Agar Red Dot True hai toh dikhao */}
+                {msgRedDot && (
                     <span style={{
                         position: 'absolute', top: '-2px', right: '-6px',
                         height: '10px', width: '10px',
