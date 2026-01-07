@@ -15,20 +15,18 @@ const EventDetails = () => {
   const user = JSON.parse(localStorage.getItem('user'));
 
   // 👇👇 SMART API URL (Automatic Switch) 👇👇
-  // Localhost par ho toh Local Backend, Vercel par ho toh Live Backend
   const API_URL = window.location.hostname === 'localhost' 
     ? "http://127.0.0.1:5000" 
     : "https://campus-sponser-api.onrender.com";
 
-  // 1. Fetch Data (Token bhejna zaroori hai taaki Owner check ho sake)
+  // 1. Fetch Data
   const fetchEvent = async () => {
     try {
-      // 👇 Token header mein bhej rahe hain
       const config = user ? { headers: { Authorization: `Bearer ${user.token}` } } : {};
       const { data } = await axios.get(`${API_URL}/api/events/${id}`, config);
       setEvent(data);
     } catch (error) { 
-        // Fallback: Agar local DB khali hai toh Live se try karein
+        // Fallback Logic
         try {
             const config = user ? { headers: { Authorization: `Bearer ${user.token}` } } : {};
             const { data } = await axios.get(`https://campus-sponser-api.onrender.com/api/events/${id}`, config);
@@ -37,7 +35,11 @@ const EventDetails = () => {
     }
   };
 
-  useEffect(() => { fetchEvent(); }, [id]);
+  // 👇 SCROLL FIX ADDED HERE (Page Top se start hoga)
+  useEffect(() => {
+    window.scrollTo(0, 0); 
+    fetchEvent(); 
+  }, [id]);
 
   if (!event) return <div style={{textAlign:'center', padding:'50px', fontSize:'1.2rem', fontFamily:'Poppins'}}>Loading Event Details... ⏳</div>;
 
@@ -88,7 +90,7 @@ const EventDetails = () => {
     } catch (error) { toast.error("Failed to submit report"); }
   };
 
-  // 👇👇 PAYMENT LOGIC (SMART URL + REDIRECT FIX) 👇👇
+  // 👇 PAYMENT LOGIC
   const handlePayment = async (e) => {
     e.preventDefault();
     if (!user) return navigate('/login');
@@ -105,7 +107,6 @@ const EventDetails = () => {
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
         const { data: { order } } = await axios.post(`${API_URL}/api/payment/checkout`, { amount, eventId: event._id }, config);
 
-        // 👇 Ye line Backend ko batayegi ki wapas kahan aana hai (Local ya Vercel)
         const currentUrl = window.location.origin; 
 
         // 3. Open Razorpay
@@ -114,7 +115,6 @@ const EventDetails = () => {
             name: "CampusSponsor", description: `Support ${event.title}`,
             image: "https://cdn-icons-png.flaticon.com/512/4762/4762311.png",
             order_id: order.id,
-            // 👇 Callback URL mein client_url bheja hai
             callback_url: `${API_URL}/api/payment/paymentverification?eventId=${event._id}&userId=${user._id}&amount=${amount}&userName=${user.name}&userEmail=${user.email}&client_url=${currentUrl}`,
             prefill: { name: user.name, email: user.email },
             theme: { "color": "#2563eb" }
@@ -130,7 +130,7 @@ const EventDetails = () => {
     }
   };
 
-  // --- STYLES (Modern Look) ---
+  // --- STYLES ---
   const containerStyle = { maxWidth: '1000px', margin: '40px auto', fontFamily: "'Poppins', sans-serif", padding: '20px', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' };
   const cardStyle = { background: 'white', borderRadius: '16px', padding: '25px', boxShadow: '0 10px 30px rgba(0,0,0,0.08)', marginBottom: '20px' };
   const badgeStyle = { padding: '5px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', display: 'inline-block' };
@@ -147,7 +147,7 @@ const EventDetails = () => {
                     {event.isApproved ? 'Verified Event ✅' : 'Pending Verification ⏳'}
                 </span>
 
-                {/* 👇 VIEWS & DATE SECTION */}
+                {/* VIEWS & DATE */}
                 <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                     <span style={{color:'#64748b', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'5px', background:'#f1f5f9', padding:'4px 10px', borderRadius:'20px'}}>
                         👁️ {event.views || 0} Views
@@ -197,7 +197,6 @@ const EventDetails = () => {
         <div style={{...cardStyle, borderTop: '5px solid #3b82f6'}}>
             <h3 style={{marginTop:0, color:'#334155'}}>Funding Goal</h3>
             
-            {/* Progress Bar */}
             <div style={{background:'#e2e8f0', borderRadius:'10px', height:'12px', width:'100%', margin:'15px 0', overflow:'hidden'}}>
                 <div style={{width: `${percent}%`, background: isFullyFunded ? '#22c55e' : '#3b82f6', height:'100%', transition:'1s'}}></div>
             </div>
@@ -206,7 +205,6 @@ const EventDetails = () => {
                 <span style={{color:'#94a3b8'}}>of ₹{event.budget}</span>
             </div>
 
-            {/* Payment Form */}
             {mySponsorship ? (
                 <div style={{textAlign:'center', padding:'20px', background:'#f0fdf4', borderRadius:'10px'}}>
                     <h3 style={{color:'#15803d', margin:0}}>🎉 You Sponsored!</h3>
