@@ -21,7 +21,8 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const notificationRoutes = require('./routes/notificationRoutes'); 
 const reportRoutes = require('./routes/reportRoutes');
-const analyticsRoutes = require('./routes/analyticsRoutes'); // 👈 NEW IMPORT
+const analyticsRoutes = require('./routes/analyticsRoutes'); 
+const aiRoutes = require('./routes/aiRoutes'); // 👈 NEW AI IMPORT
 
 app.use('/api/users', userRoutes);
 app.use('/api/events', eventRoutes);
@@ -29,7 +30,8 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
-app.use('/api/analytics', analyticsRoutes); // 👈 NEW USE
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/ai', aiRoutes); // 👈 NEW AI USE
 
 app.use('/uploads', express.static(path.join(__dirname, '/uploads')));
 
