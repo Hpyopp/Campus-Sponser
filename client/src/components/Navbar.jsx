@@ -6,27 +6,23 @@ import io from 'socket.io-client';
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [unreadCount, setUnreadCount] = useState(0); // Bell Icon ke liye
-  const [msgCount, setMsgCount] = useState(0);       // 👈 Chat Counter ke liye
+  const [unreadCount, setUnreadCount] = useState(0); 
+  const [msgCount, setMsgCount] = useState(0); 
   const user = JSON.parse(localStorage.getItem('user'));
   
   const locationRef = useRef(location.pathname);
 
-  // Smart Endpoint
   const ENDPOINT = window.location.hostname === 'localhost' 
     ? "http://127.0.0.1:5000" 
     : "https://campus-sponser-api.onrender.com";
 
-  // Location track karo (Ref update)
   useEffect(() => {
     locationRef.current = location.pathname;
-    // Agar chat page par aa gaye, toh count 0 kar do
     if (location.pathname === '/chat') {
         setMsgCount(0);
     }
   }, [location.pathname]);
 
-  // 1. Initial Load: Get Unread Count from Database
   useEffect(() => {
       if(!user) return;
       const fetchUnreadMsg = async () => {
@@ -35,28 +31,23 @@ const Navbar = () => {
                   headers: { Authorization: `Bearer ${user.token}` }
               });
               setMsgCount(data.count);
-          } catch(e) { console.error(e); }
+          } catch(e) {}
       };
       if (location.pathname !== '/chat') fetchUnreadMsg();
-  }, [user, location.pathname]); // Run on mount and location change
+  }, [user, location.pathname]); 
 
-  // 2. Socket Listener (Real-time update)
   useEffect(() => {
     if(!user) return;
     const socket = io(ENDPOINT);
     socket.emit("join_room", user._id);
-
     socket.on("receive_message", (data) => {
-        // Agar hum Chat page par NAHI hain, tabhi Count badhao
         if (locationRef.current !== '/chat') {
             setMsgCount(prev => prev + 1);
         }
     });
-
     return () => socket.disconnect();
   }, [user]);
 
-  // 3. Notification Logic (Existing)
   useEffect(() => {
     if (!user) return;
     const checkNotifications = async () => {
@@ -88,26 +79,19 @@ const Navbar = () => {
           <>
             {user.role === 'student' && <Link to="/create-event" style={{ textDecoration: 'none', color: '#64748b' }}>Create Event</Link>}
             {user.role === 'admin' && <Link to="/admin" style={{ textDecoration: 'none', color: '#dc2626', fontWeight:'bold' }}>Admin Panel</Link>}
+            
+            {/* 👇 DASHBOARD LINK ADDED */}
+            <Link to="/analytics" style={{ textDecoration: 'none', color: '#64748b', fontWeight:'600' }}>Dashboard 📊</Link>
 
-            {/* 👇 MESSAGES LINK WITH NUMBER COUNTER */}
             <Link to="/chat" style={{ textDecoration: 'none', color: '#64748b', display:'flex', alignItems:'center', gap:'5px', position:'relative' }}>
                 <span style={{fontSize:'1.2rem'}}>💬</span> Messages
-                
-                {/* Count Badge */}
                 {msgCount > 0 && (
-                    <span style={{
-                        position: 'absolute', top: '-8px', right: '-12px',
-                        backgroundColor: '#ef4444', color: 'white',
-                        borderRadius: '50%', padding: '2px 6px',
-                        fontSize: '0.7rem', fontWeight: 'bold',
-                        border: '2px solid white', minWidth: '18px', textAlign: 'center'
-                    }}>
+                    <span style={{ position: 'absolute', top: '-8px', right: '-12px', backgroundColor: '#ef4444', color: 'white', borderRadius: '50%', padding: '2px 6px', fontSize: '0.7rem', fontWeight: 'bold', border: '2px solid white', minWidth: '18px', textAlign: 'center' }}>
                         {msgCount > 9 ? '9+' : msgCount}
                     </span>
                 )}
             </Link>
 
-            {/* NOTIFICATIONS */}
             <div onClick={() => { setUnreadCount(0); navigate('/notifications'); }} style={{ position: 'relative', cursor: 'pointer', fontSize: '1.4rem', display:'flex', alignItems:'center' }}>
                 🔔
                 {unreadCount > 0 && (
@@ -117,7 +101,6 @@ const Navbar = () => {
                 )}
             </div>
 
-            {/* PROFILE */}
             <div onClick={() => navigate('/profile')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', background:'#f1f5f9', padding:'5px 12px 5px 5px', borderRadius:'30px', transition:'0.3s', border:'1px solid #e2e8f0' }}>
                 <div style={{width:'32px', height:'32px', background:'#3b82f6', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontSize:'0.9rem', fontWeight:'bold'}}>
                     {user.name ? user.name.charAt(0).toUpperCase() : 'U'}

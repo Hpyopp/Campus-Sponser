@@ -21,6 +21,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const notificationRoutes = require('./routes/notificationRoutes'); 
 const reportRoutes = require('./routes/reportRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes'); // 👈 NEW IMPORT
 
 app.use('/api/users', userRoutes);
 app.use('/api/events', eventRoutes);
@@ -28,6 +29,7 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/analytics', analyticsRoutes); // 👈 NEW USE
 
 app.use('/uploads', express.static(path.join(__dirname, '/uploads')));
 
@@ -42,27 +44,22 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
   socket.on('join_room', (userId) => { socket.join(userId); });
 
-  // 1. Send Message
   socket.on('send_message', async (data) => {
     const { sender, receiver, message } = data;
     try {
         const Message = require('./models/Message');
-        // Naya message 'isRead: false' ke saath save hoga
         const newMsg = await Message.create({ sender, receiver, message, isRead: false });
         io.to(receiver).emit('receive_message', newMsg);
     } catch(e) {}
   });
 
-  // 2. 👇 NEW: Mark as Seen Logic (Instagram Style)
   socket.on('mark_as_seen', async ({ senderId, receiverId }) => {
     try {
         const Message = require('./models/Message');
-        // Database mein update karo ki message padh liya gaya
         await Message.updateMany(
             { sender: senderId, receiver: receiverId, isRead: false },
             { $set: { isRead: true } }
         );
-        // Sender ko batao "Blue Tick" dikhane ke liye
         io.to(senderId).emit('msg_seen_update', { receiverId });
     } catch (e) { console.error(e); }
   });

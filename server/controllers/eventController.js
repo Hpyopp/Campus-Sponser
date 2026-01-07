@@ -21,7 +21,8 @@ const createEvent = asyncHandler(async (req, res) => {
     permissionLetter, 
     sponsors: [], 
     status: 'pending',
-    raisedAmount: 0
+    raisedAmount: 0,
+    views: 0
   });
 
   res.status(201).json(event);
@@ -33,11 +34,19 @@ const getEvents = asyncHandler(async (req, res) => {
   res.json(events);
 });
 
-// 3. GET SINGLE EVENT
+// 3. GET SINGLE EVENT (Updated with Views)
 const getEventById = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id).populate('user', 'name email');
-  if (event) res.json(event);
-  else { res.status(404); throw new Error('Event not found'); }
+  
+  if (event) {
+    // 👇 Views Count Logic
+    event.views = (event.views || 0) + 1;
+    await event.save();
+    
+    res.json(event);
+  } else { 
+    res.status(404); throw new Error('Event not found'); 
+  }
 });
 
 // 4. SPONSOR EVENT (Pledge)
@@ -59,7 +68,7 @@ const sponsorEvent = asyncHandler(async (req, res) => {
   } else { res.status(404); throw new Error('Event not found'); }
 });
 
-// 5. VERIFY PAYMENT (Admin Action - UPDATED LOGIC)
+// 5. VERIFY PAYMENT (Admin Action)
 const verifyPayment = asyncHandler(async (req, res) => {
   const { sponsorId } = req.body;
   const event = await Event.findById(req.params.id);
@@ -69,15 +78,11 @@ const verifyPayment = asyncHandler(async (req, res) => {
   const sponsor = event.sponsors.find(s => s.sponsorId.toString() === sponsorId);
   
   if (sponsor) {
-    // ✅ 1. Status Update
     sponsor.status = 'verified'; 
-    
-    // ✅ 2. Raised Amount Update
     event.raisedAmount = event.sponsors
       .filter(s => s.status === 'verified')
       .reduce((acc, curr) => acc + curr.amount, 0);
 
-    // ✅ 3. Goal Completion Check
     if (event.raisedAmount >= event.budget) {
         event.status = 'completed';
     }
@@ -105,23 +110,17 @@ const processRefund = asyncHandler(async (req, res) => {
     if (!event) { res.status(404); throw new Error('Event not found'); }
 
     const sponsorDetails = event.sponsors.find(s => s.sponsorId.toString() === sponsorId);
-    
-    // Remove Sponsor
     event.sponsors = event.sponsors.filter(s => s.sponsorId.toString() !== sponsorId);
-    
-    // Recalculate Amount
     event.raisedAmount = event.sponsors
       .filter(s => s.status === 'verified')
       .reduce((acc, curr) => acc + curr.amount, 0);
       
-    // If amount drops below budget, revert status
     if (event.raisedAmount < event.budget && event.status === 'completed') {
         event.status = 'funding';
     }
 
     await event.save();
 
-    // Send Email
     if (sponsorDetails) {
         try {
             await sendEmail({
@@ -144,16 +143,15 @@ const rejectSponsorship = asyncHandler(async (req, res) => {
   res.json({ message: 'Offer Declined' });
 });
 
-// 9. APPROVE EVENT (Admin - Updates Timeline)
+// 9. APPROVE EVENT (Admin)
 const approveEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
   if (!event) { res.status(404); throw new Error('Event not found'); }
   
   event.isApproved = true;
-  event.status = 'funding'; // ✅ Pending -> Funding
+  event.status = 'funding';
   await event.save(); 
   
-  // Optional: Notify Creator
   try {
       const creator = await require('../models/User').findById(event.user);
       await sendEmail({

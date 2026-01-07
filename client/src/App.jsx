@@ -18,9 +18,9 @@ import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 import UserProfile from './pages/UserProfile';
 import Chat from './pages/Chat';
-import Notifications from './pages/Notifications'; // 👈 IMPORT 1: Chat page import kiya
+import Notifications from './pages/Notifications';
+import Analytics from './pages/Analytics'; // 👈 NEW IMPORT
 
-// User Sync Helper
 const UserSync = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -65,14 +65,15 @@ function App() {
                 <Route path="/agreement/:id" element={<Agreement />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/u/:id" element={<UserProfile />} />
-                
-                {/* 👇 IMPORT 2: Yahan Chat ka rasta (Route) banaya */}
                 <Route path="/chat" element={<Chat />} />
-
                 <Route path="/admin" element={<AdminDashboard />} /> 
                 <Route path="/verify" element={<Verify />} />
-                <Route path="*" element={<NotFound />} />
                 <Route path="/notifications" element={<Notifications />} />
+                
+                {/* 👇 NEW ROUTE */}
+                <Route path="/analytics" element={<Analytics />} />
+
+                <Route path="*" element={<NotFound />} />
             </Routes>
         </div>
         <Footer />
