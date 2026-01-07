@@ -1,6 +1,8 @@
 const Event = require('../models/campusEvent');
+const User = require('../models/User'); // 👈 User Model Import
 const asyncHandler = require('express-async-handler');
 const sendEmail = require('../utils/sendEmail');
+const jwt = require('jsonwebtoken'); // 👈 JWT Import (Token decode karne ke liye)
 
 // 1. CREATE EVENT
 const createEvent = asyncHandler(async (req, res) => {
@@ -34,14 +36,39 @@ const getEvents = asyncHandler(async (req, res) => {
   res.json(events);
 });
 
-// 3. GET SINGLE EVENT (Updated with Views)
+// 3. GET SINGLE EVENT (SMART VIEW LOGIC 🧠)
 const getEventById = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id).populate('user', 'name email');
   
   if (event) {
-    // 👇 Views Count Logic
-    event.views = (event.views || 0) + 1;
-    await event.save();
+    let shouldCount = true;
+
+    // 👇 Check karo agar user Logged In hai
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+        try {
+            const token = req.headers.authorization.split(' ')[1];
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            
+            // 1. Agar dekhne wala hi Owner hai -> Count MAT karo
+            if (decoded.id === event.user._id.toString()) {
+                shouldCount = false;
+            } else {
+                // 2. Agar dekhne wala Admin hai -> Count MAT karo
+                const viewer = await User.findById(decoded.id);
+                if (viewer && viewer.role === 'admin') {
+                    shouldCount = false;
+                }
+            }
+        } catch (error) {
+            // Token expire ya invalid hai toh Guest maan lo (Count hoga)
+        }
+    }
+
+    // Sirf tab badhao jab Owner/Admin na ho
+    if (shouldCount) {
+        event.views = (event.views || 0) + 1;
+        await event.save();
+    }
     
     res.json(event);
   } else { 
@@ -68,7 +95,7 @@ const sponsorEvent = asyncHandler(async (req, res) => {
   } else { res.status(404); throw new Error('Event not found'); }
 });
 
-// 5. VERIFY PAYMENT (Admin Action)
+// 5. VERIFY PAYMENT (Admin Action - UPDATED LOGIC)
 const verifyPayment = asyncHandler(async (req, res) => {
   const { sponsorId } = req.body;
   const event = await Event.findById(req.params.id);
@@ -78,11 +105,15 @@ const verifyPayment = asyncHandler(async (req, res) => {
   const sponsor = event.sponsors.find(s => s.sponsorId.toString() === sponsorId);
   
   if (sponsor) {
+    // ✅ 1. Status Update
     sponsor.status = 'verified'; 
+    
+    // ✅ 2. Raised Amount Update
     event.raisedAmount = event.sponsors
       .filter(s => s.status === 'verified')
       .reduce((acc, curr) => acc + curr.amount, 0);
 
+    // ✅ 3. Goal Completion Check
     if (event.raisedAmount >= event.budget) {
         event.status = 'completed';
     }
@@ -110,17 +141,23 @@ const processRefund = asyncHandler(async (req, res) => {
     if (!event) { res.status(404); throw new Error('Event not found'); }
 
     const sponsorDetails = event.sponsors.find(s => s.sponsorId.toString() === sponsorId);
+    
+    // Remove Sponsor
     event.sponsors = event.sponsors.filter(s => s.sponsorId.toString() !== sponsorId);
+    
+    // Recalculate Amount
     event.raisedAmount = event.sponsors
       .filter(s => s.status === 'verified')
       .reduce((acc, curr) => acc + curr.amount, 0);
       
+    // If amount drops below budget, revert status
     if (event.raisedAmount < event.budget && event.status === 'completed') {
         event.status = 'funding';
     }
 
     await event.save();
 
+    // Send Email
     if (sponsorDetails) {
         try {
             await sendEmail({
@@ -143,15 +180,16 @@ const rejectSponsorship = asyncHandler(async (req, res) => {
   res.json({ message: 'Offer Declined' });
 });
 
-// 9. APPROVE EVENT (Admin)
+// 9. APPROVE EVENT (Admin - Updates Timeline)
 const approveEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
   if (!event) { res.status(404); throw new Error('Event not found'); }
   
   event.isApproved = true;
-  event.status = 'funding';
+  event.status = 'funding'; // ✅ Pending -> Funding
   await event.save(); 
   
+  // Optional: Notify Creator
   try {
       const creator = await require('../models/User').findById(event.user);
       await sendEmail({

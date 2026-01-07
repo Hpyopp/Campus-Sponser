@@ -20,16 +20,18 @@ const EventDetails = () => {
     ? "http://127.0.0.1:5000" 
     : "https://campus-sponser-api.onrender.com";
 
-  // 1. Fetch Data
+  // 1. Fetch Data (Token bhejna zaroori hai taaki Owner check ho sake)
   const fetchEvent = async () => {
     try {
-      // API_URL use kar rahe hain taaki local/live dono jagah chale
-      const { data } = await axios.get(`${API_URL}/api/events/${id}`);
+      // 👇 Token header mein bhej rahe hain
+      const config = user ? { headers: { Authorization: `Bearer ${user.token}` } } : {};
+      const { data } = await axios.get(`${API_URL}/api/events/${id}`, config);
       setEvent(data);
     } catch (error) { 
         // Fallback: Agar local DB khali hai toh Live se try karein
         try {
-            const { data } = await axios.get(`https://campus-sponser-api.onrender.com/api/events/${id}`);
+            const config = user ? { headers: { Authorization: `Bearer ${user.token}` } } : {};
+            const { data } = await axios.get(`https://campus-sponser-api.onrender.com/api/events/${id}`, config);
             setEvent(data);
         } catch(e) { toast.error("Event not found"); }
     }
@@ -144,7 +146,14 @@ const EventDetails = () => {
                 <span style={{...badgeStyle, background: event.isApproved ? '#dcfce7' : '#fee2e2', color: event.isApproved ? '#166534' : '#991b1b'}}>
                     {event.isApproved ? 'Verified Event ✅' : 'Pending Verification ⏳'}
                 </span>
-                <span style={{color:'#64748b', fontSize:'0.9rem'}}>{new Date(event.date).toDateString()} 📅</span>
+
+                {/* 👇 VIEWS & DATE SECTION */}
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                    <span style={{color:'#64748b', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'5px', background:'#f1f5f9', padding:'4px 10px', borderRadius:'20px'}}>
+                        👁️ {event.views || 0} Views
+                    </span>
+                    <span style={{color:'#64748b', fontSize:'0.9rem'}}>{new Date(event.date).toDateString()} 📅</span>
+                </div>
             </div>
 
             <h1 style={{fontSize:'2.2rem', color:'#1e293b', marginBottom:'15px', lineHeight:'1.2'}}>{event.title}</h1>
