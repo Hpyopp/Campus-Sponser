@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast'; // 👈 Toast Import
+import toast from 'react-hot-toast'; 
 
 const CreateEvent = () => {
   const [formData, setFormData] = useState({ title: '', description: '', date: '', location: '', budget: '', contactEmail: '', instagramLink: '' });
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
 
@@ -31,34 +30,6 @@ const CreateEvent = () => {
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const handleFileChange = (e) => setFile(e.target.files[0]);
-
-  // 👇 AI GENERATE FUNCTION
-  const handleAIGenerate = async () => {
-    if (!formData.title || !formData.location) {
-        return toast.error("Please enter 'Event Title' & 'Location' first!");
-    }
-    
-    setAiLoading(true);
-    toast("AI is writing... 🤖", { icon: '✨' });
-
-    try {
-        const config = { headers: { Authorization: `Bearer ${user.token}` } };
-        const { data } = await axios.post(`${ENDPOINT}/api/ai/generate`, {
-            title: formData.title,
-            description: formData.description || "College Event",
-            location: formData.location,
-            budget: formData.budget
-        }, config);
-
-        setFormData(prev => ({ ...prev, description: data.proposal })); 
-        toast.success("Proposal Generated!");
-    } catch (error) {
-        console.error(error);
-        toast.error("AI Failed. Try again.");
-    } finally {
-        setAiLoading(false);
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -86,21 +57,10 @@ const CreateEvent = () => {
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
         <input name="title" placeholder="Event Title" value={formData.title} onChange={handleChange} required style={{padding:'10px', borderRadius:'5px', border:'1px solid #ccc'}} />
         
-        {/* 👇 AI SECTION */}
+        {/* 👇 NORMAL TEXTAREA (No AI Button) */}
         <div>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'5px'}}>
-                <label style={{fontWeight:'bold', fontSize:'0.9rem'}}>Description</label>
-                <button type="button" onClick={handleAIGenerate} disabled={aiLoading} 
-                    style={{
-                        background: aiLoading ? '#94a3b8' : 'linear-gradient(135deg, #6366f1, #a855f7)', 
-                        color: 'white', border: 'none', padding: '5px 15px', 
-                        borderRadius: '20px', fontSize: '0.8rem', cursor: aiLoading ? 'not-allowed' : 'pointer', 
-                        fontWeight:'bold'
-                    }}>
-                    {aiLoading ? 'Writing...' : '✨ Write with AI'}
-                </button>
-            </div>
-            <textarea name="description" placeholder="Description (AI can write this for you!)" value={formData.description} onChange={handleChange} required style={{padding:'10px', width:'100%', minHeight:'120px', borderRadius:'5px', border:'1px solid #ccc'}} />
+            <label style={{fontWeight:'bold', fontSize:'0.9rem'}}>Description</label>
+            <textarea name="description" placeholder="Describe your event details here..." value={formData.description} onChange={handleChange} required style={{padding:'10px', width:'100%', minHeight:'120px', borderRadius:'5px', border:'1px solid #ccc', marginTop: '5px'}} />
         </div>
 
         <input name="date" type="date" value={formData.date} onChange={handleChange} required style={{padding:'10px', borderRadius:'5px', border:'1px solid #ccc'}} />
