@@ -12,7 +12,8 @@ const generateProposal = asyncHandler(async (req, res) => {
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-pro"});
+    // 👇👇 YAHAN CHANGE KIYA HAI (gemini-pro -> gemini-1.5-flash) 👇👇
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     
     const prompt = `
       Write a professional sponsorship proposal description for a college event.
@@ -27,7 +28,8 @@ const generateProposal = asyncHandler(async (req, res) => {
     res.json({ proposal: text });
   } catch (error) {
     console.error("AI Error:", error);
-    res.status(500).json({ message: "AI generation failed" });
+    // Error details frontend ko bhejo taaki pata chale kya hua
+    res.status(500).json({ message: "AI Error: " + error.message });
   }
 });
 
