@@ -2,7 +2,8 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import io from 'socket.io-client';
-// 👇 1. Logo Import Kiya
+
+// 👇 1. Logo Import (Make sure logo.svg assets folder mein ho)
 import logo from '../assets/logo.svg'; 
 
 const Navbar = () => {
@@ -14,10 +15,12 @@ const Navbar = () => {
   
   const locationRef = useRef(location.pathname);
 
+  // Smart URL Logic
   const ENDPOINT = window.location.hostname === 'localhost' 
     ? "http://127.0.0.1:5000" 
     : "https://campus-sponser-api.onrender.com";
 
+  // Chat Count Reset Logic
   useEffect(() => {
     locationRef.current = location.pathname;
     if (location.pathname === '/chat') {
@@ -25,6 +28,7 @@ const Navbar = () => {
     }
   }, [location.pathname]);
 
+  // Fetch Unread Messages on Load
   useEffect(() => {
       if(!user) return;
       const fetchUnreadMsg = async () => {
@@ -38,6 +42,7 @@ const Navbar = () => {
       if (location.pathname !== '/chat') fetchUnreadMsg();
   }, [user, location.pathname]); 
 
+  // Socket Connection for Real-time Msg Count
   useEffect(() => {
     if(!user) return;
     const socket = io(ENDPOINT);
@@ -50,6 +55,7 @@ const Navbar = () => {
     return () => socket.disconnect();
   }, [user]);
 
+  // Notifications Logic
   useEffect(() => {
     if (!user) return;
     const checkNotifications = async () => {
@@ -69,11 +75,16 @@ const Navbar = () => {
   return (
     <nav style={{ background: '#ffffff', padding: '10px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position:'sticky', top:0, zIndex:1000, flexWrap: 'wrap', gap: '15px' }}>
       
-      {/* 👇 2. Yahan Logo Laga Diya */}
+      {/* 👇 2. LOGO SECTION (Fixed Styling) */}
       <Link to="/" style={{ textDecoration: 'none', display:'flex', alignItems:'center' }}>
-        <img src={logo} alt="Campus Sponsor Logo" style={{ height: '55px', objectFit: 'contain' }} />
+        <img 
+            src={logo} 
+            alt="Campus Sponsor Logo" 
+            style={{ height: '50px', width: 'auto', display: 'block' }} 
+        />
       </Link>
 
+      {/* 👇 3. MENU ITEMS */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontFamily:'Poppins', fontWeight:'500', flexWrap:'wrap' }}>
         <Link to="/" style={{ textDecoration: 'none', color: '#64748b' }}>Home</Link>
         
