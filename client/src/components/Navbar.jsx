@@ -2,6 +2,8 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import io from 'socket.io-client';
+// 👇 1. Logo Import Kiya
+import logo from '../assets/logo.svg'; 
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -65,11 +67,11 @@ const Navbar = () => {
   }, [user]);
 
   return (
-    <nav style={{ background: '#ffffff', padding: '15px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position:'sticky', top:0, zIndex:1000, flexWrap: 'wrap', gap: '15px' }}>
+    <nav style={{ background: '#ffffff', padding: '10px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position:'sticky', top:0, zIndex:1000, flexWrap: 'wrap', gap: '15px' }}>
       
-      <Link to="/" style={{ textDecoration: 'none', display:'flex', alignItems:'center', gap:'10px' }}>
-        <span style={{fontSize:'1.8rem'}}>🚀</span>
-        <h2 style={{ margin: 0, color: '#1e293b', fontFamily: 'Poppins', fontWeight:'800', fontSize:'1.5rem' }}>CampusSponsor</h2>
+      {/* 👇 2. Yahan Logo Laga Diya */}
+      <Link to="/" style={{ textDecoration: 'none', display:'flex', alignItems:'center' }}>
+        <img src={logo} alt="Campus Sponsor Logo" style={{ height: '55px', objectFit: 'contain' }} />
       </Link>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontFamily:'Poppins', fontWeight:'500', flexWrap:'wrap' }}>
@@ -80,7 +82,6 @@ const Navbar = () => {
             {user.role === 'student' && <Link to="/create-event" style={{ textDecoration: 'none', color: '#64748b' }}>Create Event</Link>}
             {user.role === 'admin' && <Link to="/admin" style={{ textDecoration: 'none', color: '#dc2626', fontWeight:'bold' }}>Admin Panel</Link>}
             
-            {/* 👇 DASHBOARD LINK ADDED */}
             <Link to="/analytics" style={{ textDecoration: 'none', color: '#64748b', fontWeight:'600' }}>Dashboard 📊</Link>
 
             <Link to="/chat" style={{ textDecoration: 'none', color: '#64748b', display:'flex', alignItems:'center', gap:'5px', position:'relative' }}>
