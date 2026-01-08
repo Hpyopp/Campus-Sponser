@@ -14,7 +14,7 @@ const generateProposal = asyncHandler(async (req, res) => {
   }
 
   try {
-    // 👇 CRITICAL FIX: Using 'gemini-1.5-flash' which is the current standard
+    // 👇 FIX: Using 'gemini-1.5-flash' (Latest & Free)
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `
@@ -35,8 +35,7 @@ const generateProposal = asyncHandler(async (req, res) => {
 
   } catch (error) {
     console.error("AI Error:", error);
-    // Error ki detail log mein dikhegi, frontend ko generic message bhejenge
-    res.status(500).json({ message: "AI Service Failed. Check Server Logs." });
+    res.status(500).json({ message: "AI Service Failed. Check API Key or Quota." });
   }
 });
 
