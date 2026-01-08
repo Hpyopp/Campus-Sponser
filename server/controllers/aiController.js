@@ -3,7 +3,7 @@ const asyncHandler = require('express-async-handler');
 
 // 👇 DIRECT KEY (Taaki .env ka lafda khatam ho)
 // Note: Baad mein jab chal jaye, toh isse wapas process.env.GEMINI_API_KEY kar dena.
-const API_KEY = "AIzaSyB6asHR8Ak5KGaRG5X_hZzbjBItXL1AfXg";
+const API_KEY = "AIzaSyDq_7iXV6snRh9cc-jJgpzTDyV4WlTIPpI";
 
 const genAI = new GoogleGenerativeAI(API_KEY);
 
