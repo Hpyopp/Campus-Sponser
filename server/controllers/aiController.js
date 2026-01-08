@@ -14,8 +14,8 @@ const generateProposal = asyncHandler(async (req, res) => {
   }
 
   try {
-    // 👇 YAHAN GALTI THI (Ab maine 'gemini-pro' kar diya hai)
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    // 👇 CRITICAL FIX: Using 'gemini-1.5-flash' which is the current standard
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `
       Write a professional sponsorship proposal description for a college event.
@@ -34,8 +34,9 @@ const generateProposal = asyncHandler(async (req, res) => {
     res.json({ proposal: text });
 
   } catch (error) {
-    console.error("AI Error:", error); // Ye log Render me dikhega agar error aya
-    res.status(500).json({ message: "AI Service Failed. Try again." });
+    console.error("AI Error:", error);
+    // Error ki detail log mein dikhegi, frontend ko generic message bhejenge
+    res.status(500).json({ message: "AI Service Failed. Check Server Logs." });
   }
 });
 

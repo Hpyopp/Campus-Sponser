@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast'; // Toast use kar raha hu taki error dikhe
+import toast from 'react-hot-toast'; // 👈 Toast Import
 
 const CreateEvent = () => {
   const [formData, setFormData] = useState({ title: '', description: '', date: '', location: '', budget: '', contactEmail: '', instagramLink: '' });
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false); // 👈 AI Loading State
+  const [aiLoading, setAiLoading] = useState(false);
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
 
@@ -18,8 +18,15 @@ const CreateEvent = () => {
 
   useEffect(() => {
     if (!user) return navigate('/login');
-    if (user.role !== 'student') { alert("Only Students can create events."); navigate('/'); } 
-    if (!user.isVerified) { alert("Account Not Verified!"); navigate('/verify'); }
+    if (user.role !== 'student') { 
+        toast.error("Only Students can create events."); 
+        navigate('/'); 
+        return;
+    } 
+    if (!user.isVerified) { 
+        toast.error("Account Not Verified!"); 
+        navigate('/verify'); 
+    }
   }, []);
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -28,11 +35,11 @@ const CreateEvent = () => {
   // 👇 AI GENERATE FUNCTION
   const handleAIGenerate = async () => {
     if (!formData.title || !formData.location) {
-        return alert("Please enter 'Event Title' & 'Location' first!");
+        return toast.error("Please enter 'Event Title' & 'Location' first!");
     }
     
     setAiLoading(true);
-    toast("AI is writing... 🤖");
+    toast("AI is writing... 🤖", { icon: '✨' });
 
     try {
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
@@ -47,7 +54,7 @@ const CreateEvent = () => {
         toast.success("Proposal Generated!");
     } catch (error) {
         console.error(error);
-        alert("AI Failed. Check if Node Version is 20 in Render Settings.");
+        toast.error("AI Failed. Try again.");
     } finally {
         setAiLoading(false);
     }
@@ -55,7 +62,7 @@ const CreateEvent = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!file) return alert("Upload Permission Letter!");
+    if (!file) return toast.error("Upload Permission Letter!");
     setLoading(true);
 
     try {
@@ -65,10 +72,10 @@ const CreateEvent = () => {
 
       const config = { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${user.token}` } };
       await axios.post(`${ENDPOINT}/api/events`, data, config);
-      alert("Event Submitted! Waiting for Admin Approval.");
+      toast.success("Event Submitted! Waiting for Admin Approval.");
       navigate('/');
     } catch (error) { 
-      alert(error.response?.data?.message || "Error"); 
+      toast.error(error.response?.data?.message || "Error"); 
     } finally { setLoading(false); }
   };
 
@@ -79,7 +86,7 @@ const CreateEvent = () => {
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
         <input name="title" placeholder="Event Title" value={formData.title} onChange={handleChange} required style={{padding:'10px', borderRadius:'5px', border:'1px solid #ccc'}} />
         
-        {/* 👇 AI SECTION ADDED HERE */}
+        {/* 👇 AI SECTION */}
         <div>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'5px'}}>
                 <label style={{fontWeight:'bold', fontSize:'0.9rem'}}>Description</label>
