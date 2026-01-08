@@ -1,18 +1,25 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const asyncHandler = require('express-async-handler');
 
-// Key Render Environment se aayegi
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// 👇 DIRECT KEY (Taaki .env ka lafda khatam ho)
+// Note: Baad mein jab chal jaye, toh isse wapas process.env.GEMINI_API_KEY kar dena.
+const API_KEY = "AIzaSyB6asHR8Ak5KGaRG5X_hZzbjBItXL1AfXg";
+
+const genAI = new GoogleGenerativeAI(API_KEY);
 
 const generateProposal = asyncHandler(async (req, res) => {
   const { title, description, budget, location } = req.body;
 
+  // 1. Validation
   if (!title || !location) {
-    res.status(400); throw new Error('Event Title and Location are required');
+    res.status(400);
+    throw new Error('Event Title and Location are required');
   }
 
   try {
-    // 👇 FIX: Model name change kiya hai (Ye sabse latest hai)
+    console.log("🤖 AI Request Started for:", title);
+    
+    // 👇 MODEL: 'gemini-1.5-flash' (Latest & Fastest)
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `
@@ -29,11 +36,19 @@ const generateProposal = asyncHandler(async (req, res) => {
     const response = await result.response;
     const text = response.text();
 
+    console.log("✅ AI Success!");
     res.json({ proposal: text });
 
   } catch (error) {
-    console.error("AI Error:", error);
-    res.status(500).json({ message: "AI Failed. Check Render Logs." });
+    // Detailed Error Logging
+    console.error("❌ AI FAILED:", error);
+    
+    // Agar Google 404 de raha hai, toh hum fallback message bhejenge
+    if (error.message.includes("404")) {
+        res.status(500).json({ message: "Error: Model Not Found. Check Region/Key." });
+    } else {
+        res.status(500).json({ message: "AI Failed. Try again later." });
+    }
   }
 });
 
