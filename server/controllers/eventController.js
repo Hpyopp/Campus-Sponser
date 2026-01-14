@@ -4,19 +4,42 @@ const asyncHandler = require('express-async-handler');
 const sendEmail = require('../utils/sendEmail');
 const jwt = require('jsonwebtoken'); 
 
-// 1. CREATE EVENT
+// 1. CREATE EVENT (FIXED FOR 2 FILES)
 const createEvent = asyncHandler(async (req, res) => {
-  const { title, description, date, location, budget } = req.body;
+  const { title, description, date, location, budget, email, instagramLink } = req.body;
+
+  // Validation: Check fields
   if (!title || !description || !date || !location || !budget) {
     res.status(400); throw new Error('Please fill all fields');
   }
-  if (!req.file) { res.status(400); throw new Error('Please upload permission letter'); }
-  const permissionLetter = req.file.path || req.file.url;
+
+  // Validation: Check Files (req.files use karein, req.file nahi)
+  if (!req.files || !req.files.image || !req.files.permissionLetter) {
+    res.status(400); throw new Error('Both Event Image and Permission Letter are required');
+  }
+
+  // Extract Paths from Cloudinary/Multer
+  const imageUrl = req.files.image[0].path;
+  const permissionLetterUrl = req.files.permissionLetter[0].path;
 
   const event = await Event.create({
-    user: req.user._id, title, description, date, location, budget,
-    permissionLetter, sponsors: [], status: 'pending', raisedAmount: 0, views: 0
+    user: req.user._id, 
+    title, 
+    description, 
+    date, 
+    location, 
+    budget,
+    contactEmail: email,       // Added
+    instagramLink: instagramLink, // Added
+    imageUrl: imageUrl,        // Added
+    permissionLetter: permissionLetterUrl, 
+    sponsors: [], 
+    status: 'pending', 
+    raisedAmount: 0, 
+    views: 0,
+    isApproved: false
   });
+
   res.status(201).json(event);
 });
 
@@ -26,11 +49,11 @@ const getEvents = asyncHandler(async (req, res) => {
   res.json(events);
 });
 
-// 👇 2.5 NEW: GET TRENDING EVENTS (Top 3 by Views)
+// 2.5 GET TRENDING EVENTS
 const getTrendingEvents = asyncHandler(async (req, res) => {
   const events = await Event.find({ isApproved: true })
-    .sort({ views: -1 }) // Sabse zyada views pehle
-    .limit(3) // Sirf top 3
+    .sort({ views: -1 }) 
+    .limit(3) 
     .populate('user', 'name email');
   res.json(events);
 });
@@ -39,16 +62,13 @@ const getTrendingEvents = asyncHandler(async (req, res) => {
 const getEventById = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id).populate('user', 'name email');
   if (event) {
+    // View Counter Logic
     let shouldCount = true;
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         try {
             const token = req.headers.authorization.split(' ')[1];
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             if (decoded.id === event.user._id.toString()) { shouldCount = false; } 
-            else {
-                const viewer = await User.findById(decoded.id);
-                if (viewer && viewer.role === 'admin') { shouldCount = false; }
-            }
         } catch (error) {}
     }
     if (shouldCount) {
@@ -128,12 +148,17 @@ const rejectSponsorship = asyncHandler(async (req, res) => {
 const approveEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
   if (!event) { res.status(404); throw new Error('Event not found'); }
+  
+  // FIX: Ensure old events don't crash due to missing fields
+  if(!event.imageUrl) event.imageUrl = "https://via.placeholder.com/500";
+  if(!event.budget) event.budget = 0;
+
   event.isApproved = true;
   event.status = 'funding';
   await event.save(); 
   try {
-      const creator = await require('../models/User').findById(event.user);
-      await sendEmail({ email: creator.email, subject: 'Event Approved! 🚀', html: `<h2>Your Event is Live!</h2>` });
+      const creator = await User.findById(event.user);
+      if(creator) await sendEmail({ email: creator.email, subject: 'Event Approved! 🚀', html: `<h2>Your Event is Live!</h2>` });
   } catch(e) {}
   res.json({ message: 'Approved' });
 });
@@ -162,7 +187,7 @@ const getAllEventsForAdmin = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
-  createEvent, getEvents, getTrendingEvents, getEventById, sponsorEvent, // 👈 Added getTrendingEvents
+  createEvent, getEvents, getTrendingEvents, getEventById, sponsorEvent,
   verifyPayment, requestRefund, processRefund, rejectSponsorship,
   approveEvent, revokeEvent, deleteEvent, getAllEventsForAdmin
 };

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect, admin } = require('../middleware/authMiddleware');
-const upload = require('../middleware/uploadMiddleware'); // Ensure Multer setup is correct here
+const upload = require('../middleware/uploadMiddleware'); // Ensure Multer is correct here
 const {
   createEvent, getEvents, getTrendingEvents, getEventById, sponsorEvent,
   verifyPayment, requestRefund, processRefund, rejectSponsorship,
@@ -14,9 +14,7 @@ router.get('/trending', getTrendingEvents);
 router.get('/:id', getEventById); 
 
 // --- PROTECTED ROUTES ---
-
-// 👇 IMPORTANT UPDATE HERE:
-// Ab ye route 2 files accept karega: 'image' aur 'permissionLetter'
+// 👇 IMPORTANT: Using upload.fields for multiple files
 router.post('/create', protect, upload.fields([
   { name: 'image', maxCount: 1 }, 
   { name: 'permissionLetter', maxCount: 1 }
