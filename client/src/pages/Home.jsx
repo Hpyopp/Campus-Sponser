@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { motion } from 'framer-motion'; // Animation King 👑
+import { motion } from 'framer-motion';
 
 const Home = () => {
   const [events, setEvents] = useState([]);
@@ -16,7 +16,8 @@ const Home = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const { data } = await axios.get(`${ENDPOINT}/api/events`);
+        // Trending endpoint use kar rahe hain
+        const { data } = await axios.get(`${ENDPOINT}/api/events/trending`);
         setEvents(data);
       } catch (error) { console.error(error); }
     };
@@ -27,7 +28,6 @@ const Home = () => {
     navigate(`/search?q=${query}&city=${city}`);
   };
 
-  // ✨ Animations Variants
   const fadeInUp = {
     hidden: { opacity: 0, y: 30 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
@@ -36,14 +36,14 @@ const Home = () => {
   return (
     <div style={{ fontFamily: "'Poppins', sans-serif", backgroundColor: '#f8fafc', overflowX: 'hidden' }}>
       
-      {/* 🌟 HERO SECTION (Modern & Dark) */}
+      {/* 🌟 HERO SECTION */}
       <div style={{
         background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
         color: 'white',
         padding: '100px 20px 120px',
         textAlign: 'center',
         position: 'relative',
-        clipPath: 'polygon(0 0, 100% 0, 100% 90%, 0 100%)' // Angled Bottom
+        clipPath: 'polygon(0 0, 100% 0, 100% 90%, 0 100%)' 
       }}>
         <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0.1, backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
         
@@ -62,16 +62,16 @@ const Home = () => {
 
           <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
             <Link to="/create-event" style={{ padding: '15px 35px', background: '#2563eb', color: 'white', borderRadius: '50px', textDecoration: 'none', fontWeight: 'bold', fontSize: '1.1rem', boxShadow: '0 10px 25px rgba(37, 99, 235, 0.4)', transition: '0.3s' }}>
-               Create Event
+               Start an Event
             </Link>
             <Link to="/register" style={{ padding: '15px 35px', background: 'transparent', color: 'white', border: '2px solid rgba(255,255,255,0.2)', borderRadius: '50px', textDecoration: 'none', fontWeight: 'bold', fontSize: '1.1rem' }}>
-               Become Sponsor
+               Become a Sponsor
             </Link>
           </div>
         </motion.div>
       </div>
 
-      {/* 🔍 SEARCH BAR (Floating) */}
+      {/* 🔍 SEARCH BAR */}
       <motion.div 
         initial={{ opacity: 0, y: 50 }} 
         animate={{ opacity: 1, y: 0 }} 
@@ -80,13 +80,13 @@ const Home = () => {
       >
         <div style={{ background: 'white', padding: '15px', borderRadius: '15px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', display: 'flex', gap: '10px', maxWidth: '800px', width: '100%', alignItems: 'center', flexWrap: 'wrap' }}>
             <input 
-              placeholder="🔍 Search Event (e.g. Tech Fest)" 
+              placeholder="🔍 Search Event" 
               value={query} 
               onChange={(e)=>setQuery(e.target.value)}
               style={{ flex: 1, padding: '15px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '1rem', outline: 'none', minWidth: '200px' }}
             />
             <input 
-              placeholder="📍 City (e.g. Mumbai)" 
+              placeholder="📍 City" 
               value={city} 
               onChange={(e)=>setCity(e.target.value)}
               style={{ flex: 0.5, padding: '15px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '1rem', outline: 'none', minWidth: '150px' }}
@@ -116,16 +116,29 @@ const Home = () => {
            <p style={{textAlign:'center', padding:'40px', color:'#94a3b8'}}>Loading cool events...</p>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '30px' }}>
-            {events.slice(0, 6).map((event) => (
+            {events.map((event) => (
               <motion.div 
                 key={event._id}
                 whileHover={{ y: -10 }}
                 style={{ background: 'white', borderRadius: '20px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9', cursor: 'pointer', position: 'relative' }}
                 onClick={() => navigate(`/event/${event._id}`)}
               >
-                {/* Image Placeholder with Gradient */}
-                <div style={{ height: '180px', background: 'linear-gradient(120deg, #a5b4fc 0%, #6366f1 100%)', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontSize:'3rem' }}>
-                  🎉
+                
+                {/* 👇 FIX: IMAGE DISPLAY LOGIC */}
+                <div style={{ height: '200px', overflow: 'hidden', background: '#e2e8f0' }}>
+                   {event.imageUrl ? (
+                      <img 
+                        src={event.imageUrl} 
+                        alt={event.title} 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                        onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }} // Fallback if image fails
+                      />
+                   ) : null}
+                   
+                   {/* Fallback agar image na ho ya load na ho */}
+                   <div style={{ display: event.imageUrl ? 'none' : 'flex', width: '100%', height: '100%', background: 'linear-gradient(120deg, #a5b4fc 0%, #6366f1 100%)', alignItems:'center', justifyContent:'center', color:'white', fontSize:'3rem' }}>
+                      🎉
+                   </div>
                 </div>
                 
                 <div style={{ padding: '25px' }}>
