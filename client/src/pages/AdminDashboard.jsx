@@ -8,8 +8,8 @@ import { jsPDF } from "jspdf";
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [events, setEvents] = useState([]);
-  const [reports, setReports] = useState([]); // 👈 New State for Reports
-  const [view, setView] = useState('pending_users'); 
+  const [reports, setReports] = useState([]); 
+  const [view, setView] = useState('reports'); // Default view updated to reports for testing
   const [loading, setLoading] = useState(true);
   const [chartReady, setChartReady] = useState(false);
   const navigate = useNavigate();
@@ -30,7 +30,6 @@ const AdminDashboard = () => {
       if (!user || user.role !== 'admin') return navigate('/login');
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
       
-      // 👇 Fetch Reports along with users and events
       const [uRes, eRes, rRes] = await Promise.all([
           axios.get('https://campus-sponser-api.onrender.com/api/users/all', config),
           axios.get('https://campus-sponser-api.onrender.com/api/events/admin/all', config),
@@ -38,7 +37,7 @@ const AdminDashboard = () => {
       ]);
       setUsers(uRes.data);
       setEvents(eRes.data);
-      setReports(rRes.data); // Store reports
+      setReports(rRes.data);
       setTimeout(() => setChartReady(true), 500); 
     } catch (e) { toast.error("Sync Failed!"); }
     finally { setLoading(false); }
@@ -56,10 +55,24 @@ const AdminDashboard = () => {
     } catch (e) { toast.error("Action Failed!"); }
   };
 
-  // 👇 Function to resolve report
+  // 👇 FIXED: RESOLVE REPORT (Instant Delete from UI)
   const resolveReport = async (id) => {
     if(!window.confirm("Mark this report as resolved?")) return;
-    await handleAction(`https://campus-sponser-api.onrender.com/api/reports/${id}`, 'delete', "Report Resolved ✅");
+    
+    try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        const config = { headers: { Authorization: `Bearer ${user.token}` } };
+        
+        // 1. Server se delete karo
+        await axios.delete(`https://campus-sponser-api.onrender.com/api/reports/${id}`, config);
+        
+        // 2. State se turant filter kar do (Instant Gayab Logic)
+        setReports(prevReports => prevReports.filter(report => report._id !== id));
+        
+        toast.success("Report Resolved ✅");
+    } catch (e) {
+        toast.error("Failed to resolve report");
+    }
   };
 
   const viewAgreement = (s, eventTitle) => {
@@ -154,7 +167,7 @@ const AdminDashboard = () => {
 
       {/* TAB NAVIGATION */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '30px', flexWrap:'wrap' }}>
-        <Tab active={view==='reports'} onClick={()=>setView('reports')} label={`🚩 Reports (${reports.length})`} color="#ef4444" /> {/* 👈 Reports Tab Added */}
+        <Tab active={view==='reports'} onClick={()=>setView('reports')} label={`🚩 Reports (${reports.length})`} color="#ef4444" />
         <Tab active={view==='pending_users'} onClick={()=>setView('pending_users')} label="👥 Pending KYC" color="#eab308" />
         <Tab active={view==='events'} onClick={()=>setView('events')} label="🚀 Events Control" color="#38bdf8" />
         <Tab active={view==='history'} onClick={()=>setView('history')} label="📜 History" color="#16a34a" />
@@ -164,7 +177,7 @@ const AdminDashboard = () => {
       {/* MAIN CONTENT TABLE/GRID */}
       <div style={{ background: '#1e293b', borderRadius: '15px', padding: '20px' }}>
         
-        {/* 👇👇 NEW REPORTS SECTION 👇👇 */}
+        {/* REPORTS SECTION */}
         {view === 'reports' && (
             <div style={{overflowX:'auto'}}>
                  {reports.length === 0 ? (
@@ -174,7 +187,7 @@ const AdminDashboard = () => {
                         <thead style={{textAlign:'left', color:'#94a3b8', fontSize:'0.8rem', background:'#334155'}}><tr style={{borderBottom:'2px solid #475569'}}><th style={{padding:'15px'}}>REPORTED EVENT</th><th style={{padding:'15px'}}>REPORTED BY</th><th style={{padding:'15px'}}>REASON</th><th style={{padding:'15px'}}>ACTIONS</th></tr></thead>
                         <tbody>
                             {reports.map((r, i) => (
-                                <tr key={i} style={{borderBottom:'1px solid #334155'}}>
+                                <tr key={r._id || i} style={{borderBottom:'1px solid #334155'}}>
                                     <td style={{padding:'15px'}}>
                                         <b style={{color:'white'}}>{r.event?.title || "Deleted Event"}</b>
                                         <br/><small style={{color:'#64748b'}}>ID: {r.event?._id}</small>
@@ -197,7 +210,6 @@ const AdminDashboard = () => {
                  )}
             </div>
         )}
-        {/* 👆👆 ----------------------- 👆👆 */}
 
         {/* EVENTS CONTROL */}
         {view === 'events' && (
