@@ -18,7 +18,6 @@ const AllEvents = () => {
     ? "http://127.0.0.1:5000" 
     : "https://campus-sponser-api.onrender.com";
 
-  // 1. Events Fetch Karo
   useEffect(() => {
     const fetchEvents = async () => {
       try {
@@ -34,7 +33,6 @@ const AllEvents = () => {
     fetchEvents();
   }, []);
 
-  // 2. Filter Logic (Search karte hi list update hogi)
   useEffect(() => {
     let result = events;
     if (search) {
@@ -49,7 +47,6 @@ const AllEvents = () => {
   return (
     <div style={{ fontFamily: "'Poppins', sans-serif", backgroundColor: '#f8fafc', minHeight: '100vh', padding: '40px 20px' }}>
       
-      {/* 🏷️ HEADER SECTION */}
       <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center', marginBottom: '50px' }}>
         <h1 style={{ fontSize: '2.5rem', fontWeight: '800', color: '#1e293b', marginBottom: '10px' }}>
           Explore Sponsorships 🚀
@@ -57,7 +54,7 @@ const AllEvents = () => {
         <p style={{ color: '#64748b' }}>Discover events matching your brand and budget.</p>
       </div>
 
-      {/* 🔍 FILTERS BAR */}
+      {/* 🔍 FILTERS */}
       <div style={{ maxWidth: '1200px', margin: '0 auto 40px', background: 'white', padding: '20px', borderRadius: '15px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
         <input 
           placeholder="🔍 Search by Event Name..." 
@@ -66,7 +63,7 @@ const AllEvents = () => {
           style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none', minWidth: '200px' }}
         />
         <input 
-          placeholder="📍 Filter by City (e.g. Mumbai)" 
+          placeholder="📍 Filter by City" 
           value={city}
           onChange={(e) => setCity(e.target.value)}
           style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none', minWidth: '200px' }}
@@ -94,9 +91,21 @@ const AllEvents = () => {
                 style={{ background: 'white', borderRadius: '15px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9', cursor: 'pointer' }}
                 onClick={() => navigate(`/event/${event._id}`)}
               >
-                {/* Gradient Header */}
-                <div style={{ height: '140px', background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontSize:'2.5rem' }}>
-                  🎓
+                {/* 👇 IMAGE DISPLAY LOGIC ADDED HERE */}
+                <div style={{ height: '180px', background: '#e2e8f0', position: 'relative' }}>
+                    {event.imageUrl ? (
+                        <img 
+                            src={event.imageUrl} 
+                            alt={event.title} 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }}
+                        />
+                    ) : null}
+                    
+                    {/* Fallback Icon */}
+                    <div style={{ display: event.imageUrl ? 'none' : 'flex', width: '100%', height: '100%', background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', alignItems:'center', justifyContent:'center', color:'white', fontSize:'3rem', position:'absolute', top:0, left:0 }}>
+                        🎓
+                    </div>
                 </div>
                 
                 <div style={{ padding: '20px' }}>
@@ -116,7 +125,7 @@ const AllEvents = () => {
                   </p>
 
                   <button style={{ width: '100%', padding: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', fontWeight: '600', color: '#334155', cursor: 'pointer', transition: '0.2s' }}>
-                    View Full Details
+                    View Details
                   </button>
                 </div>
               </motion.div>
