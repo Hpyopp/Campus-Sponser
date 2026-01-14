@@ -19,7 +19,8 @@ import NotFound from './pages/NotFound';
 import UserProfile from './pages/UserProfile';
 import Chat from './pages/Chat';
 import Notifications from './pages/Notifications';
-import Analytics from './pages/Analytics'; // 👈 NEW IMPORT
+import Analytics from './pages/Analytics';
+import AllEvents from './pages/AllEvents'; // 👈 NEW IMPORT
 
 const UserSync = () => {
   const navigate = useNavigate();
@@ -72,6 +73,7 @@ function App() {
                 
                 {/* 👇 NEW ROUTE */}
                 <Route path="/analytics" element={<Analytics />} />
+                <Route path="/all-events" element={<AllEvents />} />
 
                 <Route path="*" element={<NotFound />} />
             </Routes>
