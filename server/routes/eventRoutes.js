@@ -31,5 +31,6 @@ router.put('/:id/verify-payment', protect, admin, verifyPayment);
 router.put('/:id/process-refund', protect, admin, processRefund); 
 router.put('/:id/reject-sponsorship', protect, admin, rejectSponsorship); 
 router.delete('/:id', protect, admin, deleteEvent); 
+router.get('/recommended', getRecommendedEvents);
 
 module.exports = router;
