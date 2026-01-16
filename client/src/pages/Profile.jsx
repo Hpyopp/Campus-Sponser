@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { generateMOU } from '../utils/generateMOU'; // 👈 IMPORT IMPORTANT
 
 const Profile = () => {
   const [profile, setProfile] = useState(null);
@@ -32,9 +33,29 @@ const Profile = () => {
     fetchProfile();
   }, [user, navigate]);
 
-  // 👇 Dummy Download Logic (Replace with actual PDF logic later)
+  // 👇 REAL DOWNLOAD LOGIC (PDF GENERATOR)
   const downloadAgreement = (eventId) => {
-      alert("Agreement download starting... 📄");
+      const selectedEvent = events.find(e => e._id === eventId);
+      
+      if (!selectedEvent) return;
+
+      // Check agar koi verified sponsor hai
+      const verifiedSponsors = selectedEvent.sponsors?.filter(s => s.status === 'verified');
+
+      if (!verifiedSponsors || verifiedSponsors.length === 0) {
+          alert("🚫 No verified sponsors yet. Cannot generate agreement.");
+          return;
+      }
+
+      // Har verified sponsor ke liye alag PDF download karo
+      verifiedSponsors.forEach(sponsor => {
+          // Event object mein user details inject kar rahe hain (kyunki API se shayad populate na hoke aaye)
+          const eventDataForMOU = { ...selectedEvent, user: profile };
+          
+          generateMOU(sponsor, eventDataForMOU); // 👈 Ye function PDF banayega
+      });
+
+      alert(`✅ Downloading ${verifiedSponsors.length} Agreement(s)...`);
   };
 
   if (loading) return <div style={{textAlign:'center', marginTop:'50px'}}>Loading Dashboard... ⏳</div>;
@@ -116,7 +137,7 @@ const Profile = () => {
                                 👁️ View Details
                             </button>
 
-                            {/* 👇 FIX: Show button ONLY if raisedAmount > 0 */}
+                            {/* AGREEMENT BUTTON */}
                             {event.raisedAmount > 0 && (
                                 <button 
                                     onClick={() => downloadAgreement(event._id)}
