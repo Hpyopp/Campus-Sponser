@@ -1,25 +1,30 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const messageSchema = new mongoose.Schema({
-  sender: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+const messageSchema = mongoose.Schema(
+  {
+    sender: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "User", 
+      required: true,
+      index: true // ⚡ Makes fetching chats faster
+    },
+    content: { 
+      type: String, 
+      required: true,
+      trim: true // ✂️ Removes extra spaces from start/end
+    },
+    receiver: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "User", 
+      required: true,
+      index: true // ⚡ Makes finding receiver faster
+    },
+    read: { 
+      type: Boolean, 
+      default: false 
+    },
   },
-  receiver: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  message: {
-    type: String,
-    required: true
-  },
-  // 👇 Message seen hua ya nahi track karne ke liye
-  isRead: {
-    type: Boolean,
-    default: false
-  }
-}, { timestamps: true });
+  { timestamps: true }
+);
 
-module.exports = mongoose.model('Message', messageSchema);
+module.exports = mongoose.model("Message", messageSchema);
