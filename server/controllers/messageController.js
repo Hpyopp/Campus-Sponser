@@ -1,5 +1,5 @@
 const asyncHandler = require("express-async-handler");
-const Message = require("../models/Message"); // Ensure Message model exists
+const Message = require("../models/Message");
 const User = require("../models/User");
 
 // 1. SEND MESSAGE
@@ -21,7 +21,6 @@ const sendMessage = asyncHandler(async (req, res) => {
   try {
     var message = await Message.create(newMessage);
     
-    // Populate Sender & Receiver details
     message = await message.populate("sender", "name email imageUrl");
     message = await message.populate("receiver", "name email imageUrl");
 
@@ -32,7 +31,7 @@ const sendMessage = asyncHandler(async (req, res) => {
   }
 });
 
-// 2. GET ALL MESSAGES (Between two users)
+// 2. GET ALL MESSAGES
 const allMessages = asyncHandler(async (req, res) => {
   try {
     const { otherUserId } = req.params;
@@ -49,12 +48,11 @@ const allMessages = asyncHandler(async (req, res) => {
 
     res.json(messages);
   } catch (error) {
-    res.status(400);
-    throw new Error(error.message);
+    res.status(400); throw new Error(error.message);
   }
 });
 
-// 3. GET MY CONVERSATIONS (List of people I chatted with)
+// 3. GET CONVERSATIONS
 const getConversations = asyncHandler(async (req, res) => {
     try {
         const messages = await Message.find({
@@ -80,12 +78,34 @@ const getConversations = asyncHandler(async (req, res) => {
                 });
             }
         });
-
         res.json(users);
-
-    } catch (error) {
-        res.status(400); throw new Error(error.message);
-    }
+    } catch (error) { res.status(400); throw new Error(error.message); }
 });
 
-module.exports = { sendMessage, allMessages, getConversations };
+// 👇 4. GET UNREAD COUNT (New for Badge)
+const getUnreadCount = asyncHandler(async (req, res) => {
+    try {
+        const count = await Message.countDocuments({ 
+            receiver: req.user._id, 
+            read: false 
+        });
+        res.json({ count });
+    } catch (error) { res.status(400); throw new Error(error.message); }
+});
+
+// 👇 5. MARK READ (New for Clearing Badge)
+const markMessagesRead = asyncHandler(async (req, res) => {
+    const { senderId } = req.body;
+    try {
+        await Message.updateMany(
+            { sender: senderId, receiver: req.user._id, read: false },
+            { $set: { read: true } }
+        );
+        res.json({ message: 'Marked read' });
+    } catch (error) { res.status(400); throw new Error(error.message); }
+});
+
+module.exports = { 
+    sendMessage, allMessages, getConversations, 
+    getUnreadCount, markMessagesRead // 👈 Exported
+};

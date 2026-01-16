@@ -1,130 +1,76 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
-import io from 'socket.io-client';
-
-// 👇 1. Logo Import (Make sure logo.svg assets folder mein ho)
 import logo from '../assets/logo.svg'; 
 
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [unreadCount, setUnreadCount] = useState(0); 
   const [msgCount, setMsgCount] = useState(0); 
   const user = JSON.parse(localStorage.getItem('user'));
   
-  const locationRef = useRef(location.pathname);
-
-  // Smart URL Logic
   const ENDPOINT = window.location.hostname === 'localhost' 
     ? "http://127.0.0.1:5000" 
     : "https://campus-sponser-api.onrender.com";
 
-  // Chat Count Reset Logic
-  useEffect(() => {
-    locationRef.current = location.pathname;
-    if (location.pathname === '/chat') {
-        setMsgCount(0);
-    }
-  }, [location.pathname]);
-
-  // Fetch Unread Messages on Load
+  // Check Unread Messages (Polling every 5 sec)
   useEffect(() => {
       if(!user) return;
-      const fetchUnreadMsg = async () => {
+      const fetchUnread = async () => {
           try {
-              const { data } = await axios.get(`${ENDPOINT}/api/chat/unread/count`, {
+              const { data } = await axios.get(`${ENDPOINT}/api/messages/unread`, {
                   headers: { Authorization: `Bearer ${user.token}` }
               });
               setMsgCount(data.count);
-          } catch(e) {}
+          } catch(e) { console.error(e); }
       };
-      if (location.pathname !== '/chat') fetchUnreadMsg();
+
+      fetchUnread(); // Initial call
+      const interval = setInterval(fetchUnread, 5000); // Poll every 5s
+      return () => clearInterval(interval);
   }, [user, location.pathname]); 
 
-  // Socket Connection for Real-time Msg Count
+  // Reset count when on chat page
   useEffect(() => {
-    if(!user) return;
-    const socket = io(ENDPOINT);
-    socket.emit("join_room", user._id);
-    socket.on("receive_message", (data) => {
-        if (locationRef.current !== '/chat') {
-            setMsgCount(prev => prev + 1);
-        }
-    });
-    return () => socket.disconnect();
-  }, [user]);
-
-  // Notifications Logic
-  useEffect(() => {
-    if (!user) return;
-    const checkNotifications = async () => {
-        try {
-            const { data } = await axios.get(`${ENDPOINT}/api/notifications`, {
-                headers: { Authorization: `Bearer ${user.token}` }
-            });
-            const count = data.filter(n => !n.isRead).length;
-            setUnreadCount(count);
-        } catch (e) {}
-    };
-    checkNotifications();
-    const interval = setInterval(checkNotifications, 10000); 
-    return () => clearInterval(interval); 
-  }, [user]);
+    if (location.pathname === '/chat') setMsgCount(0);
+  }, [location.pathname]);
 
   return (
-    <nav style={{ background: '#ffffff', padding: '10px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position:'sticky', top:0, zIndex:1000, flexWrap: 'wrap', gap: '15px' }}>
+    <nav style={{ background: '#ffffff', padding: '10px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position:'sticky', top:0, zIndex:1000 }}>
       
-      {/* 👇 2. LOGO SECTION (Fixed Styling) */}
-      <Link to="/" style={{ textDecoration: 'none', display:'flex', alignItems:'center' }}>
-        <img 
-            src={logo} 
-            alt="Campus Sponsor Logo" 
-            style={{ height: '50px', width: 'auto', display: 'block' }} 
-        />
+      <Link to="/" style={{ textDecoration: 'none' }}>
+        <img src={logo} alt="Logo" style={{ height: '50px' }} />
       </Link>
 
-      {/* 👇 3. MENU ITEMS */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontFamily:'Poppins', fontWeight:'500', flexWrap:'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontFamily:'Poppins', fontWeight:'500' }}>
         <Link to="/" style={{ textDecoration: 'none', color: '#64748b' }}>Home</Link>
         
         {user ? (
           <>
             {user.role === 'student' && <Link to="/create-event" style={{ textDecoration: 'none', color: '#64748b' }}>Create Event</Link>}
-            {user.role === 'admin' && <Link to="/admin" style={{ textDecoration: 'none', color: '#dc2626', fontWeight:'bold' }}>Admin Panel</Link>}
+            {user.role === 'admin' && <Link to="/admin" style={{ textDecoration: 'none', color: '#dc2626' }}>Admin</Link>}
             
-            <Link to="/analytics" style={{ textDecoration: 'none', color: '#64748b', fontWeight:'600' }}>Dashboard 📊</Link>
+            <Link to="/analytics" style={{ textDecoration: 'none', color: '#64748b' }}>Dashboard</Link>
 
+            {/* 👇 MESSAGES WITH BADGE */}
             <Link to="/chat" style={{ textDecoration: 'none', color: '#64748b', display:'flex', alignItems:'center', gap:'5px', position:'relative' }}>
                 <span style={{fontSize:'1.2rem'}}>💬</span> Messages
                 {msgCount > 0 && (
-                    <span style={{ position: 'absolute', top: '-8px', right: '-12px', backgroundColor: '#ef4444', color: 'white', borderRadius: '50%', padding: '2px 6px', fontSize: '0.7rem', fontWeight: 'bold', border: '2px solid white', minWidth: '18px', textAlign: 'center' }}>
+                    <span style={{ position: 'absolute', top: '-8px', right: '-10px', backgroundColor: '#ef4444', color: 'white', borderRadius: '50%', padding: '2px 6px', fontSize: '0.7rem', fontWeight: 'bold', border: '2px solid white' }}>
                         {msgCount > 9 ? '9+' : msgCount}
                     </span>
                 )}
             </Link>
 
-            <div onClick={() => { setUnreadCount(0); navigate('/notifications'); }} style={{ position: 'relative', cursor: 'pointer', fontSize: '1.4rem', display:'flex', alignItems:'center' }}>
-                🔔
-                {unreadCount > 0 && (
-                    <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#ef4444', color: 'white', fontSize: '0.7rem', width: '18px', height: '18px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', border: '2px solid white' }}>
-                        {unreadCount}
-                    </span>
-                )}
-            </div>
-
-            <div onClick={() => navigate('/profile')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', background:'#f1f5f9', padding:'5px 12px 5px 5px', borderRadius:'30px', transition:'0.3s', border:'1px solid #e2e8f0' }}>
-                <div style={{width:'32px', height:'32px', background:'#3b82f6', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontSize:'0.9rem', fontWeight:'bold'}}>
+            <div onClick={() => navigate('/profile')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', background:'#f1f5f9', padding:'5px 12px 5px 5px', borderRadius:'30px', border:'1px solid #e2e8f0' }}>
+                <div style={{width:'32px', height:'32px', background:'#3b82f6', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:'bold'}}>
                     {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
                 </div>
-                <span style={{color:'#334155', fontSize:'0.9rem', fontWeight:'600'}}>{user.name.split(' ')[0]}</span>
+                <span style={{color:'#334155', fontSize:'0.9rem'}}>{user.name.split(' ')[0]}</span>
             </div>
           </>
         ) : (
-          <>
-            <Link to="/login" style={{ textDecoration: 'none', color: '#2563eb', fontWeight: 'bold' }}>Login</Link>
-            <Link to="/register" style={{ padding: '8px 16px', background: '#2563eb', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', boxShadow:'0 4px 14px rgba(37, 99, 235, 0.3)' }}>Register</Link>
-          </>
+          <Link to="/login" style={{ textDecoration: 'none', color: '#2563eb', fontWeight: 'bold' }}>Login</Link>
         )}
       </div>
     </nav>

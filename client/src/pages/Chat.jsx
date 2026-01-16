@@ -86,18 +86,18 @@ const Chat = () => {
   useEffect(() => { scrollRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   return (
-    // 👇 MAIN LAYOUT FIX: Fixed Position + Hidden Overflow
+    // 👇 MAIN LAYOUT FIX: Page ko chipka diya hai
     <div style={{ 
         display: 'flex', 
-        height: 'calc(100vh - 80px)', // Navbar height minus karke full screen
+        height: 'calc(100vh - 80px)', // Navbar height minus
         width: '100%',
         backgroundColor: '#f8fafc', 
         fontFamily: "'Poppins', sans-serif",
-        position: 'fixed', // Ye page ko chipka dega
+        position: 'fixed', // Fixed position
         top: '70px', 
         left: 0,
-        zIndex: 100, // Footer ke upar
-        overflow: 'hidden' // Poora page scroll nahi hoga
+        zIndex: 100,
+        overflow: 'hidden' // No page scroll
     }}>
       
       {/* 👈 SIDEBAR */}
@@ -156,13 +156,13 @@ const Chat = () => {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#f8fafc', height: '100%' }}>
         {currentChat ? (
             <>
-                {/* Chat Header (Fixed at Top) */}
+                {/* Chat Header (Fixed) */}
                 <div style={{ padding: '15px 30px', background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '15px', flexShrink: 0 }}>
                     <img src={currentChat.imageUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit:'cover' }} alt="user" />
                     <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#1e293b' }}>{currentChat.name}</h3>
                 </div>
 
-                {/* Messages List (ONLY THIS SCROLLS) */}
+                {/* Messages List (Scrollable) */}
                 <div style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {messages.map((m, i) => {
                         // FIX: Empty messages ko hide karo
@@ -189,7 +189,7 @@ const Chat = () => {
                     <div ref={scrollRef}></div>
                 </div>
 
-                {/* Input Box (Fixed at Bottom) */}
+                {/* Input Box (Fixed) */}
                 <form onSubmit={sendMessage} style={{ padding: '20px', background: 'white', display: 'flex', gap: '15px', borderTop: '1px solid #e2e8f0', flexShrink: 0 }}>
                     <input 
                         type="text" 
