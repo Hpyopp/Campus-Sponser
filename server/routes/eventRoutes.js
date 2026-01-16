@@ -1,20 +1,33 @@
 const express = require('express');
 const router = express.Router();
 const { protect, admin } = require('../middleware/authMiddleware');
-const upload = require('../middleware/uploadMiddleware'); // Ensure Multer is correct here
+const upload = require('../middleware/uploadMiddleware'); 
+
+// 👇 IMPORT UPDATE: 'getRecommendedEvents' yahan add kiya hai
 const {
-  createEvent, getEvents, getTrendingEvents, getEventById, sponsorEvent,
-  verifyPayment, requestRefund, processRefund, rejectSponsorship,
-  approveEvent, revokeEvent, deleteEvent, getAllEventsForAdmin
+  createEvent, 
+  getEvents, 
+  getTrendingEvents, 
+  getRecommendedEvents, // 👈 Ye missing tha!
+  getEventById, 
+  sponsorEvent,
+  verifyPayment, 
+  requestRefund, 
+  processRefund, 
+  rejectSponsorship,
+  approveEvent, 
+  revokeEvent, 
+  deleteEvent, 
+  getAllEventsForAdmin
 } = require('../controllers/eventController');
 
 // --- PUBLIC ROUTES ---
 router.get('/', getEvents); 
 router.get('/trending', getTrendingEvents); 
+router.get('/recommended', getRecommendedEvents); // 👈 Ye route ab chalega
 router.get('/:id', getEventById); 
 
 // --- PROTECTED ROUTES ---
-// 👇 IMPORTANT: Using upload.fields for multiple files
 router.post('/create', protect, upload.fields([
   { name: 'image', maxCount: 1 }, 
   { name: 'permissionLetter', maxCount: 1 }
@@ -31,6 +44,5 @@ router.put('/:id/verify-payment', protect, admin, verifyPayment);
 router.put('/:id/process-refund', protect, admin, processRefund); 
 router.put('/:id/reject-sponsorship', protect, admin, rejectSponsorship); 
 router.delete('/:id', protect, admin, deleteEvent); 
-router.get('/recommended', getRecommendedEvents);
 
 module.exports = router;
