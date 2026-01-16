@@ -1,5 +1,6 @@
 const Event = require('../models/campusEvent');
 const User = require('../models/User'); 
+const Notification = require('../models/Notification'); // 👈 NEW IMPORT
 const asyncHandler = require('express-async-handler');
 const sendEmail = require('../utils/sendEmail');
 const jwt = require('jsonwebtoken'); 
@@ -39,7 +40,7 @@ const createEvent = asyncHandler(async (req, res) => {
     raisedAmount: 0, 
     views: 0,
     isApproved: false,
-    updates: [] // Initialize empty updates array
+    updates: [] 
   });
 
   res.status(201).json(event);
@@ -62,11 +63,9 @@ const getTrendingEvents = asyncHandler(async (req, res) => {
 
 // 2.6 GET RECOMMENDED EVENTS (AI Matchmaking)
 const getRecommendedEvents = asyncHandler(async (req, res) => {
-    // Logic: Active funding events, High Budget first, Limit 5
     const recommended = await Event.find({ isApproved: true, status: 'funding' })
         .sort({ budget: -1 }) 
         .limit(5);
-
     res.json(recommended);
 });
 
@@ -74,7 +73,7 @@ const getRecommendedEvents = asyncHandler(async (req, res) => {
 const getEventById = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id).populate('user', 'name email');
   if (event) {
-    // View Counter Logic (Prevent self-view count)
+    // View Counter Logic
     let shouldCount = true;
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         try {
@@ -106,17 +105,31 @@ const sponsorEvent = asyncHandler(async (req, res) => {
   } else { res.status(404); throw new Error('Event not found'); }
 });
 
-// 5. VERIFY PAYMENT
+// 5. VERIFY PAYMENT (Updated with Notification)
 const verifyPayment = asyncHandler(async (req, res) => {
   const { sponsorId } = req.body;
   const event = await Event.findById(req.params.id);
+  
   if (!event) { res.status(404); throw new Error('Event not found'); }
+  
   const sponsor = event.sponsors.find(s => s.sponsorId.toString() === sponsorId);
+  
   if (sponsor) {
     sponsor.status = 'verified'; 
     event.raisedAmount = event.sponsors.filter(s => s.status === 'verified').reduce((acc, curr) => acc + curr.amount, 0);
+    
     if (event.raisedAmount >= event.budget) event.status = 'completed';
+    
     await event.save({ validateBeforeSave: false });
+
+    // 👇 NEW: Send Notification to Student
+    await Notification.create({
+        user: event.user, // Event Creator
+        type: 'payment',
+        message: `💰 Hooray! You received ₹${sponsor.amount} from ${sponsor.name} for "${event.title}".`,
+        relatedId: event._id
+    });
+
     res.json({ message: 'Payment Verified', status: 'verified' });
   } else { res.status(404); throw new Error('Sponsor not found'); }
 });
@@ -157,12 +170,12 @@ const rejectSponsorship = asyncHandler(async (req, res) => {
   res.json({ message: 'Offer Declined' });
 });
 
-// 9. APPROVE EVENT
+// 9. APPROVE EVENT (Updated with Notification)
 const approveEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
   if (!event) { res.status(404); throw new Error('Event not found'); }
   
-  // FIX: Default values for old events to prevent crash
+  // Defaults to prevent crash
   if(!event.imageUrl) event.imageUrl = "https://via.placeholder.com/500";
   if(!event.budget) event.budget = 0;
   if(!event.category) event.category = 'Other';
@@ -170,10 +183,20 @@ const approveEvent = asyncHandler(async (req, res) => {
   event.isApproved = true;
   event.status = 'funding';
   await event.save(); 
+
+  // 👇 NEW: Send Notification to Student
+  await Notification.create({
+      user: event.user, 
+      type: 'approval',
+      message: `🎉 Good News! Your event "${event.title}" has been APPROVED and is live!`,
+      relatedId: event._id
+  });
+
   try {
       const creator = await User.findById(event.user);
-      if(creator) await sendEmail({ email: creator.email, subject: 'Event Approved! 🚀', html: `<h2>Your Event is Live!</h2>` });
+      if(creator) await sendEmail({ email: creator.email, subject: 'Event Approved! 🚀', html: `<h2>Your Event is Live!</h2><p>Check your dashboard for updates.</p>` });
   } catch(e) {}
+
   res.json({ message: 'Approved' });
 });
 
@@ -200,7 +223,7 @@ const getAllEventsForAdmin = asyncHandler(async (req, res) => {
   res.json(events);
 });
 
-// 👇 13. POST EVENT UPDATE (Live Story - NEW ADDITION)
+// 13. POST EVENT UPDATE
 const postUpdate = asyncHandler(async (req, res) => {
   const { message } = req.body;
   const event = await Event.findById(req.params.id);
@@ -210,7 +233,6 @@ const postUpdate = asyncHandler(async (req, res) => {
       throw new Error('Event not found');
   }
 
-  // Check ownership (Organizer only)
   if (event.user.toString() !== req.user._id.toString()) {
       res.status(401);
       throw new Error('Not authorized to post updates');
@@ -218,7 +240,7 @@ const postUpdate = asyncHandler(async (req, res) => {
 
   let updateImage = '';
   if (req.file) {
-      updateImage = req.file.path; // Cloudinary URL
+      updateImage = req.file.path; 
   }
 
   const newUpdate = {
@@ -227,8 +249,7 @@ const postUpdate = asyncHandler(async (req, res) => {
       date: Date.now()
   };
 
-  // Add to beginning of array so latest shows first
-  if (!event.updates) event.updates = []; // Safety check
+  if (!event.updates) event.updates = []; 
   event.updates.unshift(newUpdate);
   
   await event.save({ validateBeforeSave: false });
@@ -240,5 +261,5 @@ module.exports = {
   createEvent, getEvents, getTrendingEvents, getRecommendedEvents, getEventById, sponsorEvent,
   verifyPayment, requestRefund, processRefund, rejectSponsorship,
   approveEvent, revokeEvent, deleteEvent, getAllEventsForAdmin,
-  postUpdate // 👈 Exported here
+  postUpdate
 };
