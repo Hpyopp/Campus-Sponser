@@ -1,259 +1,230 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import axios from 'axios';
-import toast from 'react-hot-toast';
-import { jsPDF } from "jspdf";
+import { motion } from 'framer-motion';
 
 const EventDetails = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
   const [event, setEvent] = useState(null);
   const [amount, setAmount] = useState('');
-  const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
   
-  const user = JSON.parse(localStorage.getItem('user'));
+  // Update States
+  const [updateMsg, setUpdateMsg] = useState('');
+  const [updateFile, setUpdateFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
-  // 👇👇 SMART API URL (Automatic Switch) 👇👇
-  const API_URL = window.location.hostname === 'localhost' 
+  const user = JSON.parse(localStorage.getItem('user'));
+  const ENDPOINT = window.location.hostname === 'localhost' 
     ? "http://127.0.0.1:5000" 
     : "https://campus-sponser-api.onrender.com";
 
-  // 1. Fetch Data
   const fetchEvent = async () => {
-    try {
-      const config = user ? { headers: { Authorization: `Bearer ${user.token}` } } : {};
-      const { data } = await axios.get(`${API_URL}/api/events/${id}`, config);
-      setEvent(data);
-    } catch (error) { 
-        // Fallback Logic
-        try {
-            const config = user ? { headers: { Authorization: `Bearer ${user.token}` } } : {};
-            const { data } = await axios.get(`https://campus-sponser-api.onrender.com/api/events/${id}`, config);
-            setEvent(data);
-        } catch(e) { toast.error("Event not found"); }
-    }
+      try {
+        const { data } = await axios.get(`${ENDPOINT}/api/events/${id}`);
+        setEvent(data);
+      } catch (error) { console.error(error); }
   };
 
-  // 👇 SCROLL FIX ADDED HERE (Page Top se start hoga)
   useEffect(() => {
-    window.scrollTo(0, 0); 
-    fetchEvent(); 
+    fetchEvent();
   }, [id]);
 
-  if (!event) return <div style={{textAlign:'center', padding:'50px', fontSize:'1.2rem', fontFamily:'Poppins'}}>Loading Event Details... ⏳</div>;
-
-  const mySponsorship = event?.sponsors?.find(s => s.sponsorId === user?._id && s.status === 'verified');
-  const isFullyFunded = event?.raisedAmount >= event?.budget;
-  const percent = Math.min((event.raisedAmount / event.budget) * 100, 100);
-
-  // --- ACTIONS ---
-
-  const handleShare = (platform) => {
-    const shareUrl = window.location.href;
-    const shareText = `Check out this event: ${event.title} on CampusSponsor! 🚀`;
-    let url = "";
-    if (platform === 'whatsapp') url = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + " " + shareUrl)}`;
-    else if (platform === 'linkedin') url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
-    window.open(url, '_blank');
-  };
-
-  const copyLink = () => { navigator.clipboard.writeText(window.location.href); toast.success("Link Copied! 🔗"); };
-
-  const downloadAgreement = () => {
-    const doc = new jsPDF();
-    doc.setFontSize(20); doc.text("Sponsorship Agreement", 20, 20);
-    doc.setFontSize(12);
-    doc.text(`Event: ${event.title}`, 20, 40);
-    doc.text(`Sponsor: ${user.name}`, 20, 50);
-    doc.text(`Amount: INR ${mySponsorship?.amount}`, 20, 60);
-    doc.text(`Transaction ID: ${mySponsorship?.paymentId}`, 20, 70);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 80);
-    doc.save("Agreement.pdf");
-    toast.success("Agreement Downloaded! 📄");
-  };
-
-  const handleChat = () => {
-    if (!user) { toast.error("Login to chat!"); return navigate('/login'); }
-    if (user._id === event.user?._id) return toast.error("You can't chat with yourself!");
-    navigate(`/chat?userId=${event.user._id}`);
-  };
-
-  const handleReport = async () => {
-    if (!user) return toast.error("Login to report!");
-    const reason = prompt("Why are you reporting this event? (e.g. Fake, Spam)");
-    if (!reason) return;
-    try {
-        const config = { headers: { Authorization: `Bearer ${user.token}` } };
-        await axios.post(`${API_URL}/api/reports`, { eventId: event._id, reason }, config);
-        toast.success("Report Submitted. Admin will review. 👮‍♂️");
-    } catch (error) { toast.error("Failed to submit report"); }
-  };
-
-  // 👇 PAYMENT LOGIC
-  const handlePayment = async (e) => {
-    e.preventDefault();
-    if (!user) return navigate('/login');
-    if (user.role !== 'sponsor') return toast.error("Only Sponsors can pay!");
-    
+  // Handle Payment (Razorpay)
+  const handlePayment = async () => {
+    if (!user) return alert("Please Login to Sponsor!");
+    if (!amount || amount <= 0) return alert("Enter valid amount");
     setLoading(true);
-    toast.success("Connecting to Payment Gateway... 💳"); 
-
     try {
-        // 1. Get Key
-        const { data: { key } } = await axios.get(`${API_URL}/api/payment/getkey`);
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      const { data: order } = await axios.post(`${ENDPOINT}/api/events/${id}/sponsor`, { amount }, config);
 
-        // 2. Create Order
-        const config = { headers: { Authorization: `Bearer ${user.token}` } };
-        const { data: { order } } = await axios.post(`${API_URL}/api/payment/checkout`, { amount, eventId: event._id }, config);
-
-        const currentUrl = window.location.origin; 
-
-        // 3. Open Razorpay
-        const options = {
-            key, amount: order.amount, currency: "INR",
-            name: "CampusSponsor", description: `Support ${event.title}`,
-            image: "https://cdn-icons-png.flaticon.com/512/4762/4762311.png",
-            order_id: order.id,
-            callback_url: `${API_URL}/api/payment/paymentverification?eventId=${event._id}&userId=${user._id}&amount=${amount}&userName=${user.name}&userEmail=${user.email}&client_url=${currentUrl}`,
-            prefill: { name: user.name, email: user.email },
-            theme: { "color": "#2563eb" }
-        };
-
-        const razor = new window.Razorpay(options);
-        razor.open();
-        setLoading(false);
-    } catch (error) {
-        console.error("Payment Error:", error);
-        setLoading(false);
-        toast.error("Payment Failed. Make sure Backend is running.");
-    }
+      const options = {
+        key: "YOUR_RAZORPAY_KEY_ID_HERE", // ⚠️ Put your Key here
+        amount: order.amount,
+        currency: "INR",
+        name: "Campus Sponsor",
+        description: `Sponsoring ${event.title}`,
+        order_id: order.id,
+        handler: async function (response) {
+            try {
+                const verifyRes = await axios.put(`${ENDPOINT}/api/events/verify-payment`, {
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature,
+                        amount: amount,
+                        eventId: id
+                    }, config);
+                if(verifyRes.data.success) {
+                    alert("🎉 Payment Successful!");
+                    fetchEvent(); // Refresh Data
+                }
+            } catch (error) { alert("Verification Failed!"); }
+        },
+        theme: { color: "#2563eb" },
+      };
+      const rzp1 = new window.Razorpay(options);
+      rzp1.open();
+    } catch (error) { alert("Payment Failed"); } 
+    finally { setLoading(false); }
   };
 
-  // --- STYLES ---
-  const containerStyle = { maxWidth: '1000px', margin: '40px auto', fontFamily: "'Poppins', sans-serif", padding: '20px', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' };
-  const cardStyle = { background: 'white', borderRadius: '16px', padding: '25px', boxShadow: '0 10px 30px rgba(0,0,0,0.08)', marginBottom: '20px' };
-  const badgeStyle = { padding: '5px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', display: 'inline-block' };
+  // Handle Post Update
+  const handlePostUpdate = async (e) => {
+      e.preventDefault();
+      if(!updateMsg) return alert("Write something!");
+      
+      setUploading(true);
+      const formData = new FormData();
+      formData.append('message', updateMsg);
+      if(updateFile) formData.append('updateImage', updateFile);
+
+      try {
+          const config = { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${user.token}` } };
+          await axios.post(`${ENDPOINT}/api/events/${id}/updates`, formData, config);
+          alert("Update Posted! 🚀");
+          setUpdateMsg('');
+          setUpdateFile(null);
+          fetchEvent();
+      } catch (error) {
+          alert("Failed to post update");
+      } finally {
+          setUploading(false);
+      }
+  };
+
+  if (!event) return <div style={{textAlign:'center', marginTop:'50px'}}>Loading...</div>;
+
+  const isOwner = user && user._id === event.user?._id;
 
   return (
-    <div className="event-page" style={containerStyle}>
+    <div style={{ padding: '40px 20px', maxWidth: '1000px', margin: '0 auto', fontFamily: 'Poppins' }}>
       
-      {/* LEFT COLUMN: Details */}
-      <div className="left-col">
-        <div style={cardStyle}>
-            {/* Header */}
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
-                <span style={{...badgeStyle, background: event.isApproved ? '#dcfce7' : '#fee2e2', color: event.isApproved ? '#166534' : '#991b1b'}}>
-                    {event.isApproved ? 'Verified Event ✅' : 'Pending Verification ⏳'}
-                </span>
-
-                {/* VIEWS & DATE */}
-                <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                    <span style={{color:'#64748b', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'5px', background:'#f1f5f9', padding:'4px 10px', borderRadius:'20px'}}>
-                        👁️ {event.views || 0} Views
-                    </span>
-                    <span style={{color:'#64748b', fontSize:'0.9rem'}}>{new Date(event.date).toDateString()} 📅</span>
-                </div>
-            </div>
-
-            <h1 style={{fontSize:'2.2rem', color:'#1e293b', marginBottom:'15px', lineHeight:'1.2'}}>{event.title}</h1>
-            <p style={{color:'#475569', lineHeight:'1.7', fontSize:'1.05rem'}}>{event.description}</p>
-            
-            <div style={{marginTop:'20px', padding:'15px', background:'#f8fafc', borderRadius:'10px', display:'flex', gap:'20px'}}>
-                <div>
-                    <span style={{display:'block', fontSize:'0.8rem', color:'#64748b', fontWeight:'bold'}}>LOCATION</span>
-                    <span style={{color:'#334155'}}>📍 {event.location}</span>
-                </div>
-                <div>
-                    <span style={{display:'block', fontSize:'0.8rem', color:'#64748b', fontWeight:'bold'}}>BUDGET</span>
-                    <span style={{color:'#334155'}}>💰 ₹{event.budget}</span>
-                </div>
-            </div>
+      {/* Header Image */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ height: '350px', borderRadius: '20px', overflow: 'hidden', marginBottom: '30px', position: 'relative', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
+        {event.imageUrl ? (
+            <img src={event.imageUrl} alt={event.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+            <div style={{ width: '100%', height: '100%', background: 'linear-gradient(to right, #4f46e5, #06b6d4)' }}></div>
+        )}
+        <div style={{ position: 'absolute', bottom: '20px', left: '20px', background: 'white', padding: '5px 15px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.9rem', color: '#2563eb' }}>
+            {event.category || 'Event'}
         </div>
+      </motion.div>
 
-        {/* Organizer Section */}
-        <div style={{...cardStyle, display:'flex', alignItems:'center', justifyContent:'space-between'}}>
-            <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
-                <div style={{width:'50px', height:'50px', background:'#3b82f6', borderRadius:'50%', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.5rem', fontWeight:'bold'}}>
-                    {event.user?.name.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                    <p style={{margin:0, fontWeight:'bold', color:'#1e293b'}}>{event.user?.name}</p>
-                    <Link to={`/u/${event.user?._id}`} style={{fontSize:'0.85rem', color:'#3b82f6', textDecoration:'none'}}>View Profile</Link>
-                </div>
-            </div>
-            {user?._id !== event.user?._id && (
-                <button onClick={handleChat} style={{padding:'10px 20px', borderRadius:'30px', border:'1px solid #3b82f6', background:'transparent', color:'#3b82f6', cursor:'pointer', fontWeight:'bold', transition:'0.2s'}}>
-                    💬 Chat
-                </button>
-            )}
-        </div>
-      </div>
-
-      {/* RIGHT COLUMN: Actions */}
-      <div className="right-col">
+      <div style={{ display: 'flex', gap: '40px', flexWrap: 'wrap' }}>
         
-        {/* Progress & Payment Card */}
-        <div style={{...cardStyle, borderTop: '5px solid #3b82f6'}}>
-            <h3 style={{marginTop:0, color:'#334155'}}>Funding Goal</h3>
-            
-            <div style={{background:'#e2e8f0', borderRadius:'10px', height:'12px', width:'100%', margin:'15px 0', overflow:'hidden'}}>
-                <div style={{width: `${percent}%`, background: isFullyFunded ? '#22c55e' : '#3b82f6', height:'100%', transition:'1s'}}></div>
-            </div>
-            <div style={{display:'flex', justifyContent:'space-between', fontWeight:'bold', marginBottom:'20px'}}>
-                <span style={{color:'#3b82f6'}}>₹{event.raisedAmount || 0}</span>
-                <span style={{color:'#94a3b8'}}>of ₹{event.budget}</span>
+        {/* LEFT: Details & Timeline */}
+        <div style={{ flex: 2, minWidth:'300px' }}>
+            <h1 style={{ fontSize: '2.5rem', fontWeight: '800', color: '#1e293b', lineHeight: '1.2' }}>{event.title}</h1>
+            <div style={{ display: 'flex', gap: '20px', color: '#64748b', margin: '15px 0 25px', fontSize: '1rem' }}>
+                <span>📅 {new Date(event.date).toDateString()}</span>
+                <span>📍 {event.location}</span>
+                <span>👀 {event.views} Views</span>
             </div>
 
-            {mySponsorship ? (
-                <div style={{textAlign:'center', padding:'20px', background:'#f0fdf4', borderRadius:'10px'}}>
-                    <h3 style={{color:'#15803d', margin:0}}>🎉 You Sponsored!</h3>
-                    <p style={{fontSize:'0.9rem', color:'#166534'}}>Thanks for your support.</p>
-                    <button onClick={downloadAgreement} style={{marginTop:'10px', width:'100%', padding:'12px', background:'#15803d', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold'}}>
-                        📄 Download Agreement
-                    </button>
-                </div>
-            ) : isFullyFunded ? (
-                <div style={{padding:'15px', background:'#dcfce7', color:'#166534', textAlign:'center', borderRadius:'8px', fontWeight:'bold'}}>
-                    Target Achieved! 🎯
-                </div>
-            ) : user?.role === 'sponsor' ? (
-                <form onSubmit={handlePayment} style={{display:'flex', flexDirection:'column', gap:'12px'}}>
-                    <input 
-                        type="number" placeholder="Enter Amount (₹)" 
-                        value={amount} onChange={e=>setAmount(e.target.value)} 
-                        style={{padding:'12px', borderRadius:'8px', border:'1px solid #cbd5e1', outline:'none', fontSize:'1rem'}}
-                        required 
-                    />
-                    <textarea 
-                        placeholder="Message for Organizer (Optional)" 
-                        value={comment} onChange={e=>setComment(e.target.value)}
-                        style={{padding:'12px', borderRadius:'8px', border:'1px solid #cbd5e1', outline:'none', fontSize:'0.9rem', height:'60px'}}
-                    />
-                    <button type="submit" disabled={loading} style={{padding:'14px', background:'#2563eb', color:'white', border:'none', borderRadius:'8px', fontWeight:'bold', fontSize:'1rem', cursor:'pointer', transition:'0.3s'}}>
-                        {loading ? 'Processing...' : '💳 Pay Now'}
-                    </button>
-                </form>
-            ) : (
-                <p style={{textAlign:'center', color:'#64748b', fontSize:'0.9rem'}}>
-                    <Link to="/login" style={{color:'#2563eb', fontWeight:'bold'}}>Login as Sponsor</Link> to contribute.
-                </p>
-            )}
+            <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '15px', border: '1px solid #e2e8f0', marginBottom: '30px' }}>
+                <h3 style={{ marginBottom: '10px', color: '#334155' }}>About Event</h3>
+                <p style={{ lineHeight: '1.8', color: '#475569' }}>{event.description}</p>
+            </div>
+
+            {/* 🔥 LIVE UPDATES TIMELINE */}
+            <div>
+                <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#1e293b', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    🔴 Live Updates <span style={{fontSize:'0.8rem', background:'#fee2e2', color:'#ef4444', padding:'3px 8px', borderRadius:'5px'}}>LIVE</span>
+                </h2>
+
+                {/* Create Update Box (Only for Owner) */}
+                {isOwner && (
+                    <div style={{ background: '#eff6ff', padding: '20px', borderRadius: '15px', marginBottom: '30px', border: '1px dashed #3b82f6' }}>
+                        <h4 style={{ margin: '0 0 10px 0', color: '#1d4ed8' }}>📢 Post an Update for Sponsors</h4>
+                        <textarea 
+                            rows="3" 
+                            placeholder="What's happening? (e.g. Stage setup started...)" 
+                            value={updateMsg}
+                            onChange={(e)=>setUpdateMsg(e.target.value)}
+                            style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #bfdbfe', marginBottom: '10px' }}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <input type="file" onChange={(e)=>setUpdateFile(e.target.files[0])} accept="image/*" />
+                            <button onClick={handlePostUpdate} disabled={uploading} style={{ padding: '8px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', opacity: uploading ? 0.7 : 1 }}>
+                                {uploading ? 'Posting...' : 'Post Update'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Updates List */}
+                {event.updates && event.updates.length > 0 ? (
+                    <div style={{ borderLeft: '3px solid #e2e8f0', paddingLeft: '30px', position: 'relative' }}>
+                        {event.updates.map((update, index) => (
+                            <div key={index} style={{ marginBottom: '40px', position: 'relative' }}>
+                                {/* Timeline Dot */}
+                                <div style={{ position: 'absolute', left: '-38px', top: '0', width: '16px', height: '16px', background: '#3b82f6', borderRadius: '50%', border: '4px solid white', boxShadow: '0 0 0 2px #e2e8f0' }}></div>
+                                
+                                <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '5px' }}>
+                                    {new Date(update.date).toLocaleString()}
+                                </div>
+                                <div style={{ background: 'white', padding: '15px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
+                                    <p style={{ fontSize: '1.05rem', color: '#334155', marginBottom: update.image ? '10px' : '0' }}>
+                                        {update.message}
+                                    </p>
+                                    {update.image && (
+                                        <img src={update.image} alt="Update" style={{ width: '100%', borderRadius: '10px', maxHeight: '300px', objectFit: 'cover' }} />
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p style={{ color: '#94a3b8', fontStyle: 'italic' }}>No updates yet. Stay tuned! 🕒</p>
+                )}
+            </div>
         </div>
 
-        {/* Share & Report */}
-        <div style={cardStyle}>
-            <h4 style={{marginTop:0, color:'#475569'}}>Share this Event</h4>
-            <div style={{display:'flex', gap:'10px', flexWrap:'wrap'}}>
-                <button onClick={() => handleShare('whatsapp')} style={{flex:1, padding:'10px', background:'#25D366', color:'white', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold'}}>WhatsApp</button>
-                <button onClick={() => handleShare('linkedin')} style={{flex:1, padding:'10px', background:'#0077b5', color:'white', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold'}}>LinkedIn</button>
-            </div>
-            <button onClick={copyLink} style={{width:'100%', marginTop:'10px', padding:'10px', background:'#f1f5f9', color:'#334155', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold'}}>Copy Link 🔗</button>
-            
-            <div style={{marginTop:'20px', borderTop:'1px solid #e2e8f0', paddingTop:'15px'}}>
-                <button onClick={handleReport} style={{width:'100%', padding:'10px', background:'white', color:'#ef4444', border:'1px solid #ef4444', borderRadius:'5px', cursor:'pointer', fontSize:'0.85rem', display:'flex', alignItems:'center', justifyContent:'center', gap:'5px'}}>
-                    🚩 Report Event
-                </button>
+        {/* RIGHT: Sponsor Box */}
+        <div style={{ flex: 1, minWidth: '300px' }}>
+            <div style={{ background: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 40px rgba(0,0,0,0.1)', border: '1px solid #f1f5f9', position: 'sticky', top: '100px' }}>
+                <h3 style={{ fontSize: '1.5rem', marginBottom: '10px' }}>Become a Sponsor</h3>
+                <div style={{ marginBottom: '20px', color: '#64748b' }}>
+                    Target: <span style={{ fontWeight: 'bold', color: '#0f172a' }}>₹{event.budget}</span> <br/>
+                    Raised: <span style={{ fontWeight: 'bold', color: '#059669' }}>₹{event.raisedAmount || 0}</span>
+                </div>
+
+                <div style={{ width: '100%', height: '10px', background: '#e2e8f0', borderRadius: '5px', marginBottom: '25px', overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.min(((event.raisedAmount || 0) / event.budget) * 100, 100)}%`, height: '100%', background: '#2563eb' }}></div>
+                </div>
+
+                {isOwner ? (
+                    <div style={{ textAlign: 'center', padding: '15px', background: '#f0f9ff', borderRadius: '10px', color: '#0369a1', fontWeight: 'bold' }}>
+                        👋 You are the Organizer
+                    </div>
+                ) : (
+                    <>
+                        <input type="number" placeholder="Enter Amount (₹)" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', marginBottom: '15px' }} />
+                        <button onClick={handlePayment} disabled={loading} style={{ width: '100%', padding: '15px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+                            {loading ? 'Processing...' : 'Sponsor Now 🚀'}
+                        </button>
+                    </>
+                )}
+
+                {/* Sponsor List */}
+                <div style={{ marginTop: '30px' }}>
+                    <h4 style={{ fontSize: '1rem', color: '#64748b', marginBottom: '15px' }}>Recent Sponsors</h4>
+                    {event.sponsors && event.sponsors.filter(s=>s.status==='verified').length > 0 ? (
+                        event.sponsors.filter(s=>s.status==='verified').map((s, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid #f1f5f9' }}>
+                                <div style={{ width: '35px', height: '35px', background: '#e0e7ff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3730a3', fontWeight: 'bold' }}>{s.name[0]}</div>
+                                <div>
+                                    <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{s.name}</div>
+                                    <div style={{ fontSize: '0.8rem', color: '#16a34a' }}>₹{s.amount} contributed</div>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <p style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Be the first to sponsor! 🏆</p>
+                    )}
+                </div>
             </div>
         </div>
 

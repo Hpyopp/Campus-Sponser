@@ -31,14 +31,15 @@ const createEvent = asyncHandler(async (req, res) => {
     budget,
     contactEmail: email,       
     instagramLink: instagramLink,
-    category: category || 'Other', // 👈 New Category Field
+    category: category || 'Other',
     imageUrl: imageUrl,        
     permissionLetter: permissionLetterUrl, 
     sponsors: [], 
     status: 'pending', 
     raisedAmount: 0, 
     views: 0,
-    isApproved: false
+    isApproved: false,
+    updates: [] // Initialize empty updates array
   });
 
   res.status(201).json(event);
@@ -59,10 +60,9 @@ const getTrendingEvents = asyncHandler(async (req, res) => {
   res.json(events);
 });
 
-// 2.6 GET RECOMMENDED EVENTS (AI Matchmaking) 🆕
+// 2.6 GET RECOMMENDED EVENTS (AI Matchmaking)
 const getRecommendedEvents = asyncHandler(async (req, res) => {
     // Logic: Active funding events, High Budget first, Limit 5
-    // Future: Isme hum user interest ke hisaab se filter laga sakte hain
     const recommended = await Event.find({ isApproved: true, status: 'funding' })
         .sort({ budget: -1 }) 
         .limit(5);
@@ -86,7 +86,6 @@ const getEventById = asyncHandler(async (req, res) => {
     
     if (shouldCount) {
         event.views = (event.views || 0) + 1;
-        // Validate false taaki purane events (bina category wale) crash na karein
         await event.save({ validateBeforeSave: false });
     }
     res.json(event);
@@ -201,8 +200,45 @@ const getAllEventsForAdmin = asyncHandler(async (req, res) => {
   res.json(events);
 });
 
+// 👇 13. POST EVENT UPDATE (Live Story - NEW ADDITION)
+const postUpdate = asyncHandler(async (req, res) => {
+  const { message } = req.body;
+  const event = await Event.findById(req.params.id);
+
+  if (!event) {
+      res.status(404);
+      throw new Error('Event not found');
+  }
+
+  // Check ownership (Organizer only)
+  if (event.user.toString() !== req.user._id.toString()) {
+      res.status(401);
+      throw new Error('Not authorized to post updates');
+  }
+
+  let updateImage = '';
+  if (req.file) {
+      updateImage = req.file.path; // Cloudinary URL
+  }
+
+  const newUpdate = {
+      message,
+      image: updateImage,
+      date: Date.now()
+  };
+
+  // Add to beginning of array so latest shows first
+  if (!event.updates) event.updates = []; // Safety check
+  event.updates.unshift(newUpdate);
+  
+  await event.save({ validateBeforeSave: false });
+
+  res.status(201).json(event.updates);
+});
+
 module.exports = {
   createEvent, getEvents, getTrendingEvents, getRecommendedEvents, getEventById, sponsorEvent,
   verifyPayment, requestRefund, processRefund, rejectSponsorship,
-  approveEvent, revokeEvent, deleteEvent, getAllEventsForAdmin
+  approveEvent, revokeEvent, deleteEvent, getAllEventsForAdmin,
+  postUpdate // 👈 Exported here
 };
