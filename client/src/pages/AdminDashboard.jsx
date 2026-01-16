@@ -3,13 +3,13 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { jsPDF } from "jspdf";
+import { generateMOU } from '../utils/generateMOU'; // 👈 IMPORT KIYA NAYA FUNCTION
 
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [events, setEvents] = useState([]);
   const [reports, setReports] = useState([]); 
-  const [view, setView] = useState('reports'); // Default view updated to reports for testing
+  const [view, setView] = useState('reports'); 
   const [loading, setLoading] = useState(true);
   const [chartReady, setChartReady] = useState(false);
   const navigate = useNavigate();
@@ -55,7 +55,7 @@ const AdminDashboard = () => {
     } catch (e) { toast.error("Action Failed!"); }
   };
 
-  // 👇 FIXED: RESOLVE REPORT (Instant Delete from UI)
+  // Instant Delete Logic for Reports
   const resolveReport = async (id) => {
     if(!window.confirm("Mark this report as resolved?")) return;
     
@@ -63,10 +63,7 @@ const AdminDashboard = () => {
         const user = JSON.parse(localStorage.getItem('user'));
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
         
-        // 1. Server se delete karo
         await axios.delete(`https://campus-sponser-api.onrender.com/api/reports/${id}`, config);
-        
-        // 2. State se turant filter kar do (Instant Gayab Logic)
         setReports(prevReports => prevReports.filter(report => report._id !== id));
         
         toast.success("Report Resolved ✅");
@@ -75,16 +72,14 @@ const AdminDashboard = () => {
     }
   };
 
-  const viewAgreement = (s, eventTitle) => {
-      const doc = new jsPDF();
-      doc.setFontSize(22);
-      doc.text("Sponsorship Agreement (God Mode View)", 20, 20);
-      doc.setFontSize(12);
-      doc.text(`Sponsor: ${s.companyName || s.name}`, 20, 40);
-      doc.text(`Event: ${eventTitle}`, 20, 50);
-      doc.text(`Amount Paid: INR ${s.amount}`, 20, 60);
-      doc.text(`Transaction ID: ${s.paymentId || 'TEST_PAY'}`, 20, 70);
-      window.open(doc.output('bloburl'), '_blank');
+  // 👇 NEW: Generate Professional MOU
+  const viewAgreement = (s, fullEvent) => {
+      if (!fullEvent) {
+          toast.error("Event details missing!");
+          return;
+      }
+      generateMOU(s, fullEvent); // Calls the utility function
+      toast.success("MOU Generated Successfully! 📄");
   };
 
   const shareWhatsApp = (id, title) => {
@@ -115,10 +110,11 @@ const AdminDashboard = () => {
     { name: 'Sponsors', count: users.filter(u => u.role === 'sponsor').length, fill: '#f59e0b' }
   ];
 
+  // 👇 UPDATED: Pass fullEvent object for history
   const allPayments = [];
   events.forEach(e => {
       e.sponsors?.forEach(s => {
-          if (s.status === 'verified') allPayments.push({...s, eventTitle: e.title});
+          if (s.status === 'verified') allPayments.push({...s, eventTitle: e.title, fullEvent: e});
       });
   });
 
@@ -237,7 +233,8 @@ const AdminDashboard = () => {
                     {e.sponsors.map((s, idx) => (
                       <div key={idx} style={{display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #1e293b'}}>
                         <span style={{fontSize:'0.9rem'}}>{s.name} ({s.companyName}) - <b style={{color:'#4ade80'}}>₹{s.amount}</b></span>
-                        <button onClick={()=>viewAgreement(s, e.title)} style={{background:'none', border:'1px solid #38bdf8', color:'#38bdf8', borderRadius:'4px', padding:'2px 8px', cursor:'pointer', fontSize:'0.7rem'}}>VIEW PDF 📄</button>
+                        {/* 👇 UPDATED: Pass full 'e' object here */}
+                        <button onClick={()=>viewAgreement(s, e)} style={{background:'none', border:'1px solid #38bdf8', color:'#38bdf8', borderRadius:'4px', padding:'2px 8px', cursor:'pointer', fontSize:'0.7rem'}}>VIEW AGREEMENT 📄</button>
                       </div>
                     ))}
                   </div>
@@ -258,7 +255,8 @@ const AdminDashboard = () => {
                             <td style={{padding:'15px'}}>{p.eventTitle}</td>
                             <td style={{padding:'15px', color:'#4ade80', fontWeight:'bold'}}>₹{p.amount}</td>
                             <td style={{padding:'15px', fontSize:'0.75rem', fontFamily:'monospace'}}>{p.paymentId || 'MANUAL_PAY'}</td>
-                            <td style={{padding:'15px'}}><button onClick={()=>viewAgreement(p, p.eventTitle)} style={{background:'none', border:'none', color:'#38bdf8', cursor:'pointer'}}>📄 Open</button></td>
+                            {/* 👇 UPDATED: Pass full 'p.fullEvent' object here */}
+                            <td style={{padding:'15px'}}><button onClick={()=>viewAgreement(p, p.fullEvent)} style={{background:'none', border:'none', color:'#38bdf8', cursor:'pointer'}}>📄 Download MOU</button></td>
                         </tr>
                     ))}
                 </tbody>
