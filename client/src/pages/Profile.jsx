@@ -20,7 +20,6 @@ const Profile = () => {
         if(!user) { navigate('/login'); return; }
         try {
             const config = { headers: { Authorization: `Bearer ${user.token}` } };
-            // Hum user ki private details la rahe hain
             const { data } = await axios.get(`${ENDPOINT}/api/users/u/${user._id}`, config);
             setProfile(data.user);
             setEvents(data.events);
@@ -33,10 +32,9 @@ const Profile = () => {
     fetchProfile();
   }, [user, navigate]);
 
-  // 👇 Agreement Download Function (Tera Purana Feature)
+  // 👇 Dummy Download Logic (Replace with actual PDF logic later)
   const downloadAgreement = (eventId) => {
-      alert("Downloading Agreement... 📄 (Backend logic here)");
-      // Yahan tu apna window.open wala logic laga sakta hai agar PDF URL hai
+      alert("Agreement download starting... 📄");
   };
 
   if (loading) return <div style={{textAlign:'center', marginTop:'50px'}}>Loading Dashboard... ⏳</div>;
@@ -44,7 +42,7 @@ const Profile = () => {
   return (
     <div style={{ maxWidth: '1000px', margin: '40px auto', padding: '0 20px', fontFamily: "'Poppins', sans-serif" }}>
       
-      {/* 🟢 TOP HEADER (New Design) */}
+      {/* HEADER CARD */}
       <div style={{ background: 'white', borderRadius: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.05)', overflow: 'hidden', position: 'relative' }}>
         <div style={{ height: '150px', background: 'linear-gradient(to right, #4f46e5, #06b6d4)' }}></div>
         <div style={{ padding: '0 30px 30px', display: 'flex', alignItems: 'flex-end', marginTop: '-60px', flexWrap: 'wrap', gap: '20px' }}>
@@ -74,7 +72,7 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* 🟢 DASHBOARD CONTENT (Merged Old + New) */}
+      {/* DASHBOARD CONTENT */}
       <div style={{ marginTop: '30px' }}>
         <h2 style={{ fontSize: '1.5rem', marginBottom: '20px', color: '#1e293b', borderLeft:'5px solid #2563eb', paddingLeft:'15px' }}>
             My Dashboard & History
@@ -88,28 +86,28 @@ const Profile = () => {
                         whileHover={{ y: -2 }}
                         style={{ background: 'white', borderRadius: '15px', padding: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9', display:'flex', flexWrap:'wrap', gap:'20px', alignItems:'center' }}
                     >
-                        {/* Event Image */}
                         <img src={event.imageUrl} alt={event.title} style={{ width: '100px', height: '100px', borderRadius: '10px', objectFit: 'cover' }} />
                         
-                        {/* Details */}
                         <div style={{ flex: 1 }}>
                             <h3 style={{ margin: '0 0 5px 0', color: '#1e293b' }}>{event.title}</h3>
                             <p style={{ margin: '0 0 5px 0', color: '#64748b', fontSize:'0.9rem' }}>📅 {new Date(event.date).toDateString()}</p>
                             
-                            {/* 👇 TERA PURANA "PAID" STATUS */}
                             <div style={{ display: 'flex', gap: '15px', alignItems: 'center', marginTop: '5px' }}>
                                 <span style={{ fontSize: '0.9rem', color: '#475569' }}>
                                     Target: <b>₹{event.budget}</b>
                                 </span>
-                                {event.raisedAmount > 0 && (
-                                    <span style={{ fontSize: '0.9rem', color: '#16a34a', background:'#dcfce7', padding:'2px 8px', borderRadius:'5px' }}>
+                                {event.raisedAmount > 0 ? (
+                                    <span style={{ fontSize: '0.9rem', color: '#16a34a', background:'#dcfce7', padding:'2px 8px', borderRadius:'5px', fontWeight:'bold' }}>
                                         Funds: ₹{event.raisedAmount}
+                                    </span>
+                                ) : (
+                                    <span style={{ fontSize: '0.8rem', color: '#f59e0b', background:'#fef3c7', padding:'2px 8px', borderRadius:'5px' }}>
+                                        No Funds Yet
                                     </span>
                                 )}
                             </div>
                         </div>
 
-                        {/* 👇 TERA PURANA "ACTIONS" SECTION (Agreement Button) */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '160px' }}>
                             <button 
                                 onClick={() => navigate(`/events/${event._id}`)} 
@@ -118,8 +116,8 @@ const Profile = () => {
                                 👁️ View Details
                             </button>
 
-                            {/* Show Download Agreement only if Verified or Completed */}
-                            {(event.status === 'funding' || event.status === 'completed' || event.status === 'verified') && (
+                            {/* 👇 FIX: Show button ONLY if raisedAmount > 0 */}
+                            {event.raisedAmount > 0 && (
                                 <button 
                                     onClick={() => downloadAgreement(event._id)}
                                     style={{ padding: '8px 15px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.9rem', display:'flex', alignItems:'center', justifyContent:'center', gap:'5px' }}
