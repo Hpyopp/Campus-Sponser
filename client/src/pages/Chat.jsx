@@ -86,22 +86,22 @@ const Chat = () => {
   useEffect(() => { scrollRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   return (
-    // 👇 MAIN FIX: 'position: fixed' aur 'height: calc(100vh - 80px)'
-    // Isse ye page screen pe chipak jayega aur footer ke upar nahi chadhega
+    // 👇 MAIN LAYOUT FIX: Fixed Position + Hidden Overflow
     <div style={{ 
         display: 'flex', 
-        height: 'calc(100vh - 70px)', // Adjust height (Navbar ke neeche rahega)
+        height: 'calc(100vh - 80px)', // Navbar height minus karke full screen
         width: '100%',
-        backgroundColor: '#f1f5f9', 
+        backgroundColor: '#f8fafc', 
         fontFamily: "'Poppins', sans-serif",
-        position: 'fixed', // Fixed position taaki page scroll na ho
-        top: '70px', // Navbar ki height ke barabar gap
+        position: 'fixed', // Ye page ko chipka dega
+        top: '70px', 
         left: 0,
-        zIndex: 50 // Footer ke upar dikhega agar zaroorat padi
+        zIndex: 100, // Footer ke upar
+        overflow: 'hidden' // Poora page scroll nahi hoga
     }}>
       
       {/* 👈 SIDEBAR */}
-      <div style={{ width: '350px', backgroundColor: 'white', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ width: '350px', backgroundColor: 'white', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', height: '100%' }}>
         <div style={{ padding: '20px', borderBottom: '1px solid #f1f5f9' }}>
             <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#1e293b', marginBottom: '15px' }}>💬 Messages</h2>
             <input 
@@ -118,7 +118,7 @@ const Chat = () => {
                 loading ? <div style={{padding:'20px', textAlign:'center'}}>Searching...</div> : 
                 searchResults.map(u => (
                     <div key={u._id} onClick={()=>accessChat(u)} style={{ padding:'15px', cursor:'pointer', borderBottom:'1px solid #f1f5f9', display:'flex', alignItems:'center', gap:'10px', background:'#fffbeb' }}>
-                        <img src={u.imageUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} style={{width:'40px', height:'40px', borderRadius:'50%'}}/>
+                        <img src={u.imageUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} style={{width:'40px', height:'40px', borderRadius:'50%', objectFit:'cover'}} alt="user"/>
                         <div>
                             <div style={{fontWeight:'bold'}}>{u.name}</div>
                             <div style={{fontSize:'0.8rem', color:'#64748b'}}>Click to chat</div>
@@ -137,7 +137,7 @@ const Chat = () => {
                             borderBottom: '1px solid #f8fafc'
                         }}
                     >
-                        <img src={c.user.imageUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} style={{ width: '45px', height: '45px', borderRadius: '50%', objectFit:'cover' }} />
+                        <img src={c.user.imageUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} style={{ width: '45px', height: '45px', borderRadius: '50%', objectFit:'cover' }} alt="user" />
                         <div style={{ flex: 1 }}>
                             <h4 style={{ margin: 0, color: '#1e293b', fontSize: '0.95rem' }}>{c.user.name}</h4>
                             <p style={{ margin: '3px 0 0', color: '#64748b', fontSize: '0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>
@@ -153,20 +153,20 @@ const Chat = () => {
       </div>
 
       {/* 👉 MAIN CHAT AREA */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#f8fafc', height: '100%' }}>
         {currentChat ? (
             <>
-                {/* Chat Header */}
-                <div style={{ padding: '15px 30px', background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '15px' }}>
-                    <img src={currentChat.imageUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} style={{ width: '40px', height: '40px', borderRadius: '50%' }} />
+                {/* Chat Header (Fixed at Top) */}
+                <div style={{ padding: '15px 30px', background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '15px', flexShrink: 0 }}>
+                    <img src={currentChat.imageUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit:'cover' }} alt="user" />
                     <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#1e293b' }}>{currentChat.name}</h3>
                 </div>
 
-                {/* Messages List - Ye area scroll karega */}
-                <div style={{ flex: 1, padding: '30px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                {/* Messages List (ONLY THIS SCROLLS) */}
+                <div style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {messages.map((m, i) => {
-                        // Empty message check
-                        if (!m.content) return null; 
+                        // FIX: Empty messages ko hide karo
+                        if (!m.content || m.content.trim() === "") return null;
                         
                         return (
                             <div key={i} style={{ 
@@ -179,7 +179,8 @@ const Chat = () => {
                                 background: m.sender._id === user._id ? '#2563eb' : 'white', 
                                 color: m.sender._id === user._id ? 'white' : '#334155',
                                 boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
-                                wordBreak: 'break-word' // Fix long text overflow
+                                wordBreak: 'break-word',
+                                fontSize: '0.95rem'
                             }}>
                                 {m.content}
                             </div>
@@ -188,22 +189,23 @@ const Chat = () => {
                     <div ref={scrollRef}></div>
                 </div>
 
-                {/* Input Box */}
-                <form onSubmit={sendMessage} style={{ padding: '20px', background: 'white', display: 'flex', gap: '15px', borderTop: '1px solid #e2e8f0' }}>
+                {/* Input Box (Fixed at Bottom) */}
+                <form onSubmit={sendMessage} style={{ padding: '20px', background: 'white', display: 'flex', gap: '15px', borderTop: '1px solid #e2e8f0', flexShrink: 0 }}>
                     <input 
                         type="text" 
                         placeholder="Type a message..." 
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
-                        style={{ flex: 1, padding: '12px 20px', borderRadius: '30px', border: '1px solid #e2e8f0', outline: 'none', background: '#f8fafc' }}
+                        style={{ flex: 1, padding: '12px 20px', borderRadius: '30px', border: '1px solid #e2e8f0', outline: 'none', background: '#f8fafc', fontSize: '1rem' }}
                     />
-                    <button type="submit" style={{ background: '#2563eb', color: 'white', border: 'none', borderRadius: '50%', width: '45px', height: '45px', cursor: 'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>➤</button>
+                    <button type="submit" style={{ background: '#2563eb', color: 'white', border: 'none', borderRadius: '50%', width: '45px', height: '45px', cursor: 'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.2rem' }}>➤</button>
                 </form>
             </>
         ) : (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
-                <h2>👋 Welcome, {user.name}</h2>
-                <p>Start chatting with sponsors & students.</p>
+                <div style={{fontSize:'4rem', marginBottom:'20px'}}>💬</div>
+                <h2 style={{color:'#334155'}}>Welcome to Campus Chat</h2>
+                <p>Start a conversation with Sponsors or Students.</p>
             </div>
         )}
       </div>
