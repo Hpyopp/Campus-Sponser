@@ -13,9 +13,10 @@ const Navbar = () => {
     ? "http://127.0.0.1:5000" 
     : "https://campus-sponser-api.onrender.com";
 
-  // Check Unread Messages (Polling every 5 sec)
+  // 👇 LOGIC CHANGED: Sirf tab check karo jab Chat page par NA ho
   useEffect(() => {
       if(!user) return;
+
       const fetchUnread = async () => {
           try {
               const { data } = await axios.get(`${ENDPOINT}/api/messages/unread`, {
@@ -25,15 +26,16 @@ const Navbar = () => {
           } catch(e) { console.error(e); }
       };
 
-      fetchUnread(); // Initial call
-      const interval = setInterval(fetchUnread, 5000); // Poll every 5s
-      return () => clearInterval(interval);
+      // Agar hum Chat page par nahi hain, tabhi count update karo
+      if (location.pathname !== '/chat') {
+          fetchUnread(); // Turant check karo
+          const interval = setInterval(fetchUnread, 5000); // Har 5 sec mein check karo
+          return () => clearInterval(interval);
+      } else {
+          // Agar Chat page par hain, toh count 0 kar do
+          setMsgCount(0);
+      }
   }, [user, location.pathname]); 
-
-  // Reset count when on chat page
-  useEffect(() => {
-    if (location.pathname === '/chat') setMsgCount(0);
-  }, [location.pathname]);
 
   return (
     <nav style={{ background: '#ffffff', padding: '10px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position:'sticky', top:0, zIndex:1000 }}>
@@ -55,7 +57,8 @@ const Navbar = () => {
             {/* 👇 MESSAGES WITH BADGE */}
             <Link to="/chat" style={{ textDecoration: 'none', color: '#64748b', display:'flex', alignItems:'center', gap:'5px', position:'relative' }}>
                 <span style={{fontSize:'1.2rem'}}>💬</span> Messages
-                {msgCount > 0 && (
+                {/* Agar count > 0 hai aur hum chat page pe nahi hain, tabhi badge dikhao */}
+                {msgCount > 0 && location.pathname !== '/chat' && (
                     <span style={{ position: 'absolute', top: '-8px', right: '-10px', backgroundColor: '#ef4444', color: 'white', borderRadius: '50%', padding: '2px 6px', fontSize: '0.7rem', fontWeight: 'bold', border: '2px solid white' }}>
                         {msgCount > 9 ? '9+' : msgCount}
                     </span>
