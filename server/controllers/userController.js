@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const User = require('../models/User');
-const Event = require('../models/campusEvent'); // 👈 IMPORTANT: Event model import kiya
+const Event = require('../models/campusEvent'); // 👈 Event model imported
 const asyncHandler = require('express-async-handler');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -48,6 +48,7 @@ const loginUser = asyncHandler(async (req, res) => {
     res.json({
       _id: user.id, name: user.name, email: user.email, role: user.role,
       isVerified: user.isVerified, verificationDoc: user.verificationDoc || "",
+      imageUrl: user.imageUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
       token: generateToken(user._id)
     });
   } else { res.status(401); throw new Error('Invalid email or password'); }
@@ -95,7 +96,7 @@ const resetPassword = asyncHandler(async (req, res) => {
   } else { res.status(400); throw new Error('Invalid OTP'); }
 });
 
-// 🌟 6. PUBLIC PROFILE (LINKEDIN STYLE) - NEW CODE 🌟
+// 🌟 6. PUBLIC PROFILE (LinkedIn Style) - NEW CODE 🌟
 const getUserProfilePublic = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id).select('-password -otp');
   
@@ -105,12 +106,32 @@ const getUserProfilePublic = asyncHandler(async (req, res) => {
     if (user.role === 'student') {
       events = await Event.find({ user: user._id }).sort({ createdAt: -1 });
     } else {
-      events = await Event.find({ "sponsors.sponsorId": user._id }).sort({ createdAt: -1 });
+      // Find events where this user is a verified sponsor
+      events = await Event.find({ 
+          "sponsors": { 
+              $elemMatch: { sponsorId: user._id, status: 'verified' } 
+          } 
+      }).sort({ createdAt: -1 });
     }
     res.json({ user, events });
   } else {
     res.status(404); throw new Error('User not found');
   }
+});
+
+// 🌟 7. SEARCH ALL USERS (For Chat) - NEW CODE 🌟
+const allUsers = asyncHandler(async (req, res) => {
+  const keyword = req.query.search
+    ? {
+        $or: [
+          { name: { $regex: req.query.search, $options: "i" } },
+          { email: { $regex: req.query.search, $options: "i" } },
+        ],
+      }
+    : {};
+
+  const users = await User.find(keyword).find({ _id: { $ne: req.user._id } });
+  res.send(users);
 });
 
 // Helpers
@@ -125,5 +146,5 @@ const verifyLogin = asyncHandler(async (req, res) => { res.status(400).json({ me
 module.exports = {
   registerUser, loginUser, verifyRegisterOTP, forgotPassword, resetPassword,
   getMe, uploadDoc, getAllUsers, approveUser, unverifyUser, deleteUser, verifyLogin,
-  getUserProfilePublic // 👈 Export kiya
+  getUserProfilePublic, allUsers // 👈 Dono naye functions export kiye hain
 };
