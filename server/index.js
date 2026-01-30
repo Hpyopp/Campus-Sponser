@@ -1,12 +1,12 @@
 const express = require('express');
 const dotenv = require('dotenv');
-const cors = require('cors');
+const cors = require('cors'); // 👈 CORS yahan import hota hai
 const connectDB = require('./config/db');
 const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
 
-// 👇 SECURITY IMPORTS (Naye wale)
+// 👇 SECURITY IMPORTS
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
@@ -16,23 +16,29 @@ connectDB();
 
 const app = express();
 
+// 🔴🔴🔴 FIX 1: YE LINE SABSE ZAROORI HAI (Render Crash Fix) 🔴🔴🔴
+// Iske bina Rate Limit Render ko block kar deta hai
+app.set('trust proxy', 1); 
+
 // 🔒 1. SECURITY HEADERS (Helmet)
-// crossOriginResourcePolicy: false isliye kiya taaki frontend se images load ho sakein
 app.use(helmet({ crossOriginResourcePolicy: false }));
 
-// 🔒 2. RATE LIMITING (Spam rokne ke liye)
-// 15 minute mein max 100 requests allow karega ek IP se
+// 🔒 2. RATE LIMITING
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
   max: 100, 
   message: "Too many requests from this IP, please try again after 15 minutes."
 });
-app.use('/api', limiter); // Sirf API routes pe limit lagayi hai
+app.use('/api', limiter);
 
-// 🔒 3. CORS (Specific Websites ko allow karo)
-// Jab live ho jaye toh localhost hata ke sirf apna domain rakhna
+// 🔒 3. CORS SETUP (Yahan hum websites allow karte hain)
 app.use(cors({
-    origin: ["http://localhost:5173", "https://campussponsor.in", "https://your-render-url.onrender.com"],
+    origin: [
+        "http://localhost:5173",                // Tera Localhost
+        "https://campussponsor.in",             // Tera Domain
+        "https://www.campussponsor.in",         // 👈 NEW: Tera Domain with WWW
+        "https://campus-sponser-api.onrender.com" // 👈 NEW: Tera Backend URL
+    ],
     credentials: true
 }));
 
@@ -60,7 +66,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/messages', messageRoutes); 
 
-// Static Folder (Images ke liye)
+// Static Folder
 app.use('/uploads', express.static(path.join(__dirname, '/uploads')));
 
 // Root Route
@@ -69,16 +75,18 @@ app.get('/', (req, res) => { res.send('CampusSponsor API is running securely... 
 // --- SOCKET.IO SETUP ---
 const server = http.createServer(app);
 const io = new Server(server, {
-  // Socket ke liye bhi CORS set kar diya
   cors: { 
-      origin: ["http://localhost:5173", "https://campussponsor.in"],
+      // Socket ke liye bhi same domains allow karo
+      origin: [
+        "http://localhost:5173", 
+        "https://campussponsor.in",
+        "https://www.campussponsor.in"
+      ],
       methods: ["GET", "POST"] 
   }
 });
 
 io.on('connection', (socket) => {
-  // console.log('Socket Connected:', socket.id);
-
   socket.on('join_room', (userId) => { socket.join(userId); });
 
   socket.on('send_message', async (data) => {
