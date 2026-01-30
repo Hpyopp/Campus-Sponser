@@ -1,6 +1,6 @@
 const Event = require('../models/campusEvent');
 const User = require('../models/User'); 
-const Notification = require('../models/Notification'); // 👈 NEW IMPORT
+const Notification = require('../models/Notification'); 
 const asyncHandler = require('express-async-handler');
 const sendEmail = require('../utils/sendEmail');
 const jwt = require('jsonwebtoken'); 
@@ -46,9 +46,10 @@ const createEvent = asyncHandler(async (req, res) => {
   res.status(201).json(event);
 });
 
-// 2. GET ALL APPROVED EVENTS
+// 2. GET ALL EVENTS (Updated for Search Fix 🔍)
 const getEvents = asyncHandler(async (req, res) => {
-  const events = await Event.find({ isApproved: true }).populate('user', 'name email').sort({ createdAt: -1 });
+  // 👇 FIX: Maine { isApproved: true } hata diya hai taaki Pending events bhi search mein dikhein
+  const events = await Event.find({}).populate('user', 'name email').sort({ createdAt: -1 });
   res.json(events);
 });
 
@@ -122,7 +123,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
     
     await event.save({ validateBeforeSave: false });
 
-    // 👇 NEW: Send Notification to Student
+    // Send Notification to Student
     await Notification.create({
         user: event.user, // Event Creator
         type: 'payment',
@@ -184,7 +185,7 @@ const approveEvent = asyncHandler(async (req, res) => {
   event.status = 'funding';
   await event.save(); 
 
-  // 👇 NEW: Send Notification to Student
+  // Send Notification to Student
   await Notification.create({
       user: event.user, 
       type: 'approval',
