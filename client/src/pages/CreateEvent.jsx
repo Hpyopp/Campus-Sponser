@@ -1,14 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast'; // Toast import kiya hai
 
 const CreateEvent = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const user = JSON.parse(localStorage.getItem('user'));
 
-  // Form States (Category Added)
+  // 👇 STRICT PAGE LOCK LOGIC 🔒
+  useEffect(() => {
+    // 1. Agar user login nahi hai
+    if (!user) {
+        navigate('/login');
+        return;
+    }
+
+    // 2. Agar Sponsor hai -> Home bhejo (Create nahi kar sakta)
+    if (user.role === 'sponsor') {
+        toast.error("Sponsors cannot create events! 🚫");
+        navigate('/'); 
+        return;
+    }
+
+    // 3. Agar Verified nahi hai -> Verification Page bhejo
+    if (!user.isVerified) {
+        toast.error("Account not verified! Please upload College ID. 🎓");
+        navigate('/verify'); 
+    }
+  }, [navigate, user]);
+
+  // Form States
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -17,7 +40,7 @@ const CreateEvent = () => {
     budget: '',
     email: user ? user.email : '', 
     instagramLink: '',
-    category: 'Other' // 👈 Default
+    category: 'Other' 
   });
 
   const [imageFile, setImageFile] = useState(null);
@@ -52,6 +75,11 @@ const CreateEvent = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user) { alert("Please Login First!"); return; }
+    
+    // Double Check
+    if (user.role === 'sponsor') { alert("Sponsors cannot create events"); return; }
+    if (!user.isVerified) { alert("Please Verify Account First"); navigate('/verify'); return; }
+
     if (!imageFile) { alert("📸 Please upload an Event Cover Image."); return; }
     if (!permissionFile) { alert("📄 Please upload the Permission Letter."); return; }
 
@@ -65,15 +93,18 @@ const CreateEvent = () => {
     try {
       const config = { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${user.token}` } };
       await axios.post(`${ENDPOINT}/api/events/create`, data, config);
-      alert('🎉 Event Created Successfully! Waiting for Admin Approval.');
+      toast.success('🎉 Event Created! Waiting for Admin Approval.');
       navigate('/'); 
     } catch (error) {
       const serverMsg = error.response?.data?.message || 'Something went wrong on Server!';
-      alert(`❌ Error: ${serverMsg}`);
+      toast.error(`❌ Error: ${serverMsg}`);
     } finally {
       setLoading(false);
     }
   };
+
+  // Agar user nahi hai ya allowed nahi hai toh null return karo (flicker rokne ke liye)
+  if (!user || user.role === 'sponsor' || !user.isVerified) return null;
 
   const inputStyle = { width: '100%', padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '1rem', backgroundColor: '#f8fafc', transition: '0.3s', color: '#334155' };
 
@@ -106,7 +137,7 @@ const CreateEvent = () => {
                 </div>
             </div>
 
-            {/* 👇 NEW: CATEGORY DROPDOWN */}
+            {/* CATEGORY DROPDOWN */}
             <div>
                 <label style={{ fontWeight: '600', color: '#475569', marginBottom: '5px', display: 'block' }}>🏷️ Event Category</label>
                 <select name="category" value={formData.category} onChange={handleChange} style={inputStyle}>
@@ -128,7 +159,7 @@ const CreateEvent = () => {
             </div>
 
             <div style={{ marginTop: '10px', background: '#f0f9ff', padding: '20px', borderRadius: '15px', border: '2px dashed #bae6fd' }}>
-                <label style={{ fontWeight: '700', color: '#0369a1', marginBottom: '10px', display: 'block' }}>📄 Upload Permission Letter</label>
+                <label style={{ fontWeight: '700', color: '#0369a1', marginBottom: '10px', display: 'block' }}>📄 Upload Permission Letter (Stamped)</label>
                 <input type="file" onChange={handlePermissionChange} style={{ width: '100%' }} required />
             </div>
 

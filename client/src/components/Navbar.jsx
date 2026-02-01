@@ -7,14 +7,14 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [msgCount, setMsgCount] = useState(0); 
-  const [notifCount, setNotifCount] = useState(0); // 👈 New State for Bell
+  const [notifCount, setNotifCount] = useState(0); 
   const user = JSON.parse(localStorage.getItem('user'));
   
   const ENDPOINT = window.location.hostname === 'localhost' 
     ? "http://127.0.0.1:5000" 
     : "https://campus-sponser-api.onrender.com";
 
-  // 1. CHAT BADGE LOGIC (Old one)
+  // 1. CHAT BADGE LOGIC
   useEffect(() => {
       if(!user) return;
       const fetchUnreadMsg = async () => {
@@ -35,7 +35,7 @@ const Navbar = () => {
       }
   }, [user, location.pathname]); 
 
-  // 2. 🔔 NOTIFICATION BELL LOGIC (New)
+  // 2. 🔔 NOTIFICATION BELL LOGIC
   useEffect(() => {
       if(!user) return;
       const fetchNotifs = async () => {
@@ -43,14 +43,13 @@ const Navbar = () => {
               const { data } = await axios.get(`${ENDPOINT}/api/notifications`, {
                   headers: { Authorization: `Bearer ${user.token}` }
               });
-              // Sirf unread count karo
               const unread = data.filter(n => !n.isRead).length;
               setNotifCount(unread);
           } catch(e) { console.error(e); }
       };
 
       fetchNotifs();
-      const interval = setInterval(fetchNotifs, 10000); // Har 10 sec mein check karo
+      const interval = setInterval(fetchNotifs, 10000); 
       return () => clearInterval(interval);
   }, [user]);
 
@@ -66,7 +65,11 @@ const Navbar = () => {
         
         {user ? (
           <>
-            {user.role === 'student' && <Link to="/create-event" style={{ textDecoration: 'none', color: '#64748b' }}>Create Event</Link>}
+            {/* 👇 SIRF STUDENTS KO DIKHEGA CREATE EVENT */}
+            {user.role === 'student' && (
+                <Link to="/create-event" style={{ textDecoration: 'none', color: '#64748b' }}>Create Event ➕</Link>
+            )}
+
             {user.role === 'admin' && <Link to="/admin" style={{ textDecoration: 'none', color: '#dc2626', fontWeight:'bold' }}>Admin</Link>}
             
             <Link to="/analytics" style={{ textDecoration: 'none', color: '#64748b' }}>Dashboard 📊</Link>
@@ -81,7 +84,7 @@ const Navbar = () => {
                 )}
             </Link>
 
-            {/* 🔔 NOTIFICATION BELL (Added Back) */}
+            {/* 🔔 NOTIFICATION BELL */}
             <div 
                 onClick={() => navigate('/notifications')} 
                 style={{ cursor: 'pointer', position: 'relative', display:'flex', alignItems:'center' }}

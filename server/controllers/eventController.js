@@ -5,9 +5,21 @@ const asyncHandler = require('express-async-handler');
 const sendEmail = require('../utils/sendEmail');
 const jwt = require('jsonwebtoken'); 
 
-// 1. CREATE EVENT (With Image, Permission Letter & Category)
+// 1. CREATE EVENT (With Image, Permission Letter & Category) - STRICT SECURITY ADDED 🔒
 const createEvent = asyncHandler(async (req, res) => {
   const { title, description, date, location, budget, email, instagramLink, category } = req.body;
+
+  // 👇 SECURITY CHECK 1: Sponsors cannot create events
+  if (req.user.role === 'sponsor') {
+      res.status(403);
+      throw new Error('Sponsors cannot create events. Access Denied.');
+  }
+
+  // 👇 SECURITY CHECK 2: Unverified Students cannot create events
+  if (!req.user.isVerified) {
+      res.status(403);
+      throw new Error('Account not verified! Please upload college ID first.');
+  }
 
   // Validation: Check fields
   if (!title || !description || !date || !location || !budget) {
