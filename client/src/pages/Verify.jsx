@@ -12,21 +12,16 @@ const Verify = () => {
 
   useEffect(() => {
     const checkServerStatus = async () => {
-      // 1. Get user info from local storage
       const storedUser = JSON.parse(localStorage.getItem('user'));
-      // If user is not logged in, redirect to login page
       if (!storedUser || !storedUser.token) {
         navigate('/login');
         return;
       }
       try {
         const config = { headers: { Authorization: `Bearer ${storedUser.token}` } };
-        // 2. Fetch latest user data from server
         const res = await axios.get('https://campus-sponser-api.onrender.com/api/users/me', config);
         setUserData(res.data);
-        // Update local storage with fresh data
         localStorage.setItem('user', JSON.stringify({ ...storedUser, ...res.data }));
-        // If already verified, redirect to home
         if (res.data.isVerified) { navigate('/'); }
       } catch (error) { console.error("Sync Error:", error); } 
       finally { setChecking(false); }
@@ -39,14 +34,14 @@ const Verify = () => {
     if (!file) return toast.error("Select file!");
     const storedUser = JSON.parse(localStorage.getItem('user'));
     
-    // Create form data for file upload
     const formData = new FormData();
-    formData.append('document', file); // Use 'document' key if backend expects it
+    // 👇 FIX HERE: Backend 'verificationDoc' dhoond raha hai, 'document' nahi
+    formData.append('verificationDoc', file); 
     
     setUploading(true);
     try {
       const config = { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${storedUser.token}` } };
-      // 3. Upload document to backend
+      
       const res = await axios.post('https://campus-sponser-api.onrender.com/api/users/upload-doc', formData, config);
       
       const updatedData = { ...userData, verificationDoc: res.data.docUrl, isVerified: false };
@@ -55,19 +50,17 @@ const Verify = () => {
       toast.success("✅ Uploaded! Waiting for Admin.");
     } catch (error) { 
         console.error(error);
-        toast.error("Upload Failed"); 
+        // Error message dikhane ke liye update kiya hai
+        const errorMsg = error.response?.data?.message || "Upload Failed";
+        toast.error(errorMsg); 
     } 
     finally { setUploading(false); }
   };
 
   if (checking) return <div style={{textAlign:'center', marginTop:'100px'}}>Checking Status...</div>;
 
-  // Logic to lock the form if a document is already uploaded
   const isLocked = userData && userData.verificationDoc && userData.verificationDoc.length > 5;
-
-  // 👇 DYNAMIC TEXT LOGIC (Sponsor vs Student)
   const isSponsor = userData?.role === 'sponsor';
-  
   const title = isSponsor ? "Business Verification (KYC)" : "Student Verification";
   
   const label = isSponsor 
@@ -83,7 +76,6 @@ const Verify = () => {
       
       <div style={{ background: 'white', padding: '40px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', maxWidth: '500px', width: '90%', textAlign: 'center' }}>
         
-        {/* ICON */}
         <div style={{ fontSize: '4rem', marginBottom: '10px' }}>
             {isSponsor ? '🏢' : '🛡️'}
         </div>
@@ -104,7 +96,6 @@ const Verify = () => {
                     {instruction}
                 </p>
                 
-                {/* UPLOAD BOX */}
                 <div style={{ border: '2px dashed #cbd5e1', padding: '30px', borderRadius: '15px', background: '#f8fafc', position:'relative', cursor: 'pointer' }}>
                     <input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files[0])} required style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', opacity:0, cursor:'pointer' }} />
                     <div style={{fontSize:'2rem', color:'#94a3b8', marginBottom:'10px'}}>📂</div>
