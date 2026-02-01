@@ -10,9 +10,11 @@ const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
-// 1. REGISTER
+// 1. REGISTER (Updated with GST & LinkedIn)
 const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, password, phone, role, companyName, collegeName } = req.body;
+  // 👇 Ab hum gstNumber aur linkedinLink bhi accept kar rahe hain
+  const { name, email, password, phone, role, companyName, collegeName, gstNumber, linkedinLink } = req.body;
+  
   if (!name || !email || !password || !phone) { res.status(400); throw new Error('Please fill all fields'); }
   
   const cleanEmail = email.toLowerCase().trim();
@@ -31,12 +33,23 @@ const registerUser = asyncHandler(async (req, res) => {
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
+  // 👇 Create User with new fields
   await User.create({
-    name, email: cleanEmail, password: hashedPassword, phone,
-    role: role || 'student', companyName, collegeName,
-    otp, otpExpires: Date.now() + 10 * 60 * 1000,
-    isVerified: false, verificationDoc: ""
+    name, 
+    email: cleanEmail, 
+    password: hashedPassword, 
+    phone,
+    role: role || 'student', 
+    companyName, 
+    collegeName,
+    gstNumber,      // ✅ Save GST
+    linkedinLink,   // ✅ Save LinkedIn
+    otp, 
+    otpExpires: Date.now() + 10 * 60 * 1000,
+    isVerified: false, 
+    verificationDoc: ""
   });
+  
   res.status(201).json({ success: true, message: `OTP sent to ${cleanEmail}` });
 });
 
@@ -48,6 +61,7 @@ const loginUser = asyncHandler(async (req, res) => {
     res.json({
       _id: user.id, name: user.name, email: user.email, role: user.role,
       isVerified: user.isVerified, verificationDoc: user.verificationDoc || "",
+      gstNumber: user.gstNumber, // Send GST info back if needed
       imageUrl: user.imageUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
       token: generateToken(user._id)
     });
@@ -96,7 +110,7 @@ const resetPassword = asyncHandler(async (req, res) => {
   } else { res.status(400); throw new Error('Invalid OTP'); }
 });
 
-// 🌟 6. PUBLIC PROFILE (LinkedIn Style) - NEW CODE 🌟
+// 🌟 6. PUBLIC PROFILE (LinkedIn Style)
 const getUserProfilePublic = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id).select('-password -otp');
   
@@ -119,7 +133,7 @@ const getUserProfilePublic = asyncHandler(async (req, res) => {
   }
 });
 
-// 🌟 7. SEARCH ALL USERS (For Chat) - NEW CODE 🌟
+// 🌟 7. SEARCH ALL USERS (For Chat)
 const allUsers = asyncHandler(async (req, res) => {
   const keyword = req.query.search
     ? {
@@ -135,7 +149,7 @@ const allUsers = asyncHandler(async (req, res) => {
 });
 
 // Helpers
-const getMe = asyncHandler(async (req, res) => { const user = await User.findById(req.user.id); if (user) res.json({_id:user._id,name:user.name,email:user.email,role:user.role,isVerified:user.isVerified,verificationDoc:user.verificationDoc||"",companyName:user.companyName}); else {res.status(404);throw new Error('User not found');}});
+const getMe = asyncHandler(async (req, res) => { const user = await User.findById(req.user.id); if (user) res.json({_id:user._id,name:user.name,email:user.email,role:user.role,isVerified:user.isVerified,verificationDoc:user.verificationDoc||"",companyName:user.companyName, gstNumber: user.gstNumber}); else {res.status(404);throw new Error('User not found');}});
 const uploadDoc = asyncHandler(async (req, res) => { if (!req.file) {res.status(400);throw new Error('No file');} const fileUrl = req.file.path||req.file.url; const user = await User.findById(req.user.id); if(user){user.verificationDoc=fileUrl;user.isVerified=false;await user.save();res.json({message:'Uploaded',docUrl:fileUrl});}else{res.status(404);throw new Error('User not found');}});
 const getAllUsers = asyncHandler(async (req, res) => { const users = await User.find().sort({createdAt:-1}); res.json(users); });
 const approveUser = asyncHandler(async (req, res) => { const user = await User.findById(req.params.id); if (user) { user.isVerified = true; await user.save(); res.json({message:'Verified'}); } else { res.status(404); throw new Error('User not found'); } });
@@ -146,5 +160,5 @@ const verifyLogin = asyncHandler(async (req, res) => { res.status(400).json({ me
 module.exports = {
   registerUser, loginUser, verifyRegisterOTP, forgotPassword, resetPassword,
   getMe, uploadDoc, getAllUsers, approveUser, unverifyUser, deleteUser, verifyLogin,
-  getUserProfilePublic, allUsers // 👈 Dono naye functions export kiye hain
+  getUserProfilePublic, allUsers
 };

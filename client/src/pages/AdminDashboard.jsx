@@ -3,7 +3,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { generateMOU } from '../utils/generateMOU'; // 👈 IMPORT KIYA NAYA FUNCTION
+import { generateMOU } from '../utils/generateMOU'; 
 
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
@@ -72,13 +72,13 @@ const AdminDashboard = () => {
     }
   };
 
-  // 👇 NEW: Generate Professional MOU
+  // Generate Professional MOU
   const viewAgreement = (s, fullEvent) => {
       if (!fullEvent) {
           toast.error("Event details missing!");
           return;
       }
-      generateMOU(s, fullEvent); // Calls the utility function
+      generateMOU(s, fullEvent); 
       toast.success("MOU Generated Successfully! 📄");
   };
 
@@ -110,7 +110,6 @@ const AdminDashboard = () => {
     { name: 'Sponsors', count: users.filter(u => u.role === 'sponsor').length, fill: '#f59e0b' }
   ];
 
-  // 👇 UPDATED: Pass fullEvent object for history
   const allPayments = [];
   events.forEach(e => {
       e.sponsors?.forEach(s => {
@@ -233,7 +232,6 @@ const AdminDashboard = () => {
                     {e.sponsors.map((s, idx) => (
                       <div key={idx} style={{display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #1e293b'}}>
                         <span style={{fontSize:'0.9rem'}}>{s.name} ({s.companyName}) - <b style={{color:'#4ade80'}}>₹{s.amount}</b></span>
-                        {/* 👇 UPDATED: Pass full 'e' object here */}
                         <button onClick={()=>viewAgreement(s, e)} style={{background:'none', border:'1px solid #38bdf8', color:'#38bdf8', borderRadius:'4px', padding:'2px 8px', cursor:'pointer', fontSize:'0.7rem'}}>VIEW AGREEMENT 📄</button>
                       </div>
                     ))}
@@ -255,7 +253,6 @@ const AdminDashboard = () => {
                             <td style={{padding:'15px'}}>{p.eventTitle}</td>
                             <td style={{padding:'15px', color:'#4ade80', fontWeight:'bold'}}>₹{p.amount}</td>
                             <td style={{padding:'15px', fontSize:'0.75rem', fontFamily:'monospace'}}>{p.paymentId || 'MANUAL_PAY'}</td>
-                            {/* 👇 UPDATED: Pass full 'p.fullEvent' object here */}
                             <td style={{padding:'15px'}}><button onClick={()=>viewAgreement(p, p.fullEvent)} style={{background:'none', border:'none', color:'#38bdf8', cursor:'pointer'}}>📄 Download MOU</button></td>
                         </tr>
                     ))}
@@ -263,15 +260,38 @@ const AdminDashboard = () => {
             </table>
         )}
 
-        {/* USERS TABLES */}
+        {/* USERS TABLES (UPDATED WITH GST COLUMN) */}
         {(view === 'pending_users' || view === 'all_users') && (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead style={{textAlign:'left', color:'#94a3b8', fontSize:'0.8rem', background:'#334155'}}><tr><th style={{padding:'15px'}}>USER INFO</th><th style={{padding:'15px'}}>ROLE</th><th style={{padding:'15px'}}>KYC</th><th style={{padding:'15px'}}>ACTIONS</th></tr></thead>
+                <thead style={{textAlign:'left', color:'#94a3b8', fontSize:'0.8rem', background:'#334155'}}>
+                    <tr>
+                        <th style={{padding:'15px'}}>USER INFO</th>
+                        <th style={{padding:'15px'}}>ROLE</th>
+                        {/* 👇 NEW COLUMN */}
+                        <th style={{padding:'15px'}}>COMPANY / GST</th>
+                        <th style={{padding:'15px'}}>KYC</th>
+                        <th style={{padding:'15px'}}>ACTIONS</th>
+                    </tr>
+                </thead>
                 <tbody>
                     {(view==='pending_users' ? users.filter(u=>!u.isVerified) : users).map(u => (
                         <tr key={u._id} style={{borderBottom:'1px solid #334155'}}>
                             <td style={{padding:'15px'}}>{u.name}<br/><small style={{color:'#64748b'}}>{u.email}</small></td>
                             <td style={{padding:'15px'}}><span style={{color: u.role==='student'?'#3b82f6':'#f59e0b'}}>{u.role.toUpperCase()}</span></td>
+                            
+                            {/* 👇 NEW DATA CELL */}
+                            <td style={{padding:'15px'}}>
+                                {u.role === 'sponsor' ? (
+                                    <div>
+                                        <div style={{fontWeight:'bold', color: 'white'}}>🏢 {u.companyName || 'No Name'}</div>
+                                        <div style={{fontSize:'0.75rem', color:'#fca5a5'}}>GST: {u.gstNumber || 'Pending'}</div>
+                                        {u.linkedinLink && <a href={u.linkedinLink} target="_blank" rel="noreferrer" style={{color:'#38bdf8', fontSize:'0.75rem'}}>View LinkedIn 🔗</a>}
+                                    </div>
+                                ) : (
+                                    <span style={{color:'#64748b'}}>-</span>
+                                )}
+                            </td>
+
                             <td style={{padding:'15px'}}>{u.verificationDoc ? <a href={u.verificationDoc} target="_blank" style={{color:'#38bdf8'}}>View ID</a> : "No Doc"}</td>
                             <td style={{padding:'15px', display:'flex', gap:'10px'}}>
                                 {!u.isVerified && <button onClick={()=>handleAction(`https://campus-sponser-api.onrender.com/api/users/${u._id}/approve`, 'put', "Verified!")} style={actionBtn('#16a34a')}>APPROVE</button>}
