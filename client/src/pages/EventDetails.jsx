@@ -40,7 +40,7 @@ const EventDetails = () => {
       const { data: order } = await axios.post(`${ENDPOINT}/api/events/${id}/sponsor`, { amount }, config);
 
       const options = {
-        key: "YOUR_RAZORPAY_KEY_ID_HERE", // ⚠️ Put your Key here
+        key: "rzp_live_S0JHqtE8YaMmBs", // ⚠️ Put your Key here
         amount: order.amount,
         currency: "INR",
         name: "Campus Sponsor",
